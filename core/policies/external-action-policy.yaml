@@ -1,0 +1,14 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: external-action-policy, name: External Action Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: capability-required
+    effect: {require: [declared-capability-before-external-action]}
+  - id: write-permission-explicit
+    when: {externalAction: write}
+    effect: {require: [authorized-autonomy, provider-write-capability]}
+  - id: merge-protected
+    when: {externalAction: merge-protected-branch}
+    effect: {requireApproval: [before-merge]}

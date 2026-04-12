@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/factory.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "core"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Factory"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "core": {
+      "type": "object",
+      "required": [
+        "schemas",
+        "policies",
+        "standards",
+        "workflows",
+        "skills"
+      ],
+      "properties": {
+        "schemas": {
+          "type": "string"
+        },
+        "policies": {
+          "type": "string"
+        },
+        "standards": {
+          "type": "string"
+        },
+        "workflows": {
+          "type": "string"
+        },
+        "skills": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "type": "string"
+        },
+        "integrations": {
+          "type": "string"
+        },
+        "adapters": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

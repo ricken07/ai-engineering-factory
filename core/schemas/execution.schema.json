@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/execution.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "project",
+    "task",
+    "workflow",
+    "status"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Execution"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "project": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "workflow": {
+      "type": "object",
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/semanticVersion"
+        }
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "adapter": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "status": {
+      "$ref": "common.schema.json#/$defs/executionStatus"
+    },
+    "policyDecision": {
+      "type": "string"
+    },
+    "risk": {
+      "$ref": "common.schema.json#/$defs/riskLevel"
+    },
+    "autonomy": {
+      "type": "object",
+      "properties": {
+        "requested": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        },
+        "authorized": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        }
+      },
+      "additionalProperties": false
+    },
+    "repositories": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "common.schema.json#/$defs/executionStatus"
+          },
+          "artifacts": {
+            "$ref": "common.schema.json#/$defs/stringArray"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "traceability": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

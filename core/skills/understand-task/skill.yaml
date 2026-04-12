@@ -1,0 +1,23 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: understand-task
+  name: Understand Task
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - task
+  outputs:
+  - task-understanding
+  - open-questions
+  requiresCapabilities: []
+standardRefs:
+- task-understanding
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Do not invent missing requirements.
+- Separate facts, assumptions and questions.

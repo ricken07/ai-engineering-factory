@@ -1,0 +1,20 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: traceability-policy, name: Traceability Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: execution-identity
+    effect: {require: [execution-id, task-id, project-id, workflow-id, workflow-version]}
+  - id: changed-scope
+    when: {changePerformed: true}
+    effect: {require: [impacted-repositories, changed-files, change-summary]}
+  - id: validation-evidence
+    when: {validationPerformed: true}
+    effect: {require: [validation-command, validation-result]}
+  - id: decision-evidence
+    when: {decisionMade: true}
+    effect: {require: [decision, rationale]}
+  - id: gate-evidence
+    when: {humanApprovalRequired: true}
+    effect: {require: [gate, approval-status]}

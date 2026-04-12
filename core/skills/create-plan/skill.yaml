@@ -1,0 +1,23 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: create-plan
+  name: Create Plan
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - task
+  - impact-analysis
+  - policy-decision
+  outputs:
+  - implementation-plan
+  requiresCapabilities: []
+standardRefs:
+- planning
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Plan validations and cross-repository sequencing.

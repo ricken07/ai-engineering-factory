@@ -1,0 +1,33 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: update-documentation
+  name: Update Documentation
+  version: 0.1.0
+inputs:
+- task
+- project
+phases:
+- id: understand
+  skill: understand-task
+- id: resolve-context
+  skill: resolve-context
+- id: analyze-impact
+  skill: analyze-impact
+- id: implementation
+  skill: implement-change
+- id: review
+  skill: review-change
+- id: traceability
+  skill: record-traceability
+outputs:
+- changes
+- review-report
+- traceability
+policyRefs:
+- risk-policy
+- autonomy-policy
+- human-approval-policy
+- change-policy
+- context-policy
+- traceability-policy

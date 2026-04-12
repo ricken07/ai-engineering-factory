@@ -1,0 +1,19 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Integration
+metadata:
+  id: jira
+  name: Jira
+  version: 0.1.0
+provider: jira
+capabilities:
+- id: task-provider
+  operations:
+  - get-task
+  - search-task
+  - comment-task
+  - update-task
+  - link-change
+  mcpToolHints:
+  - jira.*
+policyRefs:
+- external-action-policy

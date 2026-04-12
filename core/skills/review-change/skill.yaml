@@ -1,0 +1,23 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: review-change
+  name: Review Change
+  version: 0.1.0
+mode: validation
+contract:
+  inputs:
+  - task
+  - changes
+  - resolved-context
+  outputs:
+  - review-report
+  requiresCapabilities: []
+standardRefs:
+- review
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Review independently of implementation intent where possible.

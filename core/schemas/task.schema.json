@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/task.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "objective"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Task"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "issue",
+            "request",
+            "local",
+            "automation"
+          ]
+        },
+        "provider": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "objective": {
+      "type": "object",
+      "required": [
+        "summary"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "repositories": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "modules": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "files": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "classification": {
+      "type": "object",
+      "properties": {
+        "risk": {
+          "$ref": "common.schema.json#/$defs/riskLevel"
+        },
+        "domains": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "changeTypes": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "autonomy": {
+      "type": "object",
+      "properties": {
+        "requested": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        },
+        "authorized": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "string"
+    },
+    "policyRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,30 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: AgentAdapter
+metadata:
+  id: codex
+  name: Codex
+  version: 0.1.0
+agent: codex
+bootstrap: adapters/codex/bootstrap.md
+mappings:
+  workflows:
+    analyze-task: core/workflows/analyze-task/workflow.yaml
+    implement-task: core/workflows/implement-task/workflow.yaml
+    review-change: core/workflows/review-change/workflow.yaml
+    fix-bug: core/workflows/fix-bug/workflow.yaml
+    refactor-code: core/workflows/refactor-code/workflow.yaml
+    add-tests: core/workflows/add-tests/workflow.yaml
+    update-documentation: core/workflows/update-documentation/workflow.yaml
+  skills:
+    understand-task: core/skills/understand-task/skill.yaml
+    resolve-context: core/skills/resolve-context/skill.yaml
+    analyze-impact: core/skills/analyze-impact/skill.yaml
+    assess-risk: core/skills/assess-risk/skill.yaml
+    create-plan: core/skills/create-plan/skill.yaml
+    implement-change: core/skills/implement-change/skill.yaml
+    validate-change: core/skills/validate-change/skill.yaml
+    review-change: core/skills/review-change/skill.yaml
+    summarize-change: core/skills/summarize-change/skill.yaml
+    record-traceability: core/skills/record-traceability/skill.yaml
+    submit-change: core/skills/submit-change/skill.yaml
+    handoff-task: core/skills/handoff-task/skill.yaml

@@ -1,0 +1,20 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: memory-policy, name: Memory Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: session-memory
+    when: {memoryTier: session}
+    effect: {persistence: ephemeral, approvalRequired: false}
+  - id: task-memory
+    when: {memoryTier: task}
+    effect: {persistence: task-lifetime, approvalRequired: false}
+  - id: project-memory
+    when: {memoryTier: project}
+    effect: {persistence: durable, approvalRequired: true}
+  - id: decision-record
+    when: {memoryTier: decision}
+    effect: {persistence: durable, storage: decision-record, approvalRequired: true}
+  - id: no-secrets
+    effect: {forbidPersistence: [credentials, tokens, private-keys, secrets]}

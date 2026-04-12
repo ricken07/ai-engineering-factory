@@ -1,0 +1,18 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Profile
+metadata:
+  id: react
+  name: React
+  version: 0.1.0
+extends:
+- generic
+discovery:
+  files:
+  - package.json
+commands: {}
+practices:
+- react-project-conventions
+policyRefs: []
+standardRefs:
+- validation
+- implementation

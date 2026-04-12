@@ -1,0 +1,18 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: PolicyDecision
+metadata:
+  id: policy-EGW-142-001
+task: EGW-142
+risk:
+  effective: high
+  reasons: [transaction-domain, cross-repository-impact]
+autonomy:
+  requested: L3
+  authorized: L2
+  reasons: [high-risk-max-L2]
+permissions:
+  allowed: [read, analyze, plan, modify-local-files, run-validation, review]
+  denied: [commit, push, submit-change, merge]
+gates:
+  required: [before-commit, before-submission, before-merge]
+matchedRules: [high-business-critical, high-cross-repository, high-risk, high-gates]

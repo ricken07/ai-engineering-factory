@@ -1,0 +1,44 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: fix-bug
+  name: Fix Bug
+  version: 0.1.0
+inputs:
+- task
+- project
+phases:
+- id: understand
+  skill: understand-task
+- id: resolve-context
+  skill: resolve-context
+- id: analyze-impact
+  skill: analyze-impact
+- id: assess-risk
+  skill: assess-risk
+- id: planning
+  skill: create-plan
+- id: implementation
+  skill: implement-change
+- id: validation
+  skill: validate-change
+- id: review
+  skill: review-change
+- id: traceability
+  skill: record-traceability
+- id: submission
+  skill: submit-change
+outputs:
+- implementation-plan
+- changes
+- validation-report
+- review-report
+- traceability
+- change-request
+policyRefs:
+- risk-policy
+- autonomy-policy
+- human-approval-policy
+- change-policy
+- context-policy
+- traceability-policy

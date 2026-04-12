@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: record-traceability
+  name: Record Traceability
+  version: 0.1.0
+mode: external-action
+contract:
+  inputs:
+  - execution
+  - change-summary
+  - validation-report
+  outputs:
+  - traceability
+  requiresCapabilities:
+  - task-provider
+standardRefs:
+- traceability
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Record only evidence-backed execution facts.

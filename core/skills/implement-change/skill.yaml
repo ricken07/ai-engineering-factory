@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: implement-change
+  name: Implement Change
+  version: 0.1.0
+mode: change
+contract:
+  inputs:
+  - task
+  - implementation-plan
+  - resolved-context
+  - policy-decision
+  outputs:
+  - changes
+  requiresCapabilities: []
+standardRefs:
+- implementation
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Stay within authorized scope and actions.

@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: review
+  name: Review
+  version: 0.1.0
+appliesTo:
+- review
+requirements:
+- id: RV-01
+  statement: Review correctness, regressions, architecture consistency, security and
+    tests.
+  evidence:
+  - review-report
+- id: RV-02
+  statement: Prioritize findings by severity and provide actionable evidence.
+  evidence:
+  - review-report
+- id: RV-03
+  statement: Separate blocking findings from recommendations.
+  evidence:
+  - review-report
+outputs:
+- review-report

@@ -1,0 +1,16 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Profile
+metadata:
+  id: generic
+  name: Generic
+  version: 0.1.0
+extends: []
+discovery:
+  files: []
+commands: {}
+practices:
+- follow-project-conventions
+policyRefs: []
+standardRefs:
+- validation
+- implementation

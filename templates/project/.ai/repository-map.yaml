@@ -1,0 +1,7 @@
+repositories:
+  main:
+    responsibilities: []
+    exposes: []
+    consumes: []
+relationships: []
+criticalDomains: []

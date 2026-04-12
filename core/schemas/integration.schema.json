@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/integration.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "provider",
+    "capabilities"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Integration"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "operations"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "operations": {
+            "$ref": "common.schema.json#/$defs/stringArray"
+          },
+          "mcpToolHints": {
+            "$ref": "common.schema.json#/$defs/stringArray"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "policyRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    }
+  },
+  "additionalProperties": false
+}

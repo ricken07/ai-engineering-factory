@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/profile.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Profile"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "extends": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
+    "discovery": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "practices": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
+    "policyRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
+    "standardRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    }
+  },
+  "additionalProperties": false
+}

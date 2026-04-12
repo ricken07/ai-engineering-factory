@@ -1,0 +1,19 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: context-policy, name: Context Loading Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: bootstrap-context
+    effect: {requireContext: [project, repository-map, active-task, workflow, factory-policies]}
+  - id: progressive-loading
+    effect: {contextStrategy: progressive}
+  - id: impact-before-change
+    before: [implementation]
+    effect: {require: [repository-impact-analysis]}
+  - id: architecture-context
+    when: {changeTypes: {containsAny: [architecture, interface-contract]}}
+    effect: {requireContext: [architecture, decisions]}
+  - id: domain-context
+    when: {domains: {notEmpty: true}}
+    effect: {requireContext: [domain]}

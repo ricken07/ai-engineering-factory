@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/policy-decision.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "task",
+    "risk",
+    "autonomy",
+    "permissions"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "PolicyDecision"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "task": {
+      "type": "string"
+    },
+    "risk": {
+      "type": "object",
+      "required": [
+        "effective"
+      ],
+      "properties": {
+        "effective": {
+          "$ref": "common.schema.json#/$defs/riskLevel"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "autonomy": {
+      "type": "object",
+      "required": [
+        "authorized"
+      ],
+      "properties": {
+        "requested": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        },
+        "authorized": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "object",
+      "required": [
+        "allowed",
+        "denied"
+      ],
+      "properties": {
+        "allowed": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "denied": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gates": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "matchedRules": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    }
+  },
+  "additionalProperties": false
+}

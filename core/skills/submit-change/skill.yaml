@@ -1,0 +1,25 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: submit-change
+  name: Submit Change
+  version: 0.1.0
+mode: external-action
+contract:
+  inputs:
+  - changes
+  - traceability
+  - policy-decision
+  outputs:
+  - change-request
+  requiresCapabilities:
+  - source-control
+standardRefs:
+- definition-of-done
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Never bypass required gates.
+- Use provider integration capability mapping.

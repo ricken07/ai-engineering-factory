@@ -1,0 +1,16 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Handoff
+metadata:
+  id: handoff-EGW-142-001
+task: EGW-142
+execution: exec-EGW-142-001
+status: waiting-approval
+summary: Impact analysis and implementation plan completed for egw-api and egw-app.
+decisions:
+  - Normalize provider failure reasons before exposing them to the client application.
+constraints:
+  - Do not expose raw provider error payloads.
+artifacts: [impact-analysis, implementation-plan]
+openQuestions: []
+nextActions:
+  - Obtain required approval before implementation if the effective policy requires it.

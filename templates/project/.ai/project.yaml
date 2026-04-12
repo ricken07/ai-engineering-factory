@@ -1,0 +1,31 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Project
+metadata:
+  id: replace-me
+  name: Replace Me
+factory:
+  version: 0.1.0
+  homeEnv: GAD_AI_FACTORY_HOME
+workspace:
+  strategy: monorepo
+  root: .
+repositories:
+  - id: main
+    path: .
+    role: application
+    profiles: [generic]
+    responsibilities: []
+    dependencies: []
+    criticalDomains: []
+context:
+  project: .ai/context/project.md
+  architecture: .ai/context/architecture.md
+  domain: .ai/context/domain.md
+  conventions: .ai/context/conventions.md
+  decisions: .ai/decisions
+  memory: .ai/memory/shared.md
+integrations: {}
+autonomy:
+  default: L1
+  maximum: L2
+policyRefs: []

@@ -1,0 +1,31 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: review-change
+  name: Review Change
+  version: 0.1.0
+inputs:
+- task
+- project
+phases:
+- id: understand
+  skill: understand-task
+- id: resolve-context
+  skill: resolve-context
+- id: analyze-impact
+  skill: analyze-impact
+- id: review
+  skill: review-change
+- id: summary
+  skill: summarize-change
+outputs:
+- impact-analysis
+- review-report
+- change-summary
+policyRefs:
+- risk-policy
+- autonomy-policy
+- human-approval-policy
+- change-policy
+- context-policy
+- traceability-policy

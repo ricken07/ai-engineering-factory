@@ -1,0 +1,20 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Profile
+metadata:
+  id: flutter
+  name: Flutter
+  version: 0.1.0
+extends:
+- generic
+discovery:
+  files:
+  - pubspec.yaml
+commands:
+  test: flutter test
+  analyze: flutter analyze
+practices:
+- flutter-project-conventions
+policyRefs: []
+standardRefs:
+- validation
+- implementation

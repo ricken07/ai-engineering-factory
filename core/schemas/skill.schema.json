@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/skill.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "mode",
+    "contract"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Skill"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "read-only",
+        "change",
+        "validation",
+        "external-action"
+      ]
+    },
+    "contract": {
+      "type": "object",
+      "required": [
+        "inputs",
+        "outputs"
+      ],
+      "properties": {
+        "inputs": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "outputs": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "requiresCapabilities": {
+          "$ref": "common.schema.json#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "standardRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
+    "policyRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

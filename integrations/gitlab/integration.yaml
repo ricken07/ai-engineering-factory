@@ -1,0 +1,38 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Integration
+metadata:
+  id: gitlab
+  name: Gitlab
+  version: 0.1.0
+provider: gitlab
+capabilities:
+- id: source-control
+  operations:
+  - inspect-status
+  - create-branch
+  - commit
+  - push
+  - get-diff
+  - submit-change
+  - get-change
+  - comment-change
+  - merge
+  mcpToolHints:
+  - gitlab.*
+- id: task-provider
+  operations:
+  - get-task
+  - search-task
+  - comment-task
+  - update-task
+  - link-change
+  mcpToolHints:
+  - gitlab.*
+- id: continuous-integration
+  operations:
+  - get-pipeline
+  - get-validation-result
+  mcpToolHints:
+  - gitlab.*
+policyRefs:
+- external-action-policy

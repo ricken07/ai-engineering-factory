@@ -1,0 +1,21 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Task
+metadata:
+  id: EGW-142
+objective:
+  summary: Display a failure reason for a failed transaction
+  acceptanceCriteria:
+    - A merchant can see a normalized failure reason for a failed transaction.
+source:
+  type: issue
+  provider: task-provider
+  reference: EGW-142
+scope:
+  repositories: []
+classification:
+  risk: unknown
+  domains: [transaction]
+  changeTypes: [source-code, interface-contract]
+autonomy:
+  requested: L3
+workflow: implement-task

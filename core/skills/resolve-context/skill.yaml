@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: resolve-context
+  name: Resolve Context
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - project
+  - task
+  outputs:
+  - resolved-context
+  requiresCapabilities:
+  - knowledge-base
+standardRefs:
+- task-understanding
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Load mandatory context first.
+- Use progressive context loading.

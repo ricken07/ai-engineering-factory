@@ -1,0 +1,17 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Integration
+metadata:
+  id: confluence
+  name: Confluence
+  version: 0.1.0
+provider: confluence
+capabilities:
+- id: knowledge-base
+  operations:
+  - search-knowledge
+  - get-document
+  - update-document
+  mcpToolHints:
+  - confluence.*
+policyRefs:
+- external-action-policy

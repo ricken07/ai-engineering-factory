@@ -1,0 +1,33 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: definition-of-done
+  name: Definition Of Done
+  version: 0.1.0
+appliesTo:
+- definition-of-done
+requirements:
+- id: DD-01
+  statement: Acceptance criteria are addressed or explicitly marked unresolved.
+  evidence:
+  - task-status
+- id: DD-02
+  statement: Required validations completed successfully or failures are explicitly
+    surfaced.
+  evidence:
+  - validation-report
+- id: DD-03
+  statement: Required reviews and gates are satisfied.
+  evidence:
+  - review-report
+  - gate-status
+- id: DD-04
+  statement: Traceability is complete for performed changes.
+  evidence:
+  - traceability
+outputs:
+- gate-status
+- review-report
+- task-status
+- traceability
+- validation-report

@@ -1,0 +1,38 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Integration
+metadata:
+  id: github
+  name: Github
+  version: 0.1.0
+provider: github
+capabilities:
+- id: source-control
+  operations:
+  - inspect-status
+  - create-branch
+  - commit
+  - push
+  - get-diff
+  - submit-change
+  - get-change
+  - comment-change
+  - merge
+  mcpToolHints:
+  - github.*
+- id: task-provider
+  operations:
+  - get-task
+  - search-task
+  - comment-task
+  - update-task
+  - link-change
+  mcpToolHints:
+  - github.*
+- id: continuous-integration
+  operations:
+  - get-pipeline
+  - get-validation-result
+  mcpToolHints:
+  - github.*
+policyRefs:
+- external-action-policy

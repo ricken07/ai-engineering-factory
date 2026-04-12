@@ -1,0 +1,32 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: analyze-task
+  name: Analyze Task
+  version: 0.1.0
+inputs:
+- task
+- project
+phases:
+- id: understand
+  skill: understand-task
+- id: resolve-context
+  skill: resolve-context
+- id: analyze-impact
+  skill: analyze-impact
+- id: assess-risk
+  skill: assess-risk
+- id: planning
+  skill: create-plan
+outputs:
+- task-understanding
+- impact-analysis
+- risk-assessment
+- implementation-plan
+policyRefs:
+- risk-policy
+- autonomy-policy
+- human-approval-policy
+- change-policy
+- context-policy
+- traceability-policy

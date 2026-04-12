@@ -1,0 +1,20 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Profile
+metadata:
+  id: java
+  name: Java
+  version: 0.1.0
+extends:
+- generic
+discovery:
+  files:
+  - pom.xml
+  - build.gradle
+  - build.gradle.kts
+commands: {}
+practices:
+- java-language-conventions
+policyRefs: []
+standardRefs:
+- validation
+- implementation

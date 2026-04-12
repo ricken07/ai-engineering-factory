@@ -1,0 +1,21 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: documentation
+  name: Documentation
+  version: 0.1.0
+appliesTo:
+- documentation
+requirements:
+- id: DO-01
+  statement: Update durable documentation when behavior, interfaces or operational
+    knowledge changes materially.
+  evidence:
+  - documentation-change
+- id: DO-02
+  statement: Do not promote transient execution notes as durable project truth.
+  evidence:
+  - memory-decision
+outputs:
+- documentation-change
+- memory-decision

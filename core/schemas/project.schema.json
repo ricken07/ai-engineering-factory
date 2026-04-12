@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/project.schema.json",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "factory",
+    "workspace",
+    "repositories"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "factory.gaddigital.io/v1alpha1"
+    },
+    "kind": {
+      "const": "Project"
+    },
+    "metadata": {
+      "$ref": "common.schema.json#/$defs/metadata"
+    },
+    "factory": {
+      "type": "object",
+      "required": [
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "common.schema.json#/$defs/semanticVersion"
+        },
+        "homeEnv": {
+          "type": "string",
+          "default": "GAD_AI_FACTORY_HOME"
+        }
+      },
+      "additionalProperties": false
+    },
+    "workspace": {
+      "type": "object",
+      "required": [
+        "strategy"
+      ],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "monorepo",
+            "polyrepo"
+          ]
+        },
+        "root": {
+          "type": "string",
+          "default": "."
+        }
+      },
+      "additionalProperties": false
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "$ref": "repository.schema.json"
+      },
+      "minItems": 1
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "architecture": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "conventions": {
+          "type": "string"
+        },
+        "decisions": {
+          "type": "string"
+        },
+        "memory": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "autonomy": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        },
+        "maximum": {
+          "$ref": "common.schema.json#/$defs/autonomyLevel"
+        }
+      },
+      "additionalProperties": false
+    },
+    "policyRefs": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    }
+  },
+  "additionalProperties": false
+}

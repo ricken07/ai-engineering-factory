@@ -1,0 +1,16 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Factory
+metadata:
+  id: gad-ai-engineering-factory
+  name: Gad Digital AI Engineering Factory
+  version: 0.1.0
+core:
+  schemas: core/schemas
+  policies: core/policies
+  standards: core/standards
+  workflows: core/workflows
+  skills: core/skills
+extensions:
+  profiles: profiles
+  integrations: integrations
+  adapters: adapters

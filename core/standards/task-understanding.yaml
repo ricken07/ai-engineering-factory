@@ -1,0 +1,28 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: task-understanding
+  name: Task Understanding
+  version: 0.1.0
+appliesTo:
+- task-understanding
+requirements:
+- id: TU-01
+  statement: Restate the task objective and distinguish requested behavior from inferred
+    behavior.
+  evidence:
+  - task-summary
+- id: TU-02
+  statement: Identify explicit acceptance criteria and unresolved questions.
+  evidence:
+  - acceptance-criteria
+  - open-questions
+- id: TU-03
+  statement: Do not invent missing business requirements.
+  evidence:
+  - assumptions-list
+outputs:
+- acceptance-criteria
+- assumptions-list
+- open-questions
+- task-summary

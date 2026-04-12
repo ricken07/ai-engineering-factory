@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: planning
+  name: Planning
+  version: 0.1.0
+appliesTo:
+- planning
+requirements:
+- id: PL-01
+  statement: Produce an implementation plan before non-trivial code modification.
+  evidence:
+  - implementation-plan
+- id: PL-02
+  statement: Map plan steps to impacted components and expected validations.
+  evidence:
+  - implementation-plan
+- id: PL-03
+  statement: Surface migrations, compatibility changes and rollback concerns.
+  evidence:
+  - risk-notes
+outputs:
+- implementation-plan
+- risk-notes

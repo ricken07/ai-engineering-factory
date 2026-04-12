@@ -1,0 +1,25 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: validate-change
+  name: Validate Change
+  version: 0.1.0
+mode: validation
+contract:
+  inputs:
+  - changes
+  - project
+  - profiles
+  outputs:
+  - validation-report
+  requiresCapabilities:
+  - continuous-integration
+standardRefs:
+- validation
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Use project/profile-defined validations.
+- Report failures without masking them.

@@ -1,0 +1,22 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: handoff-task
+  name: Handoff Task
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - execution
+  - artifacts
+  outputs:
+  - handoff
+  requiresCapabilities: []
+standardRefs:
+- handoff
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Produce a self-contained handoff.

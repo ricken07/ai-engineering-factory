@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: validation
+  name: Validation
+  version: 0.1.0
+appliesTo:
+- validation
+requirements:
+- id: VA-01
+  statement: Run validation appropriate to the impacted scope.
+  evidence:
+  - validation-report
+- id: VA-02
+  statement: Report commands/actions and outcomes; do not claim tests passed without
+    evidence.
+  evidence:
+  - validation-report
+- id: VA-03
+  statement: Do not disable or remove failing tests merely to obtain a green result.
+  evidence:
+  - validation-report
+outputs:
+- validation-report

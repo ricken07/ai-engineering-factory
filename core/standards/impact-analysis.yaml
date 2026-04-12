@@ -1,0 +1,26 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: impact-analysis
+  name: Impact Analysis
+  version: 0.1.0
+appliesTo:
+- impact-analysis
+requirements:
+- id: IA-01
+  statement: Identify directly impacted repositories, modules, interfaces and data
+    contracts.
+  evidence:
+  - impact-analysis
+- id: IA-02
+  statement: Identify relevant transitive impacts and cross-repository dependencies.
+  evidence:
+  - dependency-impact
+- id: IA-03
+  statement: Declare uncertainty when impact cannot be established confidently.
+  evidence:
+  - open-questions
+outputs:
+- dependency-impact
+- impact-analysis
+- open-questions

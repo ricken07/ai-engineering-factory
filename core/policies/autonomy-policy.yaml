@@ -1,0 +1,25 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: autonomy-policy, name: Autonomy Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - {id: critical-risk, when: {risk: critical}, effect: {maxAutonomy: L1}}
+  - {id: high-risk, when: {risk: high}, effect: {maxAutonomy: L2}}
+  - {id: medium-risk, when: {risk: medium}, effect: {maxAutonomy: L3}}
+  - {id: low-risk, when: {risk: low}, effect: {maxAutonomy: L4}}
+  - id: l0-actions
+    when: {authorizedAutonomy: L0}
+    effect: {allow: [read, inspect, search, explain]}
+  - id: l1-actions
+    when: {authorizedAutonomy: L1}
+    effect: {allow: [read, inspect, search, explain, analyze, plan, propose-change]}
+  - id: l2-actions
+    when: {authorizedAutonomy: L2}
+    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review]}
+  - id: l3-actions
+    when: {authorizedAutonomy: L3}
+    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review, commit, push, submit-change, update-task]}
+  - id: l4-actions
+    when: {authorizedAutonomy: L4}
+    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review, commit, push, submit-change, update-task, merge-authorized-intermediate]}

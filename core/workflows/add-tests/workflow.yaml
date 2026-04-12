@@ -1,0 +1,36 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: add-tests
+  name: Add Tests
+  version: 0.1.0
+inputs:
+- task
+- project
+phases:
+- id: understand
+  skill: understand-task
+- id: resolve-context
+  skill: resolve-context
+- id: analyze-impact
+  skill: analyze-impact
+- id: planning
+  skill: create-plan
+- id: implementation
+  skill: implement-change
+- id: validation
+  skill: validate-change
+- id: review
+  skill: review-change
+outputs:
+- implementation-plan
+- changes
+- validation-report
+- review-report
+policyRefs:
+- risk-policy
+- autonomy-policy
+- human-approval-policy
+- change-policy
+- context-policy
+- traceability-policy

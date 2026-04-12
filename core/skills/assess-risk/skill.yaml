@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: assess-risk
+  name: Assess Risk
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - task
+  - impact-analysis
+  outputs:
+  - risk-assessment
+  - policy-inputs
+  requiresCapabilities: []
+standardRefs:
+- impact-analysis
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Apply risk policy inputs conservatively.
+- Uncertainty must not reduce risk.

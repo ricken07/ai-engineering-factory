@@ -1,0 +1,24 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: traceability
+  name: Traceability
+  version: 0.1.0
+appliesTo:
+- traceability
+requirements:
+- id: TR-01
+  statement: Link changes to the originating task and execution.
+  evidence:
+  - traceability
+- id: TR-02
+  statement: Record affected repositories, validation evidence and submitted change
+    references.
+  evidence:
+  - traceability
+- id: TR-03
+  statement: Record meaningful decisions and rationale.
+  evidence:
+  - traceability
+outputs:
+- traceability

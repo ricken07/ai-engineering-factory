@@ -1,0 +1,42 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Project
+metadata:
+  id: emmany
+  name: Emmany Gateway
+factory:
+  version: 0.1.0
+  homeEnv: GAD_AI_FACTORY_HOME
+workspace:
+  strategy: polyrepo
+  root: .
+repositories:
+  - id: egw-api
+    path: ./egw-api
+    role: backend-api
+    profiles: [java, spring, maven]
+    responsibilities: [payment-orchestration, transactions, webhooks, provider-integrations]
+    dependencies: []
+    criticalDomains: [payment, payout, authentication, transaction]
+  - id: egw-app
+    path: ./egw-app
+    role: application
+    profiles: [flutter]
+    responsibilities: [merchant-experience, transaction-visualization]
+    dependencies:
+      - {repository: egw-api, type: REST}
+    criticalDomains: [transaction]
+context:
+  project: .ai/context/project.md
+  architecture: .ai/context/architecture.md
+  domain: .ai/context/domain.md
+  conventions: .ai/context/conventions.md
+  decisions: .ai/decisions
+  memory: .ai/memory/shared.md
+integrations:
+  source-control: gitlab
+  task-provider: gitlab
+  knowledge-base: confluence
+autonomy:
+  default: L2
+  maximum: L3
+policyRefs: []

@@ -1,0 +1,22 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Profile
+metadata:
+  id: spring
+  name: Spring
+  version: 0.1.0
+extends:
+- java
+discovery:
+  files:
+  - pom.xml
+  - build.gradle
+  - build.gradle.kts
+commands: {}
+practices:
+- spring-component-boundaries
+- dependency-injection
+- transaction-boundaries
+policyRefs: []
+standardRefs:
+- validation
+- implementation

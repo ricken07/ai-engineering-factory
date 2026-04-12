@@ -1,0 +1,21 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Profile
+metadata:
+  id: maven
+  name: Maven
+  version: 0.1.0
+extends:
+- generic
+discovery:
+  files:
+  - pom.xml
+  - mvnw
+commands:
+  build: ./mvnw verify
+  test: ./mvnw test
+practices:
+- use-project-wrapper-when-available
+policyRefs: []
+standardRefs:
+- validation
+- implementation

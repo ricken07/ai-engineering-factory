@@ -1,0 +1,20 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: change-policy, name: Change Safety Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: no-silent-scope-expansion
+    effect: {require: [changes-within-task-scope-or-explicitly-declared]}
+  - id: no-silent-dependency-addition
+    effect: {require: [new-dependencies-declared-and-justified]}
+  - id: no-test-suppression
+    effect: {forbid: [delete-or-disable-tests-to-mask-failure]}
+  - id: no-security-weakening
+    effect: {forbid: [silent-security-weakening]}
+  - id: destructive-action
+    when: {actionCategory: destructive}
+    effect: {requireApproval: [before-destructive-action]}
+  - id: production-config
+    when: {targetCategory: production-configuration}
+    effect: {maxAutonomy: L1}

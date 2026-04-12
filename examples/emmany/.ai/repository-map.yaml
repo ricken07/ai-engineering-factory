@@ -1,0 +1,12 @@
+repositories:
+  egw-api:
+    responsibilities: [payment-orchestration, transactions, webhooks, provider-integrations]
+    exposes: [REST-API, webhooks]
+    consumes: [mobile-money-providers]
+  egw-app:
+    responsibilities: [merchant-experience, transaction-visualization]
+    exposes: []
+    consumes: [egw-api]
+relationships:
+  - {from: egw-app, to: egw-api, type: REST}
+criticalDomains: [payment, payout, authentication, transaction]

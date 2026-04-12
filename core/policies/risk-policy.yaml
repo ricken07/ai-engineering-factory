@@ -1,0 +1,25 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: risk-policy, name: Risk Classification Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: critical-security
+    description: Security-sensitive changes are critical by default.
+    when: {domains: {containsAny: [authentication, authorization, secrets, cryptography]}}
+    effect: {risk: critical}
+  - id: critical-destructive-data
+    when: {changeTypes: {containsAny: [destructive-data-change, destructive-migration]}}
+    effect: {risk: critical}
+  - id: high-business-critical
+    when: {domains: {containsAny: [payment, payout, transaction, personal-data]}}
+    effect: {riskAtLeast: high}
+  - id: high-cross-repository
+    when: {impactedRepositories: {greaterThan: 1}}
+    effect: {riskAtLeast: high}
+  - id: medium-source-change
+    when: {changeTypes: {containsAny: [source-code, configuration, dependency]}}
+    effect: {riskAtLeast: medium}
+  - id: low-documentation-only
+    when: {changeTypes: {containsOnly: [documentation]}}
+    effect: {risk: low}

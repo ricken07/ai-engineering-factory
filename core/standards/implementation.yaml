@@ -1,0 +1,25 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: implementation
+  name: Implementation
+  version: 0.1.0
+appliesTo:
+- implementation
+requirements:
+- id: IM-01
+  statement: Keep changes within the approved task scope.
+  evidence:
+  - change-summary
+- id: IM-02
+  statement: Respect project architecture and conventions loaded for the impacted
+    scope.
+  evidence:
+  - review-report
+- id: IM-03
+  statement: Do not introduce unrelated cleanup unless explicitly approved.
+  evidence:
+  - change-summary
+outputs:
+- change-summary
+- review-report

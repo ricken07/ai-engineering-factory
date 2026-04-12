@@ -1,0 +1,26 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: analyze-impact
+  name: Analyze Impact
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - task
+  - project
+  - resolved-context
+  outputs:
+  - impact-analysis
+  - impacted-repositories
+  - impacted-components
+  requiresCapabilities: []
+standardRefs:
+- impact-analysis
+policyRefs:
+- context-policy
+- change-policy
+- traceability-policy
+rules:
+- Identify direct and transitive impact.
+- Do not modify source code.
