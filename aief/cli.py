@@ -4,6 +4,7 @@ from pathlib import Path
 import yaml
 from .project import find_project, initialize, load_project
 from .validation import validate_package
+from .policy import resolve_policy
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="aief")
@@ -12,10 +13,15 @@ def parser() -> argparse.ArgumentParser:
     doctor = sub.add_parser("doctor"); doctor.add_argument("path", nargs="?", default=".")
     inspect = sub.add_parser("inspect"); inspect.add_argument("path", nargs="?", default="."); inspect.add_argument("--json", action="store_true")
     init = sub.add_parser("init"); init.add_argument("destination"); init.add_argument("--template"); init.add_argument("--force", action="store_true")
+    resolve = sub.add_parser("resolve"); resolve.add_argument("decision"); resolve.add_argument("--json", action="store_true")
     return root
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "resolve":
+        data = yaml.safe_load(Path(args.decision).read_text(encoding="utf-8"))
+        result = resolve_policy(data.get("requestedAutonomy", "L1"), data.get("constraints", [])).as_dict()
+        print(json.dumps(result, indent=2) if args.json else yaml.safe_dump(result, sort_keys=False)); return 0
     if args.command == "validate":
         path = Path(args.path); issues = validate_package(path)
         for issue in issues: print(f"ERROR {issue.path}: {issue.message}")
