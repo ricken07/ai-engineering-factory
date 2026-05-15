@@ -1,0 +1,7 @@
+summary: Identify direct, transitive, contract, data, test, and cross-repository impact without changing code.
+status: completed
+evidence:
+  - authoritative-source
+unknowns: []
+details:
+  skill: analyze-impact

@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from jsonschema import Draft202012Validator, RefResolver
+from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 
 KIND_SCHEMAS = {
@@ -37,14 +38,13 @@ def validate_package(root: Path) -> list[ValidationIssue]:
     schemas_dir = root / "core" / "schemas"
     issues: list[ValidationIssue] = []
     schemas: dict[str, dict[str, Any]] = {}
-    store: dict[str, Any] = {}
+    registry = Registry()
     for path in sorted(schemas_dir.glob("*.json")):
         try:
             schema = json.loads(path.read_text(encoding="utf-8"))
             Draft202012Validator.check_schema(schema)
             schemas[path.name] = schema
-            store[schema["$id"]] = schema
-            store[path.name] = schema
+            registry = registry.with_resource(schema["$id"], Resource.from_contents(schema))
         except Exception as exc:
             issues.append(ValidationIssue(str(path.relative_to(root)), str(exc)))
 
@@ -60,8 +60,7 @@ def validate_package(root: Path) -> list[ValidationIssue]:
             kind = data.get("kind")
             if kind in KIND_SCHEMAS:
                 schema = schemas[KIND_SCHEMAS[kind]]
-                resolver = RefResolver(schema["$id"], schema, store=store)
-                errors = Draft202012Validator(schema, resolver=resolver).iter_errors(data)
+                errors = Draft202012Validator(schema, registry=registry).iter_errors(data)
                 for error in sorted(errors, key=lambda item: list(item.path)):
                     location = ".".join(map(str, error.path)) or "root"
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"{location}: {error.message}"))
@@ -96,4 +95,15 @@ def validate_package(root: Path) -> list[ValidationIssue]:
                 for identifier in data.get("mappings", {}).get(group, {}):
                     if identifier not in catalogs.get(kind, set()):
                         issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown mapped {kind} '{identifier}'"))
+    for directory in sorted((root / "core" / "skills").iterdir()):
+        if not directory.is_dir(): continue
+        for required in ("skill.yaml", "SKILL.md", "output.schema.json", "examples/output.yaml"):
+            if not (directory / required).is_file(): issues.append(ValidationIssue(str(directory.relative_to(root)), f"missing {required}"))
+        try:
+            output_schema = json.loads((directory / "output.schema.json").read_text(encoding="utf-8"))
+            Draft202012Validator.check_schema(output_schema)
+            example = load_yaml(directory / "examples/output.yaml")
+            for error in Draft202012Validator(output_schema).iter_errors(example):
+                issues.append(ValidationIssue(str(directory.relative_to(root)), f"invalid output example: {error.message}"))
+        except Exception as exc: issues.append(ValidationIssue(str(directory.relative_to(root)), str(exc)))
     return issues

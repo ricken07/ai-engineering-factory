@@ -1,7 +1,7 @@
 # AI Engineering Factory
 
-**Version:** 0.1.0  
-**Status:** Foundation / pilot-ready
+**Version:** 1.0.0  
+**Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
 

@@ -1,0 +1,7 @@
+summary: Run relevant profile and project validations and preserve complete evidence.
+status: completed
+evidence:
+  - authoritative-source
+unknowns: []
+details:
+  skill: validate-change

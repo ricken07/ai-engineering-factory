@@ -1,0 +1,7 @@
+summary: Load the smallest authoritative context needed for the active task.
+status: completed
+evidence:
+  - authoritative-source
+unknowns: []
+details:
+  skill: resolve-context

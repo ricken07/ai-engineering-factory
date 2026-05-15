@@ -1,0 +1,7 @@
+summary: Execute only the approved plan within the active PolicyDecision.
+status: completed
+evidence:
+  - authoritative-source
+unknowns: []
+details:
+  skill: implement-change
