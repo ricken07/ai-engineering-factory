@@ -1,0 +1,7 @@
+summary: Classify execution risk and produce inputs for deterministic policy resolution.
+status: completed
+evidence:
+  - authoritative-source
+unknowns: []
+details:
+  skill: assess-risk

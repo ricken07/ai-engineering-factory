@@ -1,0 +1,7 @@
+summary: Record a reconstructable chain from task and decisions to changes, validations, and review.
+status: completed
+evidence:
+  - authoritative-source
+unknowns: []
+details:
+  skill: record-traceability
