@@ -14,8 +14,10 @@ contract:
   - policy-inputs
   requiresCapabilities: []
 standardRefs:
+- recovery
 - impact-analysis
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

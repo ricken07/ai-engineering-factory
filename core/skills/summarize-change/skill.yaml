@@ -14,8 +14,10 @@ contract:
   - change-summary
   requiresCapabilities: []
 standardRefs:
+- recovery
 - traceability
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

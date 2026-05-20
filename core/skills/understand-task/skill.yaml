@@ -13,8 +13,10 @@ contract:
   - open-questions
   requiresCapabilities: []
 standardRefs:
+- recovery
 - task-understanding
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

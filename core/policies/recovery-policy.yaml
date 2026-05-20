@@ -1,0 +1,23 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata:
+  id: recovery-policy
+  name: Bounded Recovery Policy
+  version: 1.0.0
+scope: factory
+priority: 100
+rules:
+  - id: bounded-recovery
+    effect:
+      minimumAttempts: 10
+      maximumAttempts: 15
+      requireDistinctHypothesis: true
+      requireEvidence: true
+  - id: material-ambiguity
+    when: {resolutionRequiresUserAuthority: true}
+    effect: {askUserImmediately: true}
+  - id: exhausted-recovery
+    when: {attemptsExhausted: true}
+    effect: {requireAction: [raise-hand, ask-user, produce-blocker-message]}
+  - id: scope-boundary
+    effect: {forbid: [expand-task-scope, bypass-policy, repeat-identical-attempt, invent-user-answer]}

@@ -23,6 +23,7 @@ outputs:
 - review-report
 - change-summary
 policyRefs:
+- recovery-policy
 - risk-policy
 - autonomy-policy
 - human-approval-policy

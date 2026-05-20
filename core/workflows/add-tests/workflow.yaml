@@ -28,6 +28,7 @@ outputs:
 - validation-report
 - review-report
 policyRefs:
+- recovery-policy
 - risk-policy
 - autonomy-policy
 - human-approval-policy

@@ -42,6 +42,10 @@
         "cancelled"
       ]
     },
+    "recoveryStatus": {
+      "type": "string",
+      "enum": ["active", "resolved", "waiting-user", "exhausted"]
+    },
     "metadata": {
       "type": "object",
       "required": [

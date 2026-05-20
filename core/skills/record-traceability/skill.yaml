@@ -15,8 +15,10 @@ contract:
   requiresCapabilities:
   - task-provider
 standardRefs:
+- recovery
 - traceability
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

@@ -15,8 +15,10 @@ contract:
   requiresCapabilities:
   - source-control
 standardRefs:
+- recovery
 - definition-of-done
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

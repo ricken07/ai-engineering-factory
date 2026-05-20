@@ -36,6 +36,7 @@ outputs:
 - traceability
 - change-request
 policyRefs:
+- recovery-policy
 - risk-policy
 - autonomy-policy
 - human-approval-policy

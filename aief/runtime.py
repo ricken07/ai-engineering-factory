@@ -13,7 +13,7 @@ class Execution:
         identifier = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         root = project / ".ai" / "runtime" / "executions" / identifier
         root.mkdir(parents=True)
-        phases = [{"id": p["id"], "skill": p["skill"], "status": "pending", **({"gate": p["gate"]} if "gate" in p else {})} for p in workflow["phases"]]
+        phases = [{"id": p["id"], "skill": p["skill"], "status": "pending", **({"gate": p["gate"]} if "gate" in p else {}), "recovery": {"status":"active", "minimumAttempts":p.get("recovery",{}).get("minimumAttempts",10), "maximumAttempts":p.get("recovery",{}).get("maximumAttempts",15), "attempts":[]}} for p in workflow["phases"]]
         execution = cls(root, {"id": identifier, "workflow": workflow["metadata"]["id"], "task": task, "status": "pending", "phases": phases, "artifacts": []})
         execution.save(); return execution
     @classmethod
@@ -33,3 +33,25 @@ class Execution:
         self.data["status"] = "completed" if self.next_phase() is None else "running"; self.save(); return self.data["status"]
     def handoff(self) -> Path:
         path = self.root / "handoff.yaml"; path.write_text(yaml.safe_dump({"execution":self.data["id"],"workflow":self.data["workflow"],"task":self.data["task"],"status":self.data["status"],"nextPhase":(self.next_phase() or {}).get("id"),"artifacts":self.data["artifacts"]}, sort_keys=False), encoding="utf-8"); return path
+    def record_attempt(self, error: str, hypothesis: str, action: str, outcome: str, evidence: list[str] | None = None) -> str:
+        phase = self.next_phase()
+        if not phase: raise RuntimeError("execution has no active phase")
+        recovery = phase["recovery"]; attempts = recovery["attempts"]
+        if attempts and attempts[-1]["hypothesis"] == hypothesis and attempts[-1]["action"] == action:
+            raise ValueError("a recovery attempt must use a distinct hypothesis or action")
+        if len(attempts) >= recovery["maximumAttempts"]: raise RuntimeError("recovery budget exhausted")
+        attempts.append({"number":len(attempts)+1,"error":error,"hypothesis":hypothesis,"action":action,"outcome":outcome,"evidence":evidence or []})
+        if outcome == "resolved": recovery["status"] = "resolved"
+        elif len(attempts) >= recovery["maximumAttempts"]: recovery["status"] = "exhausted"
+        self.save(); return recovery["status"]
+    def ask_user(self, question: str, requires_authority: bool = False) -> None:
+        phase = self.next_phase()
+        if not phase: raise RuntimeError("execution has no active phase")
+        recovery = phase["recovery"]
+        if not requires_authority and len(recovery["attempts"]) < recovery["minimumAttempts"]:
+            raise RuntimeError("minimum recovery attempts not reached")
+        recovery.update({"status":"waiting-user", "question":question}); phase["status"] = "blocked"; self.data["status"] = "blocked"; self.save()
+    def answer_user_question(self, answer: str) -> None:
+        phase = self.next_phase()
+        if not phase or phase["recovery"]["status"] != "waiting-user": raise RuntimeError("no pending user question")
+        phase["recovery"].update({"answer":answer, "status":"active"}); phase["status"] = "pending"; self.data["status"] = "running"; self.save()
