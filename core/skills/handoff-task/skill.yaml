@@ -13,8 +13,10 @@ contract:
   - handoff
   requiresCapabilities: []
 standardRefs:
+- recovery
 - handoff
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

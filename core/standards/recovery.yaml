@@ -1,0 +1,21 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Standard
+metadata:
+  id: recovery
+  name: Bounded Recovery
+  version: 1.0.0
+appliesTo: [execution, skill]
+requirements:
+  - id: diagnose-before-retry
+    statement: Record the failure, evidence and a testable hypothesis before retrying.
+    evidence: [recovery-attempt]
+  - id: change-strategy
+    statement: Every retry must change the hypothesis, evidence sought or corrective action.
+    evidence: [recovery-attempt]
+  - id: remain-in-scope
+    statement: Recovery must remain within task scope, policy and authorized autonomy.
+    evidence: [policy-decision, recovery-attempt]
+  - id: ask-user
+    statement: Ask one precise question when user authority is required or bounded recovery is exhausted.
+    evidence: [user-question]
+outputs: [recovery-record]

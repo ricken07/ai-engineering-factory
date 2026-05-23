@@ -96,6 +96,35 @@
           },
           "artifacts": {
             "$ref": "common.schema.json#/$defs/stringArray"
+          },
+          "recovery": {
+            "type": "object",
+            "required": ["status", "attempts", "minimumAttempts", "maximumAttempts"],
+            "properties": {
+              "status": {"$ref": "common.schema.json#/$defs/recoveryStatus"},
+              "minimumAttempts": {"type": "integer", "minimum": 1, "maximum": 15},
+              "maximumAttempts": {"type": "integer", "minimum": 1, "maximum": 15},
+              "attempts": {
+                "type": "array",
+                "maxItems": 15,
+                "items": {
+                  "type": "object",
+                  "required": ["number", "error", "hypothesis", "action", "outcome"],
+                  "properties": {
+                    "number": {"type": "integer", "minimum": 1, "maximum": 15},
+                    "error": {"type": "string"},
+                    "hypothesis": {"type": "string"},
+                    "action": {"type": "string"},
+                    "outcome": {"type": "string"},
+                    "evidence": {"$ref": "common.schema.json#/$defs/stringArray"}
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "question": {"type": "string"},
+              "answer": {"type": "string"}
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false

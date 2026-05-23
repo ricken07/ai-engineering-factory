@@ -14,8 +14,10 @@ contract:
   - implementation-plan
   requiresCapabilities: []
 standardRefs:
+- recovery
 - planning
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

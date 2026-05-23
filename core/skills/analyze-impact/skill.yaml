@@ -16,8 +16,10 @@ contract:
   - impacted-components
   requiresCapabilities: []
 standardRefs:
+- recovery
 - impact-analysis
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

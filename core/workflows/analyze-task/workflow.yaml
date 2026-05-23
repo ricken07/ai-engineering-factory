@@ -24,6 +24,7 @@ outputs:
 - risk-assessment
 - implementation-plan
 policyRefs:
+- recovery-policy
 - risk-policy
 - autonomy-policy
 - human-approval-policy

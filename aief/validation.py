@@ -87,6 +87,8 @@ def validate_package(root: Path) -> list[ValidationIssue]:
                 if ref not in catalogs.get(kind, set()):
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown {field} '{ref}'"))
         if data.get("kind") == "Workflow":
+            if "recovery-policy" not in data.get("policyRefs", []):
+                issues.append(ValidationIssue(str(path.relative_to(root)), "workflow must reference recovery-policy"))
             for phase in data.get("phases", []):
                 if phase.get("skill") not in catalogs.get("Skill", set()):
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown skill '{phase.get('skill')}'"))
@@ -95,6 +97,11 @@ def validate_package(root: Path) -> list[ValidationIssue]:
                 for identifier in data.get("mappings", {}).get(group, {}):
                     if identifier not in catalogs.get(kind, set()):
                         issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown mapped {kind} '{identifier}'"))
+        if data.get("kind") == "Skill":
+            if "recovery-policy" not in data.get("policyRefs", []):
+                issues.append(ValidationIssue(str(path.relative_to(root)), "skill must reference recovery-policy"))
+            if "recovery" not in data.get("standardRefs", []):
+                issues.append(ValidationIssue(str(path.relative_to(root)), "skill must reference recovery standard"))
     for directory in sorted((root / "core" / "skills").iterdir()):
         if not directory.is_dir(): continue
         for required in ("skill.yaml", "SKILL.md", "output.schema.json", "examples/output.yaml"):

@@ -15,8 +15,10 @@ contract:
   requiresCapabilities:
   - continuous-integration
 standardRefs:
+- recovery
 - validation
 policyRefs:
+- recovery-policy
 - context-policy
 - change-policy
 - traceability-policy

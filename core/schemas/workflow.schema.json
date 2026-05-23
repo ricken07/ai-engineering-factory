@@ -43,6 +43,14 @@
           },
           "gate": {
             "$ref": "gate.schema.json"
+          },
+          "recovery": {
+            "type": "object",
+            "properties": {
+              "minimumAttempts": {"type": "integer", "minimum": 1, "maximum": 15, "default": 10},
+              "maximumAttempts": {"type": "integer", "minimum": 1, "maximum": 15, "default": 15}
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
