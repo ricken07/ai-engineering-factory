@@ -1,0 +1,7 @@
+summary: Record an approved memory candidate into the authorized durable project target with traceability.
+status: completed
+evidence:
+  - task-artifact-reference
+unknowns: []
+details:
+  skill: record-project-knowledge

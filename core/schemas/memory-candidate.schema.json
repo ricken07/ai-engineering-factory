@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/memory-candidate.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "sourceTask", "statement", "evidence", "target", "status"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "MemoryCandidate"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "sourceTask": {"type": "string"},
+    "statement": {"type": "string", "minLength": 1},
+    "evidence": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "target": {"enum": ["project-memory", "project-context", "project-convention", "decision-record"]},
+    "rationale": {"type": "string"},
+    "conflicts": {"type": "array", "items": {"type": "object", "required":["source","description"], "properties":{"source":{"type":"string"},"description":{"type":"string"}}, "additionalProperties":false}},
+    "status": {"enum": ["proposed", "approved", "rejected", "promoted", "superseded"]}
+  },
+  "additionalProperties": false
+}

@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import re, yaml
 
-INTENTS = {"analyze":"analyze-task","implement":"implement-task","fix":"fix-bug","refactor":"refactor-code","test":"add-tests","review":"review-change","document":"update-documentation"}
+INTENTS = {"analyze":"analyze-task","implement":"implement-task","fix":"fix-bug","refactor":"refactor-code","test":"add-tests","review":"review-change","document":"update-documentation","promote":"promote-knowledge"}
 
 def select_workflow(text: str) -> str:
     normalized = text.strip().lower()

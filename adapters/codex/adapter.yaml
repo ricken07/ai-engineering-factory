@@ -15,6 +15,7 @@ mappings:
     refactor-code: core/workflows/refactor-code/workflow.yaml
     add-tests: core/workflows/add-tests/workflow.yaml
     update-documentation: core/workflows/update-documentation/workflow.yaml
+    promote-knowledge: core/workflows/promote-knowledge/workflow.yaml
   skills:
     understand-task: core/skills/understand-task/skill.yaml
     resolve-context: core/skills/resolve-context/skill.yaml
@@ -28,3 +29,5 @@ mappings:
     record-traceability: core/skills/record-traceability/skill.yaml
     submit-change: core/skills/submit-change/skill.yaml
     handoff-task: core/skills/handoff-task/skill.yaml
+    promote-memory: core/skills/promote-memory/skill.yaml
+    record-project-knowledge: core/skills/record-project-knowledge/skill.yaml

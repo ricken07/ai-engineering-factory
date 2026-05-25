@@ -11,6 +11,14 @@
 - Claude Code and Codex adapters.
 - Project bootstrap template.
 - Emmany poly-repository example.
+# 1.1.0
+
+- Added explicit task-memory, memory-candidate and knowledge-promotion contracts.
+- Added controlled `promote-knowledge` workflow with approval-bound durable writes.
+- Added agent-neutral task runtime state and multi-agent handoff foundations.
+- Expanded the project template with structured memory, runtime and retention configuration.
+- Documented knowledge authority, freshness conflicts, progressive loading and retention.
+
 # 1.0.0
 
 - Added installable CLI, exhaustive contract validation, tests and CI.

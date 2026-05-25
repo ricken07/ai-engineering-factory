@@ -59,4 +59,8 @@ The project pins a Factory version. Multiple projects may use different Factory 
 
 ## Runtime state
 
-Generated execution state SHOULD be stored outside durable project knowledge, for example `.ai/runtime/`, and SHOULD normally be gitignored unless an organization explicitly decides otherwise. Durable traceability belongs in task systems, commits, change requests, approved ADRs and durable project memory.
+Generated task and execution state is stored under `.ai/runtime/tasks/` and `.ai/runtime/executions/`. It is gitignored by default and retained according to project configuration. Durable traceability belongs in task systems, commits, change requests, approved context, decision records and validated project memory.
+
+Runtime state is agent-neutral. An adapter identity may be recorded for audit, but resuming an execution must not require the original agent or its conversation history.
+
+Knowledge learned during execution remains task-local until the `promote-knowledge` workflow proposes a `MemoryCandidate`, obtains explicit approval and records a content-bound `KnowledgePromotion`.

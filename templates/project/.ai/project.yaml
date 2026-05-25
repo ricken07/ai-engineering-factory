@@ -4,7 +4,7 @@ metadata:
   id: replace-me
   name: Replace Me
 factory:
-  version: 0.1.0
+  version: 1.1.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: monorepo
@@ -24,6 +24,13 @@ context:
   conventions: .ai/context/conventions.md
   decisions: .ai/decisions
   memory: .ai/memory/shared.md
+  memoryPatterns: .ai/memory/patterns.md
+  knownConstraints: .ai/memory/known-constraints.md
+  lessons: .ai/memory/lessons.md
+runtime:
+  root: .ai/runtime
+  taskRetentionDays: 30
+  executionRetentionDays: 14
 integrations: {}
 autonomy:
   default: L1

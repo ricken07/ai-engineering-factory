@@ -1,0 +1,14 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: MemoryCandidate
+metadata:
+  id: EGW-142-MC-01
+  name: Normalize provider failures
+sourceTask: EGW-142
+statement: Provider failure information is normalized before exposure through public contracts.
+evidence:
+- EGW-142/validation.yaml
+- EGW-142/review.yaml
+target: project-memory
+rationale: The verified rule applies beyond the source task.
+conflicts: []
+status: proposed

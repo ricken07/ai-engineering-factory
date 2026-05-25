@@ -1,0 +1,30 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: promote-memory
+  name: Promote Memory
+  version: 1.0.0
+mode: read-only
+contract:
+  inputs:
+  - task-memory
+  - task-artifacts
+  - project-knowledge-index
+  - policy-decision
+  outputs:
+  - memory-candidates
+  - promotion-plan
+  - conflicts
+  requiresCapabilities: []
+standardRefs:
+- recovery
+- traceability
+policyRefs:
+- recovery-policy
+- memory-policy
+- human-approval-policy
+- traceability-policy
+rules:
+- Do not treat session observations as durable facts.
+- Preserve evidence and source-task traceability.
+- Do not bypass knowledge promotion approval.
