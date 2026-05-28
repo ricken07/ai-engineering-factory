@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/knowledge-promotion.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "candidate", "target", "approval", "status"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "KnowledgePromotion"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "candidate": {"type": "string"},
+    "target": {"type": "string"},
+    "approval": {"type":"object", "required":["status"], "properties":{"status":{"enum":["pending","approved","rejected"]},"approvedBy":{"type":"string"},"approvedAt":{"type":"string","format":"date-time"}}, "additionalProperties":false},
+    "contentHash": {"type": "string"},
+    "status": {"enum": ["pending", "recorded", "rejected", "failed"]}
+  },
+  "additionalProperties": false
+}

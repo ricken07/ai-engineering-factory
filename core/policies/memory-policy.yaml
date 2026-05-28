@@ -1,6 +1,6 @@
 apiVersion: factory.gaddigital.io/v1alpha1
 kind: Policy
-metadata: {id: memory-policy, name: Memory Policy, version: 0.1.0}
+metadata: {id: memory-policy, name: Memory Policy, version: 1.0.0}
 scope: factory
 priority: 100
 rules:
@@ -13,6 +13,15 @@ rules:
   - id: project-memory
     when: {memoryTier: project}
     effect: {persistence: durable, approvalRequired: true}
+  - id: promotion-separation
+    when: {action: promote-knowledge}
+    effect: {requireApproval: [before-project-knowledge-write], separationOfDuties: [propose, approve, record]}
+  - id: task-runtime-default
+    when: {memoryTier: task}
+    effect: {defaultStorage: project-runtime, gitignored: true, publishSummaryToDurableTaskSystem: true}
+  - id: authority-conflict
+    when: {knowledgeConflict: true}
+    effect: {forbid: [silent-resolution], requireAction: [record-conflict, request-authoritative-resolution]}
   - id: decision-record
     when: {memoryTier: decision}
     effect: {persistence: durable, storage: decision-record, approvalRequired: true}

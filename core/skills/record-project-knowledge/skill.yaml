@@ -1,0 +1,28 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: record-project-knowledge
+  name: Record Project Knowledge
+  version: 1.0.0
+mode: external-action
+contract:
+  inputs:
+  - approved-memory-candidate
+  - knowledge-promotion
+  - project
+  outputs:
+  - recorded-knowledge
+  - promotion-record
+  requiresCapabilities: []
+standardRefs:
+- recovery
+- traceability
+policyRefs:
+- recovery-policy
+- memory-policy
+- human-approval-policy
+- traceability-policy
+rules:
+- Do not treat session observations as durable facts.
+- Preserve evidence and source-task traceability.
+- Do not bypass knowledge promotion approval.

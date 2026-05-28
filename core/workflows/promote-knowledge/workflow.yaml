@@ -1,0 +1,28 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: promote-knowledge
+  name: Promote Project Knowledge
+  version: 1.0.0
+inputs:
+- task-memory
+- project
+phases:
+- id: evaluate
+  skill: promote-memory
+- id: record
+  skill: record-project-knowledge
+  gate:
+    id: knowledge-promotion-gate
+    type: human-approval
+    description: A human must approve the candidate, target and exact durable statement before recording.
+outputs:
+- memory-candidates
+- promotion-plan
+- recorded-knowledge
+- promotion-record
+policyRefs:
+- recovery-policy
+- memory-policy
+- human-approval-policy
+- traceability-policy

@@ -1,0 +1,7 @@
+summary: Identify reusable knowledge from task evidence and propose controlled promotion without writing durable project knowledge.
+status: completed
+evidence:
+  - task-artifact-reference
+unknowns: []
+details:
+  skill: promote-memory

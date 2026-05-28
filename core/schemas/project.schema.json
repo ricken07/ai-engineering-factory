@@ -83,9 +83,22 @@
         },
         "memory": {
           "type": "string"
-        }
+        },
+        "memoryPatterns": {"type": "string"},
+        "knownConstraints": {"type": "string"},
+        "lessons": {"type": "string"}
       },
       "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "root": {"type":"string", "default":".ai/runtime"},
+        "taskRetentionDays": {"type":"integer", "minimum":1, "default":30},
+        "executionRetentionDays": {"type":"integer", "minimum":1, "default":14},
+        "durableTaskSystem": {"type":"string"}
+        }
+      ,"additionalProperties": false
     },
     "integrations": {
       "type": "object",

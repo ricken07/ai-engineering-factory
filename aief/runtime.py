@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import uuid, yaml
+from .knowledge import create_task_memory
 
 TERMINAL = {"completed", "failed", "skipped"}
 
@@ -13,8 +14,9 @@ class Execution:
         identifier = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         root = project / ".ai" / "runtime" / "executions" / identifier
         root.mkdir(parents=True)
+        task_memory = create_task_memory(project, task)
         phases = [{"id": p["id"], "skill": p["skill"], "status": "pending", **({"gate": p["gate"]} if "gate" in p else {}), "recovery": {"status":"active", "minimumAttempts":p.get("recovery",{}).get("minimumAttempts",10), "maximumAttempts":p.get("recovery",{}).get("maximumAttempts",15), "attempts":[]}} for p in workflow["phases"]]
-        execution = cls(root, {"id": identifier, "workflow": workflow["metadata"]["id"], "task": task, "status": "pending", "phases": phases, "artifacts": []})
+        execution = cls(root, {"id": identifier, "workflow": workflow["metadata"]["id"], "task": task, "taskMemory": str(task_memory.relative_to(project)), "status": "pending", "phases": phases, "artifacts": []})
         execution.save(); return execution
     @classmethod
     def load(cls, root: Path) -> "Execution":

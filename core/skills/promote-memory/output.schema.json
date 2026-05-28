@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://factory.gaddigital.io/skills/promote-memory/output.schema.json",
+  "type":"object",
+  "required":["summary","status","evidence","unknowns","details"],
+  "properties":{"summary":{"type":"string","minLength":1},"status":{"enum":["completed","blocked","failed"]},"evidence":{"type":"array","items":{"type":"string"},"uniqueItems":true},"unknowns":{"type":"array","items":{"type":"string"},"uniqueItems":true},"details":{"type":"object"}},
+  "additionalProperties":false
+}

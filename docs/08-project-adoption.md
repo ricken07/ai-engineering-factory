@@ -39,11 +39,15 @@ Complete:
 .ai/context/conventions.md
 ```
 
-## 6. Bootstrap agents
+## 6. Initialize knowledge and runtime
+
+Initialize `.ai/memory/` without speculative project facts. Keep `.ai/runtime/` ignored by Git and configure retention in `.ai/project.yaml`. Knowledge learned during work must pass through `promote-knowledge`; never copy task or session notes directly into durable project files.
+
+## 7. Bootstrap agents
 
 `AGENTS.md` and `CLAUDE.md` must remain thin bootstraps. They point to the Factory and project context; they must not duplicate the full Factory rules.
 
-## 7. Start work from workspace root
+## 8. Start work from workspace root
 
 Examples:
 

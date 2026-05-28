@@ -4,7 +4,7 @@ metadata:
   id: emmany
   name: Emmany Gateway
 factory:
-  version: 0.1.0
+  version: 1.1.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: polyrepo
@@ -32,6 +32,14 @@ context:
   conventions: .ai/context/conventions.md
   decisions: .ai/decisions
   memory: .ai/memory/shared.md
+  memoryPatterns: .ai/memory/patterns.md
+  knownConstraints: .ai/memory/known-constraints.md
+  lessons: .ai/memory/lessons.md
+runtime:
+  root: .ai/runtime
+  taskRetentionDays: 30
+  executionRetentionDays: 14
+  durableTaskSystem: gitlab
 integrations:
   source-control: gitlab
   task-provider: gitlab

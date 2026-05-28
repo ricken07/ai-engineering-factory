@@ -12,3 +12,6 @@ def test_init(tmp_path: Path):
     destination = tmp_path / "demo"
     assert main(["init", str(destination)]) == 0
     assert (destination / ".ai/project.yaml").is_file()
+    assert (destination / ".ai/memory/patterns.md").is_file()
+    assert (destination / ".ai/runtime/README.md").is_file()
+    assert ".ai/runtime/" in (destination / ".gitignore").read_text()

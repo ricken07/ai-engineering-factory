@@ -30,6 +30,8 @@
 - `core/schemas/gate.schema.json`
 - `core/schemas/handoff.schema.json`
 - `core/schemas/integration.schema.json`
+- `core/schemas/knowledge-promotion.schema.json`
+- `core/schemas/memory-candidate.schema.json`
 - `core/schemas/policy-decision.schema.json`
 - `core/schemas/policy.schema.json`
 - `core/schemas/profile.schema.json`
@@ -38,6 +40,7 @@
 - `core/schemas/skill.schema.json`
 - `core/schemas/standard.schema.json`
 - `core/schemas/task.schema.json`
+- `core/schemas/task-memory.schema.json`
 - `core/schemas/workflow.schema.json`
 - `core/skills/README.md`
 - `core/skills/analyze-impact/README.md`
@@ -52,6 +55,14 @@
 - `core/skills/implement-change/skill.yaml`
 - `core/skills/record-traceability/README.md`
 - `core/skills/record-traceability/skill.yaml`
+- `core/skills/promote-memory/SKILL.md`
+- `core/skills/promote-memory/examples/output.yaml`
+- `core/skills/promote-memory/output.schema.json`
+- `core/skills/promote-memory/skill.yaml`
+- `core/skills/record-project-knowledge/SKILL.md`
+- `core/skills/record-project-knowledge/examples/output.yaml`
+- `core/skills/record-project-knowledge/output.schema.json`
+- `core/skills/record-project-knowledge/skill.yaml`
 - `core/skills/resolve-context/README.md`
 - `core/skills/resolve-context/skill.yaml`
 - `core/skills/review-change/README.md`
@@ -71,6 +82,7 @@
 - `core/standards/impact-analysis.yaml`
 - `core/standards/implementation.yaml`
 - `core/standards/planning.yaml`
+- `core/standards/recovery.yaml`
 - `core/standards/review.yaml`
 - `core/standards/task-understanding.yaml`
 - `core/standards/traceability.yaml`
@@ -90,6 +102,8 @@
 - `core/workflows/review-change/workflow.yaml`
 - `core/workflows/update-documentation/README.md`
 - `core/workflows/update-documentation/workflow.yaml`
+- `core/workflows/promote-knowledge/README.md`
+- `core/workflows/promote-knowledge/workflow.yaml`
 - `docs/01-principles.md`
 - `docs/02-conceptual-model.md`
 - `docs/03-architecture.md`
@@ -118,6 +132,7 @@
 - `examples/scenarios/EGW-142-handoff.yaml`
 - `examples/scenarios/EGW-142-policy-decision.yaml`
 - `examples/scenarios/EGW-142-task.yaml`
+- `examples/scenarios/EGW-142-memory-candidate.yaml`
 - `factory.yaml`
 - `integrations/README.md`
 - `integrations/confluence/README.md`

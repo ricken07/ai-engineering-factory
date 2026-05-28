@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/task-memory.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "task", "status", "artifacts"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "TaskMemory"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "task": {"type": "string", "minLength": 1},
+    "status": {"$ref": "common.schema.json#/$defs/executionStatus"},
+    "repositories": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "artifacts": {"type": "object", "additionalProperties": {"type": "string"}},
+    "decisions": {"type": "array", "items": {"type": "object", "required": ["id", "statement", "status"], "properties": {"id":{"type":"string"}, "statement":{"type":"string"}, "rationale":{"type":"string"}, "status":{"enum":["proposed","accepted","rejected","superseded"]}}, "additionalProperties": false}},
+    "openQuestions": {"type": "array", "items": {"type": "object", "required":["question","status"], "properties":{"question":{"type":"string"},"answer":{"type":"string"},"status":{"enum":["open","answered"]}}, "additionalProperties":false}},
+    "updatedAt": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

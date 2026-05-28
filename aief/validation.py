@@ -19,6 +19,8 @@ KIND_SCHEMAS = {
     "AgentAdapter": "adapter.schema.json", "Execution": "execution.schema.json",
     "Gate": "gate.schema.json", "Artifact": "artifact.schema.json",
     "Handoff": "handoff.schema.json", "PolicyDecision": "policy-decision.schema.json",
+    "TaskMemory": "task-memory.schema.json", "MemoryCandidate": "memory-candidate.schema.json",
+    "KnowledgePromotion": "knowledge-promotion.schema.json",
 }
 
 
