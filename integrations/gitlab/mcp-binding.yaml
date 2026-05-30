@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: McpBinding
+metadata: {id: gitlab-default, name: GitLab MCP, version: 1.0.0}
+provider: gitlab
+capabilities: [source-control, task-provider, continuous-integration]
+transport:
+  type: http
+  urlEnvironment: GITLAB_MCP_URL
+  environment: [GITLAB_MCP_URL, GITLAB_TOKEN]
+toolHints: [gitlab.*]

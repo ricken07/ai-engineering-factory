@@ -1,11 +1,5 @@
-# AI Engineering Factory Bootstrap — Codex
+# AI Engineering Factory Project
 
-This project uses the AI Engineering Factory.
+This example follows the shared bootstrap shipped in `templates/project/AGENTS.md`: resolve `.ai/project.yaml`, use the pinned Factory adapter and workflows, load context progressively, enforce policies and gates, and persist agent-neutral runtime state.
 
-1. Read `.ai/project.yaml`.
-2. Resolve the pinned Factory version using the configured Factory home environment variable.
-3. Follow the Factory Core workflow/policies for the active task.
-4. Read `.ai/repository-map.yaml` and load project context progressively.
-5. Do not bypass Factory gates or promote session assumptions as durable project facts.
-
-Project-specific truth lives under `.ai/`; organization-level engineering rules live in the pinned Factory version.
+See `.ai/README.md`. Project-specific truth belongs under `.ai/`; Factory rules and adapters remain in the central installation.

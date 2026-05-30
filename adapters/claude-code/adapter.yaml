@@ -6,6 +6,10 @@ metadata:
   version: 0.1.0
 agent: claude-code
 bootstrap: adapters/claude-code/bootstrap.md
+installation:
+  userSkillsDirectory: ~/.claude/skills
+  invocation: /skill-name
+  linkMode: symlink
 mappings:
   workflows:
     analyze-task: core/workflows/analyze-task/workflow.yaml
@@ -31,3 +35,5 @@ mappings:
     handoff-task: core/skills/handoff-task/skill.yaml
     promote-memory: core/skills/promote-memory/skill.yaml
     record-project-knowledge: core/skills/record-project-knowledge/skill.yaml
+  capabilities:
+    mcp: adapters/claude-code/mappings/mcp.yaml

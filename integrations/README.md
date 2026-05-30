@@ -17,3 +17,7 @@ Operations: search-knowledge, get-document, update-document.
 Operations: get-pipeline, run-validation, get-validation-result.
 
 An integration manifest declares capability mappings. Actual MCP tool names remain deployment/runtime configuration and are hints, not Core contracts.
+
+Each packaged provider may include `mcp-binding.yaml`. The project selects a provider by capability in `.ai/project.yaml`; the agent adapter resolves the provider binding against the endpoint and credentials available on the developer workstation.
+
+MCP configuration grants connectivity, not authorization. Effective policy and gates are checked again before every external side effect.

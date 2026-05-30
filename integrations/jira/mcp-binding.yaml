@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: McpBinding
+metadata: {id: jira-default, name: Jira MCP, version: 1.0.0}
+provider: jira
+capabilities: [task-provider]
+transport:
+  type: http
+  urlEnvironment: JIRA_MCP_URL
+  environment: [JIRA_MCP_URL, JIRA_TOKEN]
+toolHints: [jira.*]

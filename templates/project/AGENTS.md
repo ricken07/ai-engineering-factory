@@ -1,11 +1,22 @@
-# AI Engineering Factory Bootstrap — Codex
+# AI Engineering Factory Project
 
-This project uses the AI Engineering Factory.
+This project is governed by the AI Engineering Factory.
 
-1. Read `.ai/project.yaml`.
-2. Resolve the pinned Factory version using the configured Factory home environment variable.
-3. Follow the Factory Core workflow/policies for the active task.
-4. Read `.ai/repository-map.yaml` and load project context progressively.
-5. Do not bypass Factory gates or promote session assumptions as durable project facts.
+## Bootstrap
 
-Project-specific truth lives under `.ai/`; organization-level engineering rules live in the pinned Factory version.
+Before engineering work:
+
+1. Read `.ai/project.yaml` and `.ai/repository-map.yaml`.
+2. Resolve the pinned Factory version from the configured Factory home.
+3. Use its adapter for the active agent and its Core workflow for the user intent.
+4. Resolve policies before side effects and stop at unmet gates.
+5. Load project context, decisions and memory progressively after impact analysis.
+6. Resolve abstract capabilities through project-selected integrations and available MCP bindings.
+7. Create or resume agent-neutral state under `.ai/runtime/`.
+8. Never treat session observations as authoritative project knowledge.
+9. Preserve task evidence, bounded recovery and handoff state.
+10. Promote durable knowledge only through the approved Factory workflow.
+
+See `.ai/README.md` for the project AI configuration. Do not duplicate Factory workflows, profiles, provider instructions or stack commands here.
+
+Supported intents: `analyze`, `implement`, `fix`, `refactor`, `test`, `review`, `document`, `promote`.
