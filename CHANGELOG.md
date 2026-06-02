@@ -11,6 +11,15 @@
 - Claude Code and Codex adapters.
 - Project bootstrap template.
 - Emmany poly-repository example.
+# 1.2.0
+
+- Added user-level Codex and Claude Code adapter skills with native invocation conventions.
+- Added safe adapter installation planning and symlink/copy execution.
+- Added provider-neutral MCP binding contracts and GitHub, GitLab, Jira and Confluence bindings.
+- Added native Codex TOML and Claude JSON MCP configuration rendering.
+- Stabilized project bootstraps and added `.ai/README.md` to the project template.
+- Documented onboarding, session bootstrap, task execution, gates and MCP least privilege.
+
 # 1.1.0
 
 - Added explicit task-memory, memory-candidate and knowledge-promotion contracts.

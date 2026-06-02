@@ -1,6 +1,6 @@
 # AI Engineering Factory
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
@@ -54,6 +54,7 @@ Read in this order:
 6. `docs/06-context-and-memory.md`
 7. `docs/07-extension-model.md`
 8. `docs/08-project-adoption.md`
+9. `docs/13-agent-adapters-and-mcp.md`
 
 ## Project adoption
 

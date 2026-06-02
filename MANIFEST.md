@@ -32,6 +32,7 @@
 - `core/schemas/integration.schema.json`
 - `core/schemas/knowledge-promotion.schema.json`
 - `core/schemas/memory-candidate.schema.json`
+- `core/schemas/mcp-binding.schema.json`
 - `core/schemas/policy-decision.schema.json`
 - `core/schemas/policy.schema.json`
 - `core/schemas/profile.schema.json`
@@ -116,6 +117,7 @@
 - `docs/10-security.md`
 - `docs/11-lifecycle.md`
 - `docs/12-glossary.md`
+- `docs/13-agent-adapters-and-mcp.md`
 - `examples/emmany/.ai/context/architecture.md`
 - `examples/emmany/.ai/context/conventions.md`
 - `examples/emmany/.ai/context/domain.md`
@@ -137,12 +139,16 @@
 - `integrations/README.md`
 - `integrations/confluence/README.md`
 - `integrations/confluence/integration.yaml`
+- `integrations/confluence/mcp-binding.yaml`
 - `integrations/github/README.md`
 - `integrations/github/integration.yaml`
+- `integrations/github/mcp-binding.yaml`
 - `integrations/gitlab/README.md`
 - `integrations/gitlab/integration.yaml`
+- `integrations/gitlab/mcp-binding.yaml`
 - `integrations/jira/README.md`
 - `integrations/jira/integration.yaml`
+- `integrations/jira/mcp-binding.yaml`
 - `profiles/README.md`
 - `profiles/flutter/README.md`
 - `profiles/flutter/profile.yaml`
@@ -167,6 +173,8 @@
 - `templates/project/.ai/project.yaml`
 - `templates/project/.ai/repository-map.yaml`
 - `templates/project/.gitignore`
+- `templates/project/.ai/README.md`
+- `templates/project/.ai/mcp.env.example`
 - `templates/project/AGENTS.md`
 - `templates/project/CLAUDE.md`
 - `templates/project/README.md`

@@ -21,6 +21,7 @@ KIND_SCHEMAS = {
     "Handoff": "handoff.schema.json", "PolicyDecision": "policy-decision.schema.json",
     "TaskMemory": "task-memory.schema.json", "MemoryCandidate": "memory-candidate.schema.json",
     "KnowledgePromotion": "knowledge-promotion.schema.json",
+    "McpBinding": "mcp-binding.schema.json",
 }
 
 

@@ -1,0 +1,5 @@
+agent: claude-code
+configurationFile: ~/.claude.json
+projectConfigurationFile: .mcp.json
+serverKey: mcpServers
+bindingRule: Resolve project capability to provider, then expose only operations declared by the provider integration and allowed by PolicyDecision.

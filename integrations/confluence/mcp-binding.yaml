@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: McpBinding
+metadata: {id: confluence-default, name: Confluence MCP, version: 1.0.0}
+provider: confluence
+capabilities: [knowledge-base]
+transport:
+  type: http
+  urlEnvironment: CONFLUENCE_MCP_URL
+  environment: [CONFLUENCE_MCP_URL, CONFLUENCE_TOKEN]
+toolHints: [confluence.*]

@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: McpBinding
+metadata: {id: github-default, name: GitHub MCP, version: 1.0.0}
+provider: github
+capabilities: [source-control, task-provider, continuous-integration]
+transport:
+  type: http
+  urlEnvironment: GITHUB_MCP_URL
+  environment: [GITHUB_MCP_URL, GITHUB_TOKEN]
+toolHints: [github.*]

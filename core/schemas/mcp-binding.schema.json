@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://factory.gaddigital.io/schemas/mcp-binding.schema.json",
+  "type":"object",
+  "required":["apiVersion","kind","metadata","provider","capabilities","transport"],
+  "properties":{
+    "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},
+    "kind":{"const":"McpBinding"},
+    "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "provider":{"type":"string"},
+    "capabilities":{"$ref":"common.schema.json#/$defs/stringArray"},
+    "transport":{"type":"object","required":["type"],"properties":{"type":{"enum":["stdio","http"]},"command":{"type":"string"},"args":{"$ref":"common.schema.json#/$defs/stringArray"},"url":{"type":"string"},"urlEnvironment":{"type":"string"},"environment":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false},
+    "toolHints":{"$ref":"common.schema.json#/$defs/stringArray"}
+  },
+  "additionalProperties":false
+}

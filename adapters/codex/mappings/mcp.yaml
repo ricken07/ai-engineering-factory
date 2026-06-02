@@ -1,0 +1,4 @@
+agent: codex
+configurationFile: ~/.codex/config.toml
+serverKey: mcp_servers
+bindingRule: Resolve project capability to provider, then expose only operations declared by the provider integration and allowed by PolicyDecision.
