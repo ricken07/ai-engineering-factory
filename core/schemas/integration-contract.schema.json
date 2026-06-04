@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://factory.gaddigital.io/schemas/integration-contract.schema.json",
+  "type":"object",
+  "required":["apiVersion","kind","metadata","operations"],
+  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"IntegrationContract"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},"operations":{"$ref":"common.schema.json#/$defs/stringArray"}},
+  "additionalProperties":false
+}

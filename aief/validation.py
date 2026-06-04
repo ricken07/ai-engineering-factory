@@ -22,6 +22,7 @@ KIND_SCHEMAS = {
     "TaskMemory": "task-memory.schema.json", "MemoryCandidate": "memory-candidate.schema.json",
     "KnowledgePromotion": "knowledge-promotion.schema.json",
     "McpBinding": "mcp-binding.schema.json",
+    "IntegrationContract": "integration-contract.schema.json", "IntegrationLock": "integration-lock.schema.json",
 }
 
 
@@ -84,6 +85,7 @@ def validate_package(root: Path) -> list[ValidationIssue]:
             catalogs.setdefault(kind, set()).add(identifier)
 
     ref_kinds = {"policyRefs": "Policy", "standardRefs": "Standard"}
+    contract_operations = {data["metadata"]["id"]: set(data["operations"]) for _, data in documents if data.get("kind") == "IntegrationContract"}
     for path, data in documents:
         for field, kind in ref_kinds.items():
             for ref in data.get(field, []):
@@ -105,6 +107,19 @@ def validate_package(root: Path) -> list[ValidationIssue]:
                 issues.append(ValidationIssue(str(path.relative_to(root)), "skill must reference recovery-policy"))
             if "recovery" not in data.get("standardRefs", []):
                 issues.append(ValidationIssue(str(path.relative_to(root)), "skill must reference recovery standard"))
+        if data.get("kind") == "Project":
+            for capability, binding in data.get("integrations", {}).items():
+                provider = binding if isinstance(binding, str) else binding.get("provider")
+                if provider not in catalogs.get("Integration", set()):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown integration provider '{provider}' for '{capability}'"))
+        if data.get("kind") == "Integration":
+            contracts = catalogs.get("IntegrationContract", set())
+            for capability in data.get("capabilities", []):
+                if capability.get("id") not in contracts:
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown integration contract '{capability.get('id')}'"))
+                elif not set(capability.get("operations", [])) <= contract_operations[capability["id"]]:
+                    unknown = sorted(set(capability.get("operations", [])) - contract_operations[capability["id"]])
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"operations outside contract '{capability['id']}': {unknown}"))
     for directory in sorted((root / "core" / "skills").iterdir()):
         if not directory.is_dir(): continue
         for required in ("skill.yaml", "SKILL.md", "output.schema.json", "examples/output.yaml"):

@@ -1,0 +1,4 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: IntegrationContract
+metadata: {id: continuous-integration, name: Continuous Integration, version: 1.0.0}
+operations: [get-pipeline, run-validation, get-validation-result]

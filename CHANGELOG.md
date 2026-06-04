@@ -11,6 +11,15 @@
 - Claude Code and Codex adapters.
 - Project bootstrap template.
 - Emmany poly-repository example.
+# 1.3.0
+
+- Split integration contracts, provider manifests and technical MCP definitions.
+- Added explicit and shorthand-compatible project provider bindings.
+- Added on-demand capability/operation resolution.
+- Added deterministic, secret-free `integration-lock.yaml` generation.
+- Added `integrations doctor`, `lock` and safe dry-run `sync` commands.
+- Added project/user MCP scopes and strict native configuration overwrite protection.
+
 # 1.2.0
 
 - Added user-level Codex and Claude Code adapter skills with native invocation conventions.

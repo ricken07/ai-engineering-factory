@@ -42,12 +42,15 @@ The Core requests an abstract capability such as `task-provider`. The project se
 
 ```yaml
 integrations:
-  source-control: github
-  task-provider: jira
-  knowledge-base: confluence
+  source-control:
+    provider: github
+  task-provider:
+    provider: jira
+  knowledge-base:
+    provider: confluence
 ```
 
-The central provider integration declares supported operations and an `mcp-binding.yaml`. The adapter resolves environment-specific endpoint configuration and exposes only operations that are both declared and authorized.
+The central catalog keeps capability contracts under `integrations/contracts/`. Each provider declares supported operations in `integration.yaml` and technical MCP requirements in `mcp.yaml`. The adapter resolves environment-specific endpoint configuration and exposes only operations that are both declared and authorized.
 
 ```text
 skill requires task-provider
@@ -58,14 +61,33 @@ skill requires task-provider
 → PolicyDecision authorizes or denies the operation
 ```
 
-Generate a native configuration preview with:
+Resolution occurs per capability and operation when a Skill needs it. Setup and diagnosis are separate:
 
 ```bash
-aief mcp-config codex /workspace/project --factory /factory/1.2.0
-aief mcp-config claude-code /workspace/project --factory /factory/1.2.0
+aief integrations lock /workspace/project --factory /factory/1.3.0
+aief integrations doctor /workspace/project --factory /factory/1.3.0
+
+aief integrations sync codex /workspace/project --factory /factory/1.3.0
+aief integrations sync codex /workspace/project --factory /factory/1.3.0 --scope project --execute
+
+aief integrations sync claude-code /workspace/project --factory /factory/1.3.0
 ```
 
+`sync` is a dry run unless `--execute` is supplied. Project scope targets `.codex/config.toml` for Codex and `.mcp.json` for Claude Code. User scope targets their user-native configuration. Codex updates only an AIEF-managed TOML block; Claude merges only `mcpServers`. Other native settings are preserved and conflicting unmanaged provider entries fail closed.
+
 Required endpoint variables are provider-specific: `GITHUB_MCP_URL`, `GITLAB_MCP_URL`, `JIRA_MCP_URL`, and `CONFLUENCE_MCP_URL`. Credentials remain in the environment or the agent/provider authentication store; never commit them to `.ai/`.
+
+## Integration lock
+
+`.ai/integration-lock.yaml` is generated from the pinned Factory catalog. It records provider version, selected capabilities, MCP identity, transport and a content hash. It contains no endpoint or credential. A changed catalog definition makes the lock stale and is reported by `integrations doctor`.
+
+## Scope selection
+
+- Use `user` for organization-wide GitHub, GitLab, Jira or Confluence services shared across projects.
+- Use `project` for a project-specific MCP that teammates intentionally share.
+- Keep experimental personal MCPs outside project declarations and locks.
+
+The project selects providers, never native agent files, commands, endpoints or secrets.
 
 ## Gates and least privilege
 

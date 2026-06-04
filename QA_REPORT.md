@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.2.0`
+Version: `1.3.0`
 
 Checks completed successfully:
 
@@ -22,5 +22,8 @@ Checks completed successfully:
 - Codex and Claude Code expose the same eight Factory intents through thin user-level skills.
 - MCP resolution is tested from project capability selection through provider binding and native agent configuration.
 - Adapter installation is dry-run by default, refuses unrelated overwrites and is idempotent for managed links.
+- Provider operations validate against abstract integration contracts.
+- Integration locks are deterministic, content-addressed and secret-free.
+- MCP synchronization is dry-run by default, preserves unmanaged native configuration and rejects conflicting provider entries.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

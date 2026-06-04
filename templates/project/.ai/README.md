@@ -5,6 +5,7 @@ This directory contains project-owned configuration and knowledge consumed by th
 ## Entry points
 
 - `project.yaml`: project identity, Factory version, repositories, profiles, integrations, autonomy and runtime retention.
+- `integration-lock.yaml`: generated, secret-free resolution of provider and MCP versions; normally committed after review.
 - `repository-map.yaml`: repository responsibilities, exposed/consumed contracts and relationships.
 - `context/`: authoritative project, architecture, domain and convention documents.
 - `decisions/`: approved durable decision records.
@@ -27,3 +28,5 @@ Approved decisions and official context outrank project memory, task runtime and
 ## Editing
 
 Replace template placeholders only with verified project facts. Do not commit `.ai/runtime/`. Promote learned knowledge through `promote-knowledge`, which separates proposal, approval and durable recording.
+
+Select providers in `project.yaml`; do not place MCP transports, native agent configuration or credentials there. Run `aief integrations lock`, `doctor` and `sync` during onboarding.
