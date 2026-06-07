@@ -103,9 +103,13 @@
     "integrations": {
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "oneOf": [
+          {"type": "string"},
+          {"type":"object", "required":["provider"], "properties":{"provider":{"type":"string"}}, "additionalProperties":false}
+        ]
       }
     },
+    "integrationLock": {"type":"string", "default":".ai/integration-lock.yaml"},
     "autonomy": {
       "type": "object",
       "properties": {

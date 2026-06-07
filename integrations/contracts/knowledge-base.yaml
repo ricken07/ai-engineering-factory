@@ -1,0 +1,4 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: IntegrationContract
+metadata: {id: knowledge-base, name: Knowledge Base, version: 1.0.0}
+operations: [search-knowledge, get-document, update-document]

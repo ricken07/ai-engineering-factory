@@ -1,0 +1,16 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: IntegrationLock
+metadata:
+  id: emmany-integrations
+factoryVersion: 1.3.0
+integrations:
+- provider: confluence
+  version: 0.1.0
+  capabilities: [knowledge-base]
+  mcp: {id: confluence-default, transport: http}
+  contentHash: a74530f6970c9222ff49c840862736c9ed0a6c2876f7f83122df199195700cfc
+- provider: gitlab
+  version: 0.1.0
+  capabilities: [source-control, task-provider]
+  mcp: {id: gitlab-default, transport: http}
+  contentHash: 706194d8af52046df342ef0bfd2e841b2ac619b2abb5b8271426b641bbf7d4b6

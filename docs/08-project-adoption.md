@@ -58,3 +58,7 @@ Examples:
 ```
 
 Exact slash-command syntax is adapter-specific; the Factory workflow identity remains stable.
+
+## 9. Resolve integrations
+
+Generate and review `.ai/integration-lock.yaml`, diagnose both agent runtimes, then preview and explicitly execute MCP synchronization for the chosen scope. Keep endpoints and credentials in local environment, keychain, secret manager or managed enterprise configuration.

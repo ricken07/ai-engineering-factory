@@ -4,7 +4,7 @@ metadata:
   id: replace-me
   name: Replace Me
 factory:
-  version: 1.2.0
+  version: 1.3.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: monorepo
@@ -32,6 +32,7 @@ runtime:
   taskRetentionDays: 30
   executionRetentionDays: 14
 integrations: {}
+integrationLock: .ai/integration-lock.yaml
 autonomy:
   default: L1
   maximum: L2

@@ -1,0 +1,4 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: IntegrationContract
+metadata: {id: task-provider, name: Task Provider, version: 1.0.0}
+operations: [get-task, search-task, comment-task, update-task, link-change]

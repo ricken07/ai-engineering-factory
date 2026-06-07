@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://factory.gaddigital.io/schemas/integration-lock.schema.json",
+  "type":"object",
+  "required":["apiVersion","kind","metadata","factoryVersion","integrations"],
+  "properties":{
+    "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},
+    "kind":{"const":"IntegrationLock"},
+    "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "factoryVersion":{"$ref":"common.schema.json#/$defs/semanticVersion"},
+    "integrations":{"type":"array","items":{"type":"object","required":["provider","version","capabilities","mcp","contentHash"],"properties":{"provider":{"type":"string"},"version":{"$ref":"common.schema.json#/$defs/semanticVersion"},"capabilities":{"$ref":"common.schema.json#/$defs/stringArray"},"mcp":{"type":"object","required":["id","transport"],"properties":{"id":{"type":"string"},"transport":{"enum":["stdio","http"]}},"additionalProperties":false},"contentHash":{"type":"string"}},"additionalProperties":false}}
+  },
+  "additionalProperties":false
+}
