@@ -1,16 +1,12 @@
 from __future__ import annotations
 from pathlib import Path
-import re, yaml
+import yaml
+from .intake import INTENT_WORKFLOWS, create_request, resolve_intent
 
-INTENTS = {"analyze":"analyze-task","implement":"implement-task","fix":"fix-bug","refactor":"refactor-code","test":"add-tests","review":"review-change","document":"update-documentation","promote":"promote-knowledge"}
+INTENTS = INTENT_WORKFLOWS
 
 def select_workflow(text: str) -> str:
-    normalized = text.strip().lower()
-    command = re.match(r"/?([a-z-]+)", normalized)
-    if command and command.group(1) in INTENTS: return INTENTS[command.group(1)]
-    for intent, workflow in INTENTS.items():
-        if intent in normalized: return workflow
-    raise ValueError("unable to select a Factory workflow")
+    return resolve_intent(create_request(text))["workflow"]
 
 def adapter_mapping(factory: Path, adapter: str, workflow: str) -> Path:
     config = yaml.safe_load((factory / "adapters" / adapter / "adapter.yaml").read_text(encoding="utf-8"))

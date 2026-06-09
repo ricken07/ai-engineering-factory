@@ -15,3 +15,5 @@ Required adapter responsibilities:
 Adapters have three surfaces: user-level skill installation during onboarding, project bootstrap at session start, and capability/tool translation during task execution. See `docs/13-agent-adapters-and-mcp.md`.
 
 Adapter-native skills are intentionally thin. They resolve a pinned Core workflow and must never copy its phases or Core Skill instructions.
+
+Since v1.4.0 every adapter enters the same executable boundary through `aief run`. The adapter supplies the untouched user request and its identity, then follows `aief execution next` and submits schema-valid phase results. Intent normalization, workflow compilation, state, gates and handoff must never be reimplemented in an agent plug-in.

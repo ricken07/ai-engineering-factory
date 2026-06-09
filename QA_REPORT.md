@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.3.0`
+Version: `1.4.0`
 
 Checks completed successfully:
 
@@ -25,5 +25,13 @@ Checks completed successfully:
 - Provider operations validate against abstract integration contracts.
 - Integration locks are deterministic, content-addressed and secret-free.
 - MCP synchronization is dry-run by default, preserves unmanaged native configuration and rejects conflicting provider entries.
+- Request, IntentResolution, normalized Task, Execution and Handoff documents validate against their contracts.
+- Explicit commands and equivalent natural-language requests converge on the same workflow.
+- Ambiguous requests conservatively fall back to non-mutating analysis.
+- Workflow compilation resolves Core Skills, output schemas and required capabilities without adapter duplication.
+- Skill outputs are schema-validated before execution state advances.
+- Gate evidence is persisted before approval is requested, and premature approval is rejected.
+- Tracking is deterministically re-evaluated when risk, scope or change type changes.
+- Local-task promotion plans require duplicate search, a human gate and provider-neutral task-provider operations.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

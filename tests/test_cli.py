@@ -17,3 +17,12 @@ def test_init(tmp_path: Path):
     assert (destination / ".ai/mcp.env.example").is_file()
     assert (destination / ".ai/runtime/README.md").is_file()
     assert ".ai/runtime/" in (destination / ".gitignore").read_text()
+
+def test_intake_and_run_commands(tmp_path: Path, capsys):
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    capsys.readouterr()
+    assert main(["intake", "Corrige le bug DEMO-12", "--project", str(destination), "--factory", ".", "--json"]) == 0
+    assert '"workflow": "fix-bug"' in capsys.readouterr().out
+    assert main(["run", "/analyze DEMO-12", "--project", str(destination), "--factory", ".", "--agent", "codex"]) == 0
+    assert "nextPhase: understand" in capsys.readouterr().out

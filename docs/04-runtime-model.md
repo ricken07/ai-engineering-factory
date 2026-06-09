@@ -64,3 +64,9 @@ Generated task and execution state is stored under `.ai/runtime/tasks/` and `.ai
 Runtime state is agent-neutral. An adapter identity may be recorded for audit, but resuming an execution must not require the original agent or its conversation history.
 
 Knowledge learned during execution remains task-local until the `promote-knowledge` workflow proposes a `MemoryCandidate`, obtains explicit approval and records a content-bound `KnowledgePromotion`.
+
+## Universal intake and executable commands
+
+Commands are optional intent shortcuts. `aief run` normalizes commands and natural language through the same Request, IntentResolution, Task and Execution contracts. Phase results are schema-validated before persistence, and runtime state can be resumed by a different adapter.
+
+See `docs/14-universal-runtime.md` for the executable protocol and use cases.

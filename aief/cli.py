@@ -3,16 +3,18 @@ import argparse, json
 from pathlib import Path
 import yaml
 from .project import find_project, initialize, load_project
-from .validation import validate_package
+from .validation import validate_package, validate_project
 from .policy import resolve_policy
 from .adapter_install import adapter_plan, install_adapter
 from .mcp import render_claude, render_codex, resolve_bindings
 from .integration_manager import doctor as integration_doctor, sync_agent, write_lock
+from .intake import TaskRegistry
+from .service import RuntimeService
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="aief")
     sub = root.add_subparsers(dest="command", required=True)
-    validate = sub.add_parser("validate"); validate.add_argument("path", nargs="?", default=".")
+    validate = sub.add_parser("validate"); validate.add_argument("path", nargs="?", default="."); validate.add_argument("--factory",default=".")
     doctor = sub.add_parser("doctor"); doctor.add_argument("path", nargs="?", default=".")
     inspect = sub.add_parser("inspect"); inspect.add_argument("path", nargs="?", default="."); inspect.add_argument("--json", action="store_true")
     init = sub.add_parser("init"); init.add_argument("destination"); init.add_argument("--template"); init.add_argument("--force", action="store_true")
@@ -23,10 +25,48 @@ def parser() -> argparse.ArgumentParser:
     for name in ("doctor","lock"):
         command=integration_sub.add_parser(name); command.add_argument("project",nargs="?",default="."); command.add_argument("--factory",default=".")
     sync=integration_sub.add_parser("sync"); sync.add_argument("agent",choices=["codex","claude-code"]); sync.add_argument("project",nargs="?",default="."); sync.add_argument("--factory",default="."); sync.add_argument("--scope",choices=["user","project"],default="project"); sync.add_argument("--execute",action="store_true")
+    intake=sub.add_parser("intake"); intake.add_argument("request"); intake.add_argument("--project",default="."); intake.add_argument("--factory",default="."); intake.add_argument("--agent",choices=["codex","claude-code"]); intake.add_argument("--json",action="store_true")
+    run=sub.add_parser("run"); run.add_argument("request"); run.add_argument("--project",default="."); run.add_argument("--factory",default="."); run.add_argument("--agent",choices=["codex","claude-code"])
+    task=sub.add_parser("task"); task_sub=task.add_subparsers(dest="task_command",required=True); task_inspect=task_sub.add_parser("inspect"); task_inspect.add_argument("id"); task_inspect.add_argument("--project",default="."); task_inspect.add_argument("--json",action="store_true")
+    task_assess=task_sub.add_parser("assess-tracking"); task_assess.add_argument("id"); task_assess.add_argument("--impact",required=True); task_assess.add_argument("--project",default="."); task_assess.add_argument("--factory",default="."); task_assess.add_argument("--json",action="store_true")
+    execution=sub.add_parser("execution"); execution_sub=execution.add_subparsers(dest="execution_command",required=True)
+    for name in ("inspect","next","approve","handoff"):
+        command=execution_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
+    complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--project",default="."); complete.add_argument("--factory",default="."); complete.add_argument("--json",action="store_true")
     return root
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command in {"intake", "run"}:
+        service = RuntimeService(Path(args.project), Path(args.factory))
+        if args.command == "intake":
+            result = service.intake(args.request, args.agent)
+            result = {key:value for key,value in result.items() if key != "path"} | {"taskFile": result["path"]}
+            print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else yaml.safe_dump(result, sort_keys=False, allow_unicode=True))
+        else:
+            execution = service.start(args.request, args.agent)
+            print(yaml.safe_dump({"execution":execution.data["metadata"]["id"],"status":execution.data["status"],"workflow":execution.data["workflow"],"task":execution.data["task"],"nextPhase":execution.next_phase()["id"]},sort_keys=False))
+        return 0
+    if args.command == "task":
+        project_root=find_project(Path(args.project))
+        if args.task_command=="assess-tracking":
+            impact=yaml.safe_load(Path(args.impact).read_text(encoding="utf-8"))
+            if not isinstance(impact,dict): raise ValueError("impact must be an object")
+            data=RuntimeService(project_root,Path(args.factory)).reassess_tracking(args.id,impact)
+        else: data=TaskRegistry(project_root).load(args.id)
+        print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+    if args.command == "execution":
+        service=RuntimeService(Path(args.project),Path(args.factory)); execution=service.execution(args.id)
+        if args.execution_command=="complete-phase":
+            output=yaml.safe_load(Path(args.output).read_text(encoding="utf-8"))
+            if not isinstance(output,dict): raise ValueError("phase output must be an object")
+            execution=service.complete_phase(args.id,output)
+        if args.execution_command=="approve": execution.advance(approved=True)
+        if args.execution_command=="handoff": execution.handoff()
+        if args.execution_command=="next":
+            data={"execution":args.id,"status":execution.data["status"],"phase":execution.next_phase()}
+        else: data=execution.data
+        print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "resolve":
         data = yaml.safe_load(Path(args.decision).read_text(encoding="utf-8"))
         result = resolve_policy(data.get("requestedAutonomy", "L1"), data.get("constraints", [])).as_dict()
@@ -48,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         path,content=sync_agent(factory,project_root,project,args.agent,args.scope,args.execute)
         print(f"{'Wrote' if args.execute else 'PLAN'} {path}\n{content}"); return 0
     if args.command == "validate":
-        path = Path(args.path); issues = validate_package(path)
+        path = Path(args.path); issues = validate_package(path) if (path / "core" / "schemas").is_dir() else validate_project(find_project(path), Path(args.factory))
         for issue in issues: print(f"ERROR {issue.path}: {issue.message}")
         print(f"Validation: {'FAILED' if issues else 'OK'} ({len(issues)} issue(s))")
         return bool(issues)

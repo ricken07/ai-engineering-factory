@@ -17,7 +17,9 @@ def factory_home(project: dict[str, Any]) -> Path:
     if not value: raise FileNotFoundError(f"environment variable {key} is not set")
     base = Path(value).expanduser()
     versioned = base / project["factory"]["version"]
-    return versioned if versioned.exists() else base
+    if not versioned.is_dir():
+        raise FileNotFoundError(f"Factory version {project['factory']['version']} is not installed at {versioned}")
+    return versioned
 
 def initialize(template: Path, destination: Path, force: bool = False) -> None:
     if (destination / ".ai").exists() and not force: raise FileExistsError("project is already initialized")

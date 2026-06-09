@@ -1,3 +1,6 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: RepositoryMap
+metadata: {id: emmany-repositories}
 repositories:
   egw-api:
     responsibilities: [payment-orchestration, transactions, webhooks, provider-integrations]

@@ -21,3 +21,10 @@ def test_bounded_recovery_requires_distinct_attempts_and_persists_answer(tmp_pat
     execution.ask_user("Which behavior is authoritative?")
     execution.answer_user_question("Use the documented behavior")
     assert Execution.load(execution.root).next_phase()["recovery"]["answer"] == "Use the documented behavior"
+
+def test_gate_cannot_be_approved_before_phase_evidence_exists(tmp_path):
+    workflow = {"metadata":{"id":"demo"},"phases":[{"id":"plan","skill":"create-plan","gate":{"id":"approval","type":"human-approval"}}]}
+    execution = Execution.create(tmp_path, workflow, "TASK-3")
+    try: execution.advance(approved=True)
+    except RuntimeError as error: assert "waiting for approval" in str(error)
+    else: raise AssertionError("gate was approved before reaching the gate")
