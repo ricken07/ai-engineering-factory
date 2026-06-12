@@ -20,6 +20,7 @@
     },
     "source": {
       "type": "object",
+      "required": ["type"],
       "properties": {
         "type": {
           "type": "string",
@@ -36,6 +37,19 @@
         "reference": {
           "type": "string"
         }
+      },
+      "additionalProperties": false
+    },
+    "nature": {
+      "type": "string",
+      "enum": ["informational", "change", "validation", "review"]
+    },
+    "intent": {
+      "type": "object",
+      "required": ["type", "confidence"],
+      "properties": {
+        "type": {"enum": ["analyze", "implement", "fix", "refactor", "test", "review", "document", "promote"]},
+        "confidence": {"enum": ["high", "medium", "low", "ambiguous"]}
       },
       "additionalProperties": false
     },
@@ -105,6 +119,24 @@
     },
     "workflow": {
       "type": "string"
+    },
+    "tracking": {
+      "type": "object",
+      "properties": {
+        "level": {"enum": ["optional", "recommended", "required"]},
+        "canonicalReference": {"type": "string"},
+        "external": {
+          "type": "object",
+          "required": ["provider", "reference", "status"],
+          "properties": {
+            "provider": {"type": "string"},
+            "reference": {"type": "string"},
+            "status": {"enum": ["candidate", "linked", "unavailable"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     },
     "policyRefs": {
       "$ref": "common.schema.json#/$defs/stringArray"

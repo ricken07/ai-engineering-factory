@@ -22,6 +22,7 @@
 - `core/policies/memory-policy.yaml`
 - `core/policies/risk-policy.yaml`
 - `core/policies/traceability-policy.yaml`
+- `core/policies/task-tracking-policy.yaml`
 - `core/schemas/adapter.schema.json`
 - `core/schemas/artifact.schema.json`
 - `core/schemas/common.schema.json`
@@ -39,7 +40,10 @@
 - `core/schemas/policy.schema.json`
 - `core/schemas/profile.schema.json`
 - `core/schemas/project.schema.json`
+- `core/schemas/request.schema.json`
+- `core/schemas/intent-resolution.schema.json`
 - `core/schemas/repository.schema.json`
+- `core/schemas/repository-map.schema.json`
 - `core/schemas/skill.schema.json`
 - `core/schemas/standard.schema.json`
 - `core/schemas/task.schema.json`
@@ -120,6 +124,7 @@
 - `docs/11-lifecycle.md`
 - `docs/12-glossary.md`
 - `docs/13-agent-adapters-and-mcp.md`
+- `docs/14-universal-runtime.md`
 - `examples/emmany/.ai/context/architecture.md`
 - `examples/emmany/.ai/context/conventions.md`
 - `examples/emmany/.ai/context/domain.md`

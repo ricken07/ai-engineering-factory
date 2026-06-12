@@ -4,7 +4,7 @@ metadata:
   id: replace-me
   name: Replace Me
 factory:
-  version: 1.3.0
+  version: 1.4.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: monorepo

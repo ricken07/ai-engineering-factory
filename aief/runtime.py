@@ -10,13 +10,22 @@ TERMINAL = {"completed", "failed", "skipped"}
 class Execution:
     def __init__(self, root: Path, data: dict[str, Any]): self.root, self.data = root, data
     @classmethod
-    def create(cls, project: Path, workflow: dict[str, Any], task: str) -> "Execution":
+    def create(cls, project: Path, workflow: dict[str, Any], task: str, agent: str | None = None) -> "Execution":
         identifier = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         root = project / ".ai" / "runtime" / "executions" / identifier
         root.mkdir(parents=True)
-        task_memory = create_task_memory(project, task)
-        phases = [{"id": p["id"], "skill": p["skill"], "status": "pending", **({"gate": p["gate"]} if "gate" in p else {}), "recovery": {"status":"active", "minimumAttempts":p.get("recovery",{}).get("minimumAttempts",10), "maximumAttempts":p.get("recovery",{}).get("maximumAttempts",15), "attempts":[]}} for p in workflow["phases"]]
-        execution = cls(root, {"id": identifier, "workflow": workflow["metadata"]["id"], "task": task, "taskMemory": str(task_memory.relative_to(project)), "status": "pending", "phases": phases, "artifacts": []})
+        create_task_memory(project, task)
+        phases = [{"id": p["id"], "skill": p["skill"], "status": "pending", "artifacts": [], **({"gate": p["gate"]} if "gate" in p else {}), "recovery": {"status":"active", "minimumAttempts":p.get("recovery",{}).get("minimumAttempts",10), "maximumAttempts":p.get("recovery",{}).get("maximumAttempts",15), "attempts":[]}} for p in workflow["phases"]]
+        project_file = project / ".ai" / "project.yaml"
+        project_id = "local-project"
+        if project_file.is_file():
+            project_id = yaml.safe_load(project_file.read_text(encoding="utf-8")).get("metadata", {}).get("id", project_id)
+        metadata = workflow.get("metadata", {})
+        workflow_id = workflow.get("id") or metadata.get("id")
+        workflow_version = workflow.get("version") or metadata.get("version", "0.0.0")
+        data = {"apiVersion":"factory.gaddigital.io/v1alpha1", "kind":"Execution", "metadata":{"id":identifier}, "project":project_id, "workflow":{"id":workflow_id,"version":workflow_version}, "task":task, "status":"pending", "phases":phases, "artifacts":[]}
+        if agent: data["agent"] = {"adapter": agent}
+        execution = cls(root, data)
         execution.save(); return execution
     @classmethod
     def load(cls, root: Path) -> "Execution":
@@ -27,14 +36,27 @@ class Execution:
     def advance(self, output: dict[str, Any] | None = None, approved: bool = False) -> str:
         phase = self.next_phase()
         if not phase: self.data["status"] = "completed"; self.save(); return "completed"
+        if approved and phase["status"] != "waiting-approval":
+            raise RuntimeError("approval is only valid for a phase waiting for approval")
+        if phase["status"] == "waiting-approval":
+            if not approved:
+                return "waiting-approval"
+            phase["status"] = "completed"
+            self.data["status"] = "completed" if self.next_phase() is None else "running"
+            self.save(); return self.data["status"]
+        if output is not None:
+            artifact = self.root / f"{phase['id']}.yaml"
+            artifact.write_text(yaml.safe_dump(output, sort_keys=False, allow_unicode=True), encoding="utf-8")
+            if artifact.name not in phase["artifacts"]: phase["artifacts"].append(artifact.name)
+            if artifact.name not in self.data["artifacts"]: self.data["artifacts"].append(artifact.name)
         if "gate" in phase and not approved:
             phase["status"] = "waiting-approval"; self.data["status"] = "waiting-approval"; self.save(); return "waiting-approval"
         phase["status"] = "completed"
-        if output is not None:
-            artifact = self.root / f"{phase['id']}.yaml"; artifact.write_text(yaml.safe_dump(output, sort_keys=False), encoding="utf-8"); self.data["artifacts"].append(artifact.name)
         self.data["status"] = "completed" if self.next_phase() is None else "running"; self.save(); return self.data["status"]
     def handoff(self) -> Path:
-        path = self.root / "handoff.yaml"; path.write_text(yaml.safe_dump({"execution":self.data["id"],"workflow":self.data["workflow"],"task":self.data["task"],"status":self.data["status"],"nextPhase":(self.next_phase() or {}).get("id"),"artifacts":self.data["artifacts"]}, sort_keys=False), encoding="utf-8"); return path
+        next_phase = self.next_phase()
+        data = {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"Handoff","metadata":{"id":f"handoff-{self.data['metadata']['id']}"},"execution":self.data["metadata"]["id"],"task":self.data["task"],"status":self.data["status"],"summary":f"Execution {self.data['status']} for workflow {self.data['workflow']['id']}.","artifacts":self.data["artifacts"],"decisions":[],"constraints":[],"openQuestions":[],"nextActions":([f"Resume phase {next_phase['id']}"] if next_phase else [])}
+        path = self.root / "handoff.yaml"; path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"); return path
     def record_attempt(self, error: str, hypothesis: str, action: str, outcome: str, evidence: list[str] | None = None) -> str:
         phase = self.next_phase()
         if not phase: raise RuntimeError("execution has no active phase")

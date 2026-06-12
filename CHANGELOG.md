@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0 — Universal Runtime foundation
+
+- Added agent-neutral Request and IntentResolution contracts.
+- Added command and natural-language intake with conservative non-mutating fallback.
+- Added normalized local/external Tasks and a persistent Task registry.
+- Added deterministic Workflow/Skill compilation and capability discovery.
+- Aligned Execution and Handoff persistence with their JSON Schemas.
+- Added schema validation for every phase output before state advancement.
+- Fixed approval gates so phase evidence is persisted before waiting.
+- Added runtime CLI commands for intake, start, inspection, phase completion, approval and handoff.
+- Added deterministic task-tracking evaluation and provider-neutral search/create/link promotion contracts.
+- Documented the shared adapter protocol and representative use cases.
+
 ## 0.1.0 — Initial foundation
 
 - Agnostic Core contracts and schemas.

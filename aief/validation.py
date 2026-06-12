@@ -12,7 +12,7 @@ from referencing import Registry, Resource
 
 KIND_SCHEMAS = {
     "Factory": "factory.schema.json", "Project": "project.schema.json",
-    "RepositoryMap": "repository.schema.json", "Task": "task.schema.json",
+    "RepositoryMap": "repository-map.schema.json", "Task": "task.schema.json",
     "Workflow": "workflow.schema.json", "Skill": "skill.schema.json",
     "Policy": "policy.schema.json", "Standard": "standard.schema.json",
     "Profile": "profile.schema.json", "Integration": "integration.schema.json",
@@ -23,6 +23,7 @@ KIND_SCHEMAS = {
     "KnowledgePromotion": "knowledge-promotion.schema.json",
     "McpBinding": "mcp-binding.schema.json",
     "IntegrationContract": "integration-contract.schema.json", "IntegrationLock": "integration-lock.schema.json",
+    "Request": "request.schema.json", "IntentResolution": "intent-resolution.schema.json",
 }
 
 
@@ -35,6 +36,41 @@ class ValidationIssue:
 def load_yaml(path: Path) -> Any:
     with path.open(encoding="utf-8") as stream:
         return yaml.safe_load(stream)
+
+
+def validate_project(project_root: Path, factory_root: Path) -> list[ValidationIssue]:
+    project_root, factory_root = project_root.resolve(), factory_root.resolve()
+    schemas: dict[str, dict[str, Any]] = {}
+    registry = Registry()
+    issues: list[ValidationIssue] = []
+    for path in sorted((factory_root / "core" / "schemas").glob("*.json")):
+        try:
+            schema = json.loads(path.read_text(encoding="utf-8"))
+            Draft202012Validator.check_schema(schema)
+            schemas[path.name] = schema
+            registry = registry.with_resource(schema["$id"], Resource.from_contents(schema))
+        except Exception as exc:
+            issues.append(ValidationIssue(str(path), str(exc)))
+    candidates = [project_root / ".ai" / "project.yaml", project_root / ".ai" / "repository-map.yaml"]
+    runtime = project_root / ".ai" / "runtime"
+    if runtime.is_dir():
+        candidates.extend(sorted(runtime.rglob("*.yaml")))
+    for path in candidates:
+        if not path.is_file():
+            issues.append(ValidationIssue(str(path.relative_to(project_root)), "required document is missing"))
+            continue
+        try:
+            data = load_yaml(path)
+            kind = data.get("kind") if isinstance(data, dict) else None
+            if kind not in KIND_SCHEMAS:
+                raise ValueError(f"unsupported or missing kind: {kind}")
+            errors = Draft202012Validator(schemas[KIND_SCHEMAS[kind]], registry=registry).iter_errors(data)
+            for error in sorted(errors, key=lambda item: list(item.path)):
+                location = ".".join(map(str, error.path)) or "root"
+                issues.append(ValidationIssue(str(path.relative_to(project_root)), f"{location}: {error.message}"))
+        except Exception as exc:
+            issues.append(ValidationIssue(str(path.relative_to(project_root)), str(exc)))
+    return issues
 
 
 def validate_package(root: Path) -> list[ValidationIssue]:

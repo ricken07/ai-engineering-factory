@@ -94,6 +94,8 @@
           "status": {
             "$ref": "common.schema.json#/$defs/executionStatus"
           },
+          "skill": {"type": "string"},
+          "gate": {"$ref": "gate.schema.json"},
           "artifacts": {
             "$ref": "common.schema.json#/$defs/stringArray"
           },
@@ -129,6 +131,9 @@
         },
         "additionalProperties": false
       }
+    },
+    "artifacts": {
+      "$ref": "common.schema.json#/$defs/stringArray"
     },
     "traceability": {
       "type": "object",

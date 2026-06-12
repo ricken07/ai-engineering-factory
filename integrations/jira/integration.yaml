@@ -10,8 +10,10 @@ capabilities:
   operations:
   - get-task
   - search-task
+  - create-task
   - comment-task
   - update-task
+  - link-task
   - link-change
   mcpToolHints:
   - jira.*

@@ -1,3 +1,6 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: RepositoryMap
+metadata: {id: replace-me-repositories}
 repositories:
   main:
     responsibilities: []

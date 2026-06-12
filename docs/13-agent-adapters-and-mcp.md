@@ -64,13 +64,13 @@ skill requires task-provider
 Resolution occurs per capability and operation when a Skill needs it. Setup and diagnosis are separate:
 
 ```bash
-aief integrations lock /workspace/project --factory /factory/1.3.0
-aief integrations doctor /workspace/project --factory /factory/1.3.0
+aief integrations lock /workspace/project --factory /factory/1.4.0
+aief integrations doctor /workspace/project --factory /factory/1.4.0
 
-aief integrations sync codex /workspace/project --factory /factory/1.3.0
-aief integrations sync codex /workspace/project --factory /factory/1.3.0 --scope project --execute
+aief integrations sync codex /workspace/project --factory /factory/1.4.0
+aief integrations sync codex /workspace/project --factory /factory/1.4.0 --scope project --execute
 
-aief integrations sync claude-code /workspace/project --factory /factory/1.3.0
+aief integrations sync claude-code /workspace/project --factory /factory/1.4.0
 ```
 
 `sync` is a dry run unless `--execute` is supplied. Project scope targets `.codex/config.toml` for Codex and `.mcp.json` for Claude Code. User scope targets their user-native configuration. Codex updates only an AIEF-managed TOML block; Claude merges only `mcpServers`. Other native settings are preserved and conflicting unmanaged provider entries fail closed.

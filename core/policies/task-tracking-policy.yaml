@@ -1,0 +1,23 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata: {id: task-tracking-policy, name: Task Tracking Policy, version: 0.1.0}
+scope: factory
+priority: 100
+rules:
+  - id: externally-track-high-risk
+    when: {risk: {containsAny: [high, critical]}}
+    before: [implementation]
+    effect: {tracking: required}
+  - id: externally-track-cross-repository
+    when: {impactedRepositories: {greaterThan: 1}}
+    before: [implementation]
+    effect: {tracking: required}
+  - id: recommend-functional-tracking
+    when: {changeTypes: {containsAny: [functional-change, source-code, configuration, dependency]}}
+    effect: {trackingAtLeast: recommended}
+  - id: optional-informational-work
+    when: {taskNature: {containsAny: [informational, validation, review]}}
+    effect: {tracking: optional}
+  - id: optional-documentation-only
+    when: {changeTypes: {containsOnly: [documentation]}}
+    effect: {tracking: optional}
