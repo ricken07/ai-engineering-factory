@@ -125,6 +125,7 @@
 - `docs/12-glossary.md`
 - `docs/13-agent-adapters-and-mcp.md`
 - `docs/14-universal-runtime.md`
+- `docs/15-profile-runtime.md`
 - `examples/emmany/.ai/context/architecture.md`
 - `examples/emmany/.ai/context/conventions.md`
 - `examples/emmany/.ai/context/domain.md`

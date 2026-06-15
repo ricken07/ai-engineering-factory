@@ -17,3 +17,5 @@ Adapters have three surfaces: user-level skill installation during onboarding, p
 Adapter-native skills are intentionally thin. They resolve a pinned Core workflow and must never copy its phases or Core Skill instructions.
 
 Since v1.4.0 every adapter enters the same executable boundary through `aief run`. The adapter supplies the untouched user request and its identity, then follows `aief execution next` and submits schema-valid phase results. Intent normalization, workflow compilation, state, gates and handoff must never be reimplemented in an agent plug-in.
+
+For `validate-change`, adapters must call the shared profile-validation operation. Repository selection, profile inheritance, command construction, authorization and result persistence belong to the Runtime, ensuring identical behavior across agents.

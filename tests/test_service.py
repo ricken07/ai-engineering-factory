@@ -70,3 +70,52 @@ def test_runtime_fails_closed_on_factory_version_mismatch(tmp_path: Path):
     (project / ".ai/project.yaml").write_text(yaml.safe_dump(data, sort_keys=False))
     with pytest.raises(RuntimeError, match="requires Factory 9.9.9"):
         RuntimeService(project, Path("."))
+
+
+def validation_execution(tmp_path: Path, repositories=None, autonomy="L2"):
+    project = tmp_path / "project"
+    initialize(Path("templates/project"), project)
+    project_data = yaml.safe_load((project / ".ai/project.yaml").read_text())
+    project_data["autonomy"]["default"] = autonomy
+    project_data["repositories"] = repositories or [{"id":"main","path":".","role":"application","profiles":["maven"],"responsibilities":[],"dependencies":[],"criticalDomains":[]}]
+    (project / ".ai/project.yaml").write_text(yaml.safe_dump(project_data, sort_keys=False))
+    (project / "mvnw").touch()
+    service = RuntimeService(project, Path("."))
+    execution = service.start("/test DEMO-7")
+    task = TaskRegistry(project).load("DEMO-7")
+    task["scope"] = {"repositories":[item["id"] for item in project_data["repositories"]]}
+    TaskRegistry(project).save(task)
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "validate-change": break
+        phase["status"] = "completed"
+    execution.data["status"] = "running"; execution.save()
+    return service, execution
+
+
+def test_runtime_resolves_and_executes_profile_validation_without_shell(tmp_path: Path):
+    service, execution = validation_execution(tmp_path)
+    plan = service.profile_validation_plan(execution.data["metadata"]["id"])
+    assert plan[0]["command"] == ["./mvnw", "verify"]
+    calls = []
+    class Result: returncode, stdout, stderr = 0, "verified", ""
+    def runner(command, **kwargs): calls.append((command,kwargs)); return Result()
+    report = service.run_profile_validation(execution.data["metadata"]["id"], runner)
+    assert report["status"] == "completed"
+    assert calls[0][1]["shell"] is False
+    assert service.execution(execution.data["metadata"]["id"]).next_phase()["skill"] == "review-change"
+
+
+def test_runtime_stops_execution_when_profile_validation_fails(tmp_path: Path):
+    service, execution = validation_execution(tmp_path)
+    class Result: returncode, stdout, stderr = 1, "", "tests failed"
+    report = service.run_profile_validation(execution.data["metadata"]["id"], lambda command, **kwargs: Result())
+    assert report["status"] == "failed"
+    persisted = service.execution(execution.data["metadata"]["id"])
+    assert persisted.data["status"] == "failed"
+    assert yaml.safe_load((persisted.root / "validation.yaml").read_text())["details"]["results"][0]["stderr"] == "tests failed"
+
+
+def test_runtime_denies_profile_execution_below_l2(tmp_path: Path):
+    service, execution = validation_execution(tmp_path, autonomy="L1")
+    with pytest.raises(PermissionError, match="requires autonomy L2"):
+        service.run_profile_validation(execution.data["metadata"]["id"])

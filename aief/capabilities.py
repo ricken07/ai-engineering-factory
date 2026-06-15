@@ -18,21 +18,26 @@ def resolve_profiles(factory: Path, selected: list[str]) -> list[dict[str, Any]]
     for identifier in selected: visit(identifier)
     return resolved
 
-def validation_plan(factory: Path, repository: Path, selected: list[str]) -> list[dict[str, str]]:
-    plan = []
+def validation_plan(factory: Path, repository: Path, selected: list[str]) -> list[dict[str, Any]]:
+    plan: list[dict[str, Any]] = []
     for profile in resolve_profiles(factory, selected):
         files = profile.get("discovery", {}).get("files", [])
         if files and not any((repository / name).exists() for name in files): continue
         for operation, command in profile.get("commands", {}).items():
-            plan.append({"profile": profile["metadata"]["id"], "operation": operation, "command": command})
+            if not isinstance(command, list) or not command or not all(isinstance(value, str) and value for value in command):
+                raise ValueError(f"profile {profile['metadata']['id']} command {operation} must be a non-empty argv array")
+            plan.append({"profile": profile["metadata"]["id"], "operation": operation, "command": list(command)})
     return plan
 
-def execute_plan(plan: list[dict[str, str]], cwd: Path, execute: bool = False, runner: Callable[..., Any] = subprocess.run) -> list[dict[str, Any]]:
+def execute_plan(plan: list[dict[str, Any]], cwd: Path, execute: bool = False, runner: Callable[..., Any] = subprocess.run) -> list[dict[str, Any]]:
     if not execute: return [{**item, "mode":"plan"} for item in plan]
     results = []
     for item in plan:
-        completed = runner(item["command"], cwd=cwd, shell=True, text=True, capture_output=True)
-        results.append({**item,"mode":"execute","exitCode":completed.returncode,"stdout":completed.stdout,"stderr":completed.stderr})
+        try:
+            completed = runner(item["command"], cwd=cwd, shell=False, text=True, capture_output=True)
+            results.append({**item,"mode":"execute","exitCode":completed.returncode,"stdout":completed.stdout,"stderr":completed.stderr})
+        except OSError as exc:
+            results.append({**item,"mode":"execute","exitCode":127,"stdout":"","stderr":str(exc)})
     return results
 
 def integration_capabilities(factory: Path, provider: str) -> dict[str, set[str]]:

@@ -33,6 +33,11 @@ class Execution:
     def save(self) -> None: (self.root / "execution.yaml").write_text(yaml.safe_dump(self.data, sort_keys=False), encoding="utf-8")
     def next_phase(self) -> dict[str, Any] | None:
         return next((p for p in self.data["phases"] if p["status"] not in TERMINAL), None)
+    def _persist_output(self, phase: dict[str, Any], output: dict[str, Any]) -> None:
+        artifact = self.root / f"{phase['id']}.yaml"
+        artifact.write_text(yaml.safe_dump(output, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        if artifact.name not in phase["artifacts"]: phase["artifacts"].append(artifact.name)
+        if artifact.name not in self.data["artifacts"]: self.data["artifacts"].append(artifact.name)
     def advance(self, output: dict[str, Any] | None = None, approved: bool = False) -> str:
         phase = self.next_phase()
         if not phase: self.data["status"] = "completed"; self.save(); return "completed"
@@ -45,14 +50,17 @@ class Execution:
             self.data["status"] = "completed" if self.next_phase() is None else "running"
             self.save(); return self.data["status"]
         if output is not None:
-            artifact = self.root / f"{phase['id']}.yaml"
-            artifact.write_text(yaml.safe_dump(output, sort_keys=False, allow_unicode=True), encoding="utf-8")
-            if artifact.name not in phase["artifacts"]: phase["artifacts"].append(artifact.name)
-            if artifact.name not in self.data["artifacts"]: self.data["artifacts"].append(artifact.name)
+            self._persist_output(phase, output)
         if "gate" in phase and not approved:
             phase["status"] = "waiting-approval"; self.data["status"] = "waiting-approval"; self.save(); return "waiting-approval"
         phase["status"] = "completed"
         self.data["status"] = "completed" if self.next_phase() is None else "running"; self.save(); return self.data["status"]
+    def fail_phase(self, output: dict[str, Any]) -> str:
+        phase = self.next_phase()
+        if not phase: raise RuntimeError("execution has no active phase")
+        self._persist_output(phase, output)
+        phase["status"] = "failed"; self.data["status"] = "failed"; self.save()
+        return "failed"
     def handoff(self) -> Path:
         next_phase = self.next_phase()
         data = {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"Handoff","metadata":{"id":f"handoff-{self.data['metadata']['id']}"},"execution":self.data["metadata"]["id"],"task":self.data["task"],"status":self.data["status"],"summary":f"Execution {self.data['status']} for workflow {self.data['workflow']['id']}.","artifacts":self.data["artifacts"],"decisions":[],"constraints":[],"openQuestions":[],"nextActions":([f"Resume phase {next_phase['id']}"] if next_phase else [])}

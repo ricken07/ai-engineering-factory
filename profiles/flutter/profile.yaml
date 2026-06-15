@@ -10,8 +10,8 @@ discovery:
   files:
   - pubspec.yaml
 commands:
-  test: flutter test
-  analyze: flutter analyze
+  test: [flutter, test]
+  analyze: [flutter, analyze]
 practices:
 - flutter-project-conventions
 policyRefs: []

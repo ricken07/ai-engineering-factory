@@ -12,8 +12,7 @@ contract:
   - profiles
   outputs:
   - validation-report
-  requiresCapabilities:
-  - continuous-integration
+  requiresCapabilities: []
 standardRefs:
 - recovery
 - validation
@@ -24,4 +23,5 @@ policyRefs:
 - traceability-policy
 rules:
 - Use project/profile-defined validations.
+- Use continuous-integration only when the project binds it and remote validation is relevant.
 - Report failures without masking them.
