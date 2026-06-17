@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.4.0`
+Version: `1.5.0`
 
 Checks completed successfully:
 
@@ -33,5 +33,9 @@ Checks completed successfully:
 - Gate evidence is persisted before approval is requested, and premature approval is rejected.
 - Tracking is deterministically re-evaluated when risk, scope or change type changes.
 - Local-task promotion plans require duplicate search, a human gate and provider-neutral task-provider operations.
+- Profile validation resolves only impacted project repositories and composes inherited profiles deterministically.
+- Profile commands are argv arrays executed with `shell=False`; missing executables are recorded as failures.
+- Validation requires an active `validate-change` phase and autonomy L2 or greater.
+- Successful validation advances the workflow; any command failure persists evidence and fails the Execution.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

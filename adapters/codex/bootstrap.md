@@ -10,7 +10,8 @@ When operating in a Factory-enabled project:
 6. Perform impact analysis before loading broad repository context.
 7. Resolve risk, autonomy and required gates into a PolicyDecision.
 8. Execute only actions authorized by that PolicyDecision.
-9. Produce evidence-backed validation, review and traceability artifacts.
-10. Promote durable knowledge only under the memory policy.
+9. When the active Core Skill is `validate-change`, delegate repository/profile planning and execution to `aief execution profile-validation`; do not reconstruct commands in the adapter.
+10. Produce evidence-backed validation, review and traceability artifacts.
+11. Promote durable knowledge only under the memory policy.
 
 This adapter does not redefine Core workflow semantics.

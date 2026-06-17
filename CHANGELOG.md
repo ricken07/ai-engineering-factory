@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0 — Profile-driven Runtime validation
+
+- Connected `validate-change` phases to impacted repositories and their configured profiles.
+- Added deterministic profile validation planning for mono- and poly-repository workspaces.
+- Replaced shell command strings with argv arrays and `shell=False` execution.
+- Added fail-closed workspace, repository, profile, phase and autonomy checks.
+- Added structured ValidationReport evidence with per-command stdout, stderr and exit code.
+- Made remote continuous integration optional rather than a mandatory local-validation capability.
+- Added CLI planning and explicit execution for profile validation.
+- Added missing-executable handling and stopped workflow execution on validation failure.
+
 ## 1.4.0 — Universal Runtime foundation
 
 - Added agent-neutral Request and IntentResolution contracts.

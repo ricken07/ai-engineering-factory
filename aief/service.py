@@ -5,12 +5,16 @@ from typing import Any
 import json
 import yaml
 from jsonschema import Draft202012Validator
+from collections.abc import Callable
 
 from .compiler import compile_workflow
 from .intake import TaskRegistry, create_request, normalize_task, resolve_intent
 from .project import find_project, load_project
 from .runtime import Execution
 from .tracking import evaluate_tracking
+from .capabilities import execute_plan, validation_plan
+
+AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
 
 
 class RuntimeService:
@@ -67,6 +71,70 @@ class RuntimeService:
             raise ValueError(f"invalid output for {definition['skill']}: {details}")
         execution.advance(output)
         return execution
+
+    def _impacted_repository_ids(self, execution: Execution, task: dict[str, Any]) -> list[str]:
+        identifiers = list(execution.data.get("repositories", [])) or list(task.get("scope", {}).get("repositories", []))
+        if not identifiers:
+            artifact = execution.root / "analyze-impact.yaml"
+            if artifact.is_file():
+                details = yaml.safe_load(artifact.read_text(encoding="utf-8")).get("details", {})
+                repositories = details.get("repositories", [])
+                if isinstance(repositories, dict): identifiers = list(repositories)
+                elif isinstance(repositories, list): identifiers = [item.get("id") if isinstance(item, dict) else item for item in repositories]
+        return list(dict.fromkeys(identifier for identifier in identifiers if isinstance(identifier, str) and identifier))
+
+    def profile_validation_plan(self, execution_id: str) -> list[dict[str, Any]]:
+        execution = self.execution(execution_id)
+        phase = execution.next_phase()
+        if phase is None or phase.get("skill") != "validate-change":
+            raise RuntimeError("profile validation is only available during a validate-change phase")
+        task = TaskRegistry(self.project_root).load(execution.data["task"])
+        repository_ids = self._impacted_repository_ids(execution, task)
+        if not repository_ids:
+            raise RuntimeError("no impacted repository is recorded; complete impact analysis first")
+        catalog = {repository["id"]: repository for repository in self.project.get("repositories", [])}
+        unknown = sorted(set(repository_ids) - set(catalog))
+        if unknown: raise KeyError(f"unknown impacted repositories: {', '.join(unknown)}")
+        plan: list[dict[str, Any]] = []
+        for identifier in repository_ids:
+            repository = catalog[identifier]
+            path = (self.project_root / repository["path"]).resolve()
+            if not path.is_relative_to(self.project_root.resolve()):
+                raise ValueError(f"repository path escapes project workspace: {identifier}")
+            if not path.is_dir(): raise FileNotFoundError(f"repository path is missing: {identifier}: {path}")
+            for item in validation_plan(self.factory, path, repository.get("profiles", [])):
+                plan.append({"repository":identifier,"cwd":str(path),**item})
+        if not plan: raise RuntimeError("no applicable validation command was resolved from impacted repository profiles")
+        return plan
+
+    def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        if execution.data["status"] in {"waiting-approval", "blocked", "failed", "cancelled"}:
+            raise RuntimeError(f"execution state does not allow validation: {execution.data['status']}")
+        task = TaskRegistry(self.project_root).load(execution.data["task"])
+        authorized = task.get("autonomy", {}).get("authorized") or self.project.get("autonomy", {}).get("default", "L0")
+        if AUTONOMY_RANK.get(authorized, -1) < AUTONOMY_RANK["L2"]:
+            raise PermissionError(f"profile command execution requires autonomy L2; authorized level is {authorized}")
+        plan = self.profile_validation_plan(execution_id)
+        results: list[dict[str, Any]] = []
+        for item in plan:
+            command = {key:value for key,value in item.items() if key not in {"repository","cwd"}}
+            kwargs = {"runner":runner} if runner is not None else {}
+            result = execute_plan([command], Path(item["cwd"]), execute=True, **kwargs)[0]
+            results.append({"repository":item["repository"],"cwd":item["cwd"],**result})
+        failures = [result for result in results if result["exitCode"] != 0]
+        report = {
+            "summary": f"Executed {len(results)} profile validation command(s) across {len(set(item['repository'] for item in results))} repository(ies).",
+            "status": "failed" if failures else "completed",
+            "evidence": [f"{item['repository']}:{item['profile']}:{item['operation']}:exit-{item['exitCode']}" for item in results],
+            "unknowns": [],
+            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"results":results},
+        }
+        if failures:
+            execution.fail_phase(report)
+        else:
+            self.complete_phase(execution_id, report)
+        return report
 
     def reassess_tracking(self, task_id: str, impact: dict[str, Any]) -> dict[str, Any]:
         registry = TaskRegistry(self.project_root)

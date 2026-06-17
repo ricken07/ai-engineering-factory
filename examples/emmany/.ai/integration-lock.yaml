@@ -2,7 +2,7 @@ apiVersion: factory.gaddigital.io/v1alpha1
 kind: IntegrationLock
 metadata:
   id: emmany-integrations
-factoryVersion: 1.4.0
+factoryVersion: 1.5.0
 integrations:
 - provider: confluence
   version: 0.1.0

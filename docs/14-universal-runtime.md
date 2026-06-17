@@ -68,39 +68,39 @@ Claude `/implement` and Codex `$implement` are therefore different native entry 
 Create only the normalized task:
 
 ```bash
-aief intake "Corrige le bug EGW-327" --project . --factory /opt/factory/1.4.0 --json
+aief intake "Corrige le bug EGW-327" --project . --factory /opt/factory/1.5.0 --json
 ```
 
 Create an execution from a command shortcut:
 
 ```bash
-aief run "/implement EGW-142" --agent codex --project . --factory /opt/factory/1.4.0
+aief run "/implement EGW-142" --agent codex --project . --factory /opt/factory/1.5.0
 ```
 
 Create the same workflow from natural language:
 
 ```bash
-aief run "Implémente EGW-142" --agent claude-code --project . --factory /opt/factory/1.4.0
+aief run "Implémente EGW-142" --agent claude-code --project . --factory /opt/factory/1.5.0
 ```
 
 Inspect the next phase and submit its schema-valid result:
 
 ```bash
-aief execution next <execution-id> --project . --factory /opt/factory/1.4.0
-aief execution complete-phase <execution-id> --output understanding.yaml --project . --factory /opt/factory/1.4.0
+aief execution next <execution-id> --project . --factory /opt/factory/1.5.0
+aief execution complete-phase <execution-id> --output understanding.yaml --project . --factory /opt/factory/1.5.0
 ```
 
 Approve a waiting gate and create a handoff:
 
 ```bash
-aief execution approve <execution-id> --project . --factory /opt/factory/1.4.0
-aief execution handoff <execution-id> --project . --factory /opt/factory/1.4.0
+aief execution approve <execution-id> --project . --factory /opt/factory/1.5.0
+aief execution handoff <execution-id> --project . --factory /opt/factory/1.5.0
 ```
 
 Re-evaluate tracking after impact analysis reveals new scope or risk:
 
 ```bash
-aief task assess-tracking <task-id> --impact impact.yaml --project . --factory /opt/factory/1.4.0
+aief task assess-tracking <task-id> --impact impact.yaml --project . --factory /opt/factory/1.5.0
 ```
 
 This operation can upgrade a local task from `recommended` to `required`. A required result blocks implementation until the adapter completes duplicate search, obtains the human gate and calls the configured provider's `create-task` capability. It never silently falls back to another provider.
