@@ -23,3 +23,5 @@ policyRefs:
 - traceability-policy
 rules:
 - Review independently of implementation intent where possible.
+engineeringContext:
+  requires: [architecture, convention, security, testing, review]

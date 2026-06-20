@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata: {id: spring-conventions, name: Spring Conventions, version: 1.0.0}
+category: convention
+enforcement: default
+appliesTo: {profiles: [spring], skills: [implement-change, review-change]}
+document: {path: spring-conventions.md}
+inheritance: {strategy: merge}
+override: {allowed: true}
+tags: [spring]

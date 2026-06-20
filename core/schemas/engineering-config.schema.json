@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/engineering-config.schema.json",
+  "type": "object",
+  "properties": {
+    "inheritOrganization": {"type": "boolean", "default": true},
+    "practices": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["mode"],
+        "properties": {
+          "mode": {"enum": ["inherit", "enable", "disable", "override"]},
+          "ref": {"type": "string", "minLength": 1},
+          "category": {"enum": ["architecture", "convention", "documentation", "review", "security", "testing", "observability"]}
+        },
+        "allOf": [{"if": {"properties": {"mode": {"const": "override"}}}, "then": {"required": ["ref"]}}],
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

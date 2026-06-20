@@ -24,3 +24,5 @@ policyRefs:
 - traceability-policy
 rules:
 - Stay within authorized scope and actions.
+engineeringContext:
+  requires: [architecture, convention, security, testing]

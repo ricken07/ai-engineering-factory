@@ -4,7 +4,7 @@ metadata:
   id: emmany
   name: Emmany Gateway
 factory:
-  version: 1.5.0
+  version: 1.6.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: polyrepo
@@ -17,6 +17,13 @@ repositories:
     responsibilities: [payment-orchestration, transactions, webhooks, provider-integrations]
     dependencies: []
     criticalDomains: [payment, payout, authentication, transaction]
+    engineering:
+      practices:
+        hexagonal-architecture: {mode: enable}
+        payment-module-conventions:
+          mode: enable
+          category: convention
+          ref: .ai/context/payment-module-conventions.md
   - id: egw-app
     path: ./egw-app
     role: application
@@ -52,3 +59,7 @@ autonomy:
   default: L2
   maximum: L3
 policyRefs: []
+engineering:
+  inheritOrganization: true
+  practices:
+    api-design: {mode: enable}

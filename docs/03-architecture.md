@@ -11,7 +11,9 @@
                     │ extends / implements
         ┌───────────┼────────────┐
         │           │            │
-    Profiles   Integrations   Adapters
+ Organization   Integrations   Adapters
+        │
+     Profiles
         │           │            │
         └───────────┼────────────┘
                     │
@@ -32,6 +34,7 @@ Allowed:
 
 ```text
 Project -> Profile -> Core
+Profile -> Organization Practice contract
 Project -> Integration -> Core
 Agent Adapter -> Core
 ```
@@ -56,6 +59,7 @@ core/
 └── skills/
 
 profiles/
+organization/
 integrations/
 adapters/
 templates/

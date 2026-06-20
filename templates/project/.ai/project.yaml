@@ -4,7 +4,7 @@ metadata:
   id: replace-me
   name: Replace Me
 factory:
-  version: 1.5.0
+  version: 1.6.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: monorepo
@@ -37,3 +37,6 @@ autonomy:
   default: L1
   maximum: L2
 policyRefs: []
+engineering:
+  inheritOrganization: true
+  practices: {}

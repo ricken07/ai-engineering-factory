@@ -13,6 +13,7 @@ from .project import find_project, load_project
 from .runtime import Execution
 from .tracking import evaluate_tracking
 from .capabilities import execute_plan, validation_plan
+from .engineering import resolve_engineering_context
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
 
@@ -107,6 +108,36 @@ class RuntimeService:
         if not plan: raise RuntimeError("no applicable validation command was resolved from impacted repository profiles")
         return plan
 
+    def engineering_context(self, execution_id: str, repository_id: str, persist: bool = True) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        phase = execution.next_phase()
+        if phase is None: raise RuntimeError("execution is already complete")
+        context = resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, phase["skill"])
+        if persist:
+            name = f"engineering-context-{repository_id}-{phase['skill']}.yaml"
+            path = execution.root / name
+            path.write_text(yaml.safe_dump(context, sort_keys=False, allow_unicode=True), encoding="utf-8")
+            if name not in phase["artifacts"]: phase["artifacts"].append(name)
+            if name not in execution.data["artifacts"]: execution.data["artifacts"].append(name)
+            execution.save()
+        return context
+
+    def resolve_repository_context(self, repository_id: str, skill_id: str) -> dict[str, Any]:
+        return resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, skill_id)
+
+    def prepare_phase(self, execution_id: str) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        phase = execution.next_phase()
+        if phase is None: return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[]}
+        task = TaskRegistry(self.project_root).load(execution.data["task"])
+        repository_ids = self._impacted_repository_ids(execution, task)
+        compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
+        definition = next(item for item in compiled["phases"] if item["id"] == phase["id"])
+        contexts = []
+        if definition.get("engineeringContext"):
+            contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
+        return {"execution":execution_id,"status":execution.data["status"],"phase":phase,"engineeringContexts":contexts}
+
     def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
         execution = self.execution(execution_id)
         if execution.data["status"] in {"waiting-approval", "blocked", "failed", "cancelled"}:
@@ -116,6 +147,7 @@ class RuntimeService:
         if AUTONOMY_RANK.get(authorized, -1) < AUTONOMY_RANK["L2"]:
             raise PermissionError(f"profile command execution requires autonomy L2; authorized level is {authorized}")
         plan = self.profile_validation_plan(execution_id)
+        contexts = {identifier:self.engineering_context(execution_id, identifier) for identifier in dict.fromkeys(item["repository"] for item in plan)}
         results: list[dict[str, Any]] = []
         for item in plan:
             command = {key:value for key,value in item.items() if key not in {"repository","cwd"}}
@@ -128,7 +160,7 @@ class RuntimeService:
             "status": "failed" if failures else "completed",
             "evidence": [f"{item['repository']}:{item['profile']}:{item['operation']}:exit-{item['exitCode']}" for item in results],
             "unknowns": [],
-            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"results":results},
+            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results},
         }
         if failures:
             execution.fail_phase(report)

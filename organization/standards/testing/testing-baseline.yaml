@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata: {id: testing-baseline, name: Testing Baseline, version: 1.0.0}
+category: testing
+enforcement: mandatory
+appliesTo: {profiles: [], skills: [implement-change, validate-change, review-change]}
+document: {path: testing-baseline.md}
+inheritance: {strategy: merge}
+override: {allowed: false}
+tags: [quality, testing]

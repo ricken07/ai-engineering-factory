@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
+from .engineering import validate_engineering_configuration
 
 
 KIND_SCHEMAS = {
@@ -24,6 +25,7 @@ KIND_SCHEMAS = {
     "McpBinding": "mcp-binding.schema.json",
     "IntegrationContract": "integration-contract.schema.json", "IntegrationLock": "integration-lock.schema.json",
     "Request": "request.schema.json", "IntentResolution": "intent-resolution.schema.json",
+    "Practice": "practice.schema.json", "EffectiveEngineeringContext": "effective-engineering-context.schema.json",
 }
 
 
@@ -70,6 +72,10 @@ def validate_project(project_root: Path, factory_root: Path) -> list[ValidationI
                 issues.append(ValidationIssue(str(path.relative_to(project_root)), f"{location}: {error.message}"))
         except Exception as exc:
             issues.append(ValidationIssue(str(path.relative_to(project_root)), str(exc)))
+    if not any(issue.path == ".ai/project.yaml" for issue in issues):
+        project = load_yaml(project_root / ".ai" / "project.yaml")
+        for message in validate_engineering_configuration(factory_root, project_root, project):
+            issues.append(ValidationIssue(".ai/project.yaml", message))
     return issues
 
 
@@ -143,11 +149,26 @@ def validate_package(root: Path) -> list[ValidationIssue]:
                 issues.append(ValidationIssue(str(path.relative_to(root)), "skill must reference recovery-policy"))
             if "recovery" not in data.get("standardRefs", []):
                 issues.append(ValidationIssue(str(path.relative_to(root)), "skill must reference recovery standard"))
+        if data.get("kind") == "Profile":
+            for ref in data.get("practiceRefs", []):
+                identifier = ref.partition("@")[0]
+                if identifier not in catalogs.get("Practice", set()):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown practiceRef '{ref}'"))
+        if data.get("kind") == "Practice":
+            document = (path.parent / data["document"]["path"]).resolve()
+            organization = (root / "organization").resolve()
+            if not document.is_relative_to(organization):
+                issues.append(ValidationIssue(str(path.relative_to(root)), "practice document escapes organization catalog"))
+            elif not document.is_file():
+                issues.append(ValidationIssue(str(path.relative_to(root)), f"missing practice document '{data['document']['path']}'"))
         if data.get("kind") == "Project":
             for capability, binding in data.get("integrations", {}).items():
                 provider = binding if isinstance(binding, str) else binding.get("provider")
                 if provider not in catalogs.get("Integration", set()):
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown integration provider '{provider}' for '{capability}'"))
+            if path.name == "project.yaml" and path.parent.name == ".ai":
+                for message in validate_engineering_configuration(root, path.parent.parent, data):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), message))
         if data.get("kind") == "Integration":
             contracts = catalogs.get("IntegrationContract", set())
             for capability in data.get("capabilities", []):

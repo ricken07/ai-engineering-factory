@@ -55,7 +55,8 @@
     },
     "policyRefs": {
       "$ref": "common.schema.json#/$defs/stringArray"
-    }
+    },
+    "engineering": {"$ref": "engineering-config.schema.json"}
   },
   "additionalProperties": false
 }

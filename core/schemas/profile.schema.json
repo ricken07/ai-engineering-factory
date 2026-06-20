@@ -35,6 +35,7 @@
     "practices": {
       "$ref": "common.schema.json#/$defs/stringArray"
     },
+    "practiceRefs": {"$ref": "common.schema.json#/$defs/stringArray"},
     "policyRefs": {
       "$ref": "common.schema.json#/$defs/stringArray"
     },

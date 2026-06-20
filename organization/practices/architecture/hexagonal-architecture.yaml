@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata: {id: hexagonal-architecture, name: Hexagonal Architecture, version: 1.0.0}
+category: architecture
+enforcement: optional
+appliesTo: {profiles: [java, spring], skills: [create-plan, implement-change, review-change]}
+document: {path: hexagonal-architecture.md}
+inheritance: {strategy: merge}
+override: {allowed: true}
+tags: [architecture, ports, adapters]

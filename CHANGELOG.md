@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.0 — Organization engineering context
+
+- Added a versioned organization catalog of standards and practices outside the agnostic Core.
+- Added Practice and EffectiveEngineeringContext contracts.
+- Evolved profiles into assemblers through version-aware `practiceRefs`.
+- Added project and repository `inherit`, `enable`, `disable` and `override` configuration.
+- Added mandatory/default/optional enforcement and fail-closed conflict detection.
+- Added deterministic hierarchy resolution with project/repository document path protection.
+- Added per-Skill category filtering and direct document content delivery.
+- Persisted effective contexts as agent-neutral Execution artifacts.
+- Integrated effective testing/security context into profile-driven validation.
+- Added CLI inspection, semantic project validation, examples and documentation.
+
 ## 1.5.0 — Profile-driven Runtime validation
 
 - Connected `validate-change` phases to impacted repositories and their configured profiles.

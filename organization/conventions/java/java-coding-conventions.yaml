@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata: {id: java-coding-conventions, name: Java Coding Conventions, version: 1.0.0}
+category: convention
+enforcement: default
+appliesTo: {profiles: [java], skills: [implement-change, review-change]}
+document: {path: java-coding-conventions.md}
+inheritance: {strategy: merge}
+override: {allowed: true}
+tags: [java]
