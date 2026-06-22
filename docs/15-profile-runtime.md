@@ -45,13 +45,13 @@ It fails closed when impact is unknown, a repository ID is absent from `project.
 Planning is side-effect free:
 
 ```bash
-aief execution profile-validation <execution-id> --project . --factory /factory/1.5.0
+aief execution profile-validation <execution-id> --project . --factory /factory/1.6.0
 ```
 
 Execution is explicit:
 
 ```bash
-aief execution profile-validation <execution-id> --execute --project . --factory /factory/1.5.0
+aief execution profile-validation <execution-id> --execute --project . --factory /factory/1.6.0
 ```
 
 The Runtime executes commands only when:
@@ -78,4 +78,3 @@ egw-app [flutter]
 Commands execute from their repository root. The resulting report records repository, profile, operation, argv, working directory, exit code, stdout and stderr for every command.
 
 Any non-zero exit code makes the report and Execution `failed`. Successful validation advances to the next workflow phase. In both cases, `validation.yaml` remains available for review, traceability and multi-agent handoff.
-

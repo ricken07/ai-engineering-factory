@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/effective-engineering-context.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "project", "repository", "skill", "profiles", "categories", "practices", "resolutions"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "EffectiveEngineeringContext"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "project": {"type": "string"},
+    "repository": {"type": "string"},
+    "skill": {"type": "string"},
+    "profiles": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "categories": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "practices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "category", "enforcement", "source", "document"],
+        "properties": {
+          "id": {"type": "string"}, "version": {"$ref": "common.schema.json#/$defs/semanticVersion"},
+          "category": {"type": "string"}, "enforcement": {"type": "string"},
+          "source": {"enum": ["organization", "project", "repository"]},
+          "document": {"type": "string"}, "content": {"type": "string"}, "overrides": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "resolutions": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": false
+}

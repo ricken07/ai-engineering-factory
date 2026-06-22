@@ -1,0 +1,7 @@
+# Organization Engineering Catalog
+
+This directory contains versioned organization standards and practices. Every YAML manifest is machine-readable; its adjacent Markdown document contains the knowledge supplied to agents after deterministic resolution.
+
+`mandatory` practices cannot be disabled or overridden. `default` practices are inherited when selected by an applicable profile and may be specialized when explicitly allowed. `optional` practices require explicit enablement.
+
+The Core never imports this catalog directly. Profiles reference practice IDs and the Runtime constructs a repository- and Skill-specific `EffectiveEngineeringContext`.

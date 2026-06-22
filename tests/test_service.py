@@ -119,3 +119,20 @@ def test_runtime_denies_profile_execution_below_l2(tmp_path: Path):
     service, execution = validation_execution(tmp_path, autonomy="L1")
     with pytest.raises(PermissionError, match="requires autonomy L2"):
         service.run_profile_validation(execution.data["metadata"]["id"])
+
+
+def test_profile_validation_persists_effective_engineering_context(tmp_path: Path):
+    service, execution = validation_execution(tmp_path)
+    class Result: returncode, stdout, stderr = 0, "ok", ""
+    report = service.run_profile_validation(execution.data["metadata"]["id"], lambda command, **kwargs: Result())
+    assert "testing-baseline" in report["details"]["engineeringContexts"]["main"]
+    persisted = service.execution(execution.data["metadata"]["id"])
+    assert any(name.startswith("engineering-context-main-validate-change") for name in persisted.data["artifacts"])
+
+
+def test_prepare_phase_automatically_materializes_skill_context(tmp_path: Path):
+    service, execution = validation_execution(tmp_path)
+    prepared = service.prepare_phase(execution.data["metadata"]["id"])
+    assert prepared["phase"]["skill"] == "validate-change"
+    assert prepared["engineeringContexts"][0]["repository"] == "main"
+    assert "testing-baseline" in {item["id"] for item in prepared["engineeringContexts"][0]["practices"]}

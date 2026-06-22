@@ -57,6 +57,7 @@ def compile_workflow(factory: Path, workflow_id: str) -> dict[str, Any]:
             "capabilities": list(contract.get("requiresCapabilities", [])),
             "instructions": str(instructions.relative_to(factory)),
             "outputSchema": str(output_schema.relative_to(factory)),
+            "engineeringContext": list(skill.get("engineeringContext", {}).get("requires", [])),
         })
     return {
         "id": workflow_id,

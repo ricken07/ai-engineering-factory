@@ -58,6 +58,12 @@
       "items": {
         "type": "string"
       }
+    },
+    "engineeringContext": {
+      "type": "object",
+      "required": ["requires"],
+      "properties": {"requires": {"$ref": "common.schema.json#/$defs/stringArray"}},
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

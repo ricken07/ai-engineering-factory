@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata: {id: organization-code-review, name: Organization Code Review, version: 1.0.0}
+category: review
+enforcement: default
+appliesTo: {profiles: [], skills: [review-change]}
+document: {path: code-review.md}
+inheritance: {strategy: merge}
+override: {allowed: true}
+tags: [review, quality]

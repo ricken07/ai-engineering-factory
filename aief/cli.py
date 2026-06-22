@@ -34,10 +34,15 @@ def parser() -> argparse.ArgumentParser:
         command=execution_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
     complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--project",default="."); complete.add_argument("--factory",default="."); complete.add_argument("--json",action="store_true")
     profile_validation=execution_sub.add_parser("profile-validation"); profile_validation.add_argument("id"); profile_validation.add_argument("--project",default="."); profile_validation.add_argument("--factory",default="."); profile_validation.add_argument("--execute",action="store_true"); profile_validation.add_argument("--json",action="store_true")
+    engineering_context=execution_sub.add_parser("engineering-context"); engineering_context.add_argument("id"); engineering_context.add_argument("--repository",required=True); engineering_context.add_argument("--project",default="."); engineering_context.add_argument("--factory",default="."); engineering_context.add_argument("--json",action="store_true")
+    engineering=sub.add_parser("engineering-context"); engineering.add_argument("repository"); engineering.add_argument("skill"); engineering.add_argument("--project",default="."); engineering.add_argument("--factory",default="."); engineering.add_argument("--json",action="store_true")
     return root
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "engineering-context":
+        data=RuntimeService(Path(args.project),Path(args.factory)).resolve_repository_context(args.repository,args.skill)
+        print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command in {"intake", "run"}:
         service = RuntimeService(Path(args.project), Path(args.factory))
         if args.command == "intake":
@@ -58,6 +63,9 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "execution":
         service=RuntimeService(Path(args.project),Path(args.factory)); execution=service.execution(args.id)
+        if args.execution_command=="engineering-context":
+            data=service.engineering_context(args.id,args.repository)
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="profile-validation":
             data=service.run_profile_validation(args.id) if args.execute else {"mode":"plan","commands":service.profile_validation_plan(args.id)}
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
@@ -68,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.execution_command=="approve": execution.advance(approved=True)
         if args.execution_command=="handoff": execution.handoff()
         if args.execution_command=="next":
-            data={"execution":args.id,"status":execution.data["status"],"phase":execution.next_phase()}
+            data=service.prepare_phase(args.id)
         else: data=execution.data
         print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "resolve":

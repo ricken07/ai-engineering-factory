@@ -110,6 +110,7 @@
       }
     },
     "integrationLock": {"type":"string", "default":".ai/integration-lock.yaml"},
+    "engineering": {"$ref": "engineering-config.schema.json"},
     "autonomy": {
       "type": "object",
       "properties": {

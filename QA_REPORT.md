@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.5.0`
+Version: `1.6.0`
 
 Checks completed successfully:
 
@@ -37,5 +37,10 @@ Checks completed successfully:
 - Profile commands are argv arrays executed with `shell=False`; missing executables are recorded as failures.
 - Validation requires an active `validate-change` phase and autonomy L2 or greater.
 - Successful validation advances the workflow; any command failure persists evidence and fails the Execution.
+- Organization practices, documents and profile references validate as contracts.
+- Mandatory practices reject disable and override attempts during validation and Runtime resolution.
+- Effective contexts are filtered by repository profiles and Skill categories.
+- Project and repository overrides are path-confined, explicit and traceable.
+- Profile validation persists its resolved testing/security engineering context.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

@@ -1,0 +1,10 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata: {id: api-design, name: API Design, version: 1.0.0}
+category: architecture
+enforcement: optional
+appliesTo: {profiles: [spring], skills: [create-plan, implement-change, review-change]}
+document: {path: api-design.md}
+inheritance: {strategy: merge}
+override: {allowed: true}
+tags: [api, compatibility]

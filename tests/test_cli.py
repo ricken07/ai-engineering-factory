@@ -26,3 +26,9 @@ def test_intake_and_run_commands(tmp_path: Path, capsys):
     assert '"workflow": "fix-bug"' in capsys.readouterr().out
     assert main(["run", "/analyze DEMO-12", "--project", str(destination), "--factory", ".", "--agent", "codex"]) == 0
     assert "nextPhase: understand" in capsys.readouterr().out
+
+def test_engineering_context_command(capsys):
+    assert main(["engineering-context","egw-api","review-change","--project","examples/emmany","--factory",".","--json"]) == 0
+    output = capsys.readouterr().out
+    assert '"kind": "EffectiveEngineeringContext"' in output
+    assert '"id": "organization-code-review"' in output

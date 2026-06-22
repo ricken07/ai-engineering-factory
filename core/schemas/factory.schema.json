@@ -57,6 +57,9 @@
         },
         "adapters": {
           "type": "string"
+        },
+        "organization": {
+          "type": "string"
         }
       },
       "additionalProperties": false

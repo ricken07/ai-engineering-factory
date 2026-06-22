@@ -10,6 +10,8 @@ discovery:
 commands: {}
 practices:
 - follow-project-conventions
+practiceRefs:
+- organization-code-review
 policyRefs: []
 standardRefs:
 - validation

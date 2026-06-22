@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/practice.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "category", "enforcement", "document", "override"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "Practice"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "category": {"enum": ["architecture", "convention", "documentation", "review", "security", "testing", "observability"]},
+    "enforcement": {"enum": ["mandatory", "default", "optional"]},
+    "appliesTo": {
+      "type": "object",
+      "properties": {
+        "profiles": {"$ref": "common.schema.json#/$defs/stringArray"},
+        "skills": {"$ref": "common.schema.json#/$defs/stringArray"}
+      },
+      "additionalProperties": false
+    },
+    "document": {"type": "object", "required": ["path"], "properties": {"path": {"type": "string", "minLength": 1}}, "additionalProperties": false},
+    "inheritance": {"type": "object", "properties": {"strategy": {"enum": ["merge", "replace"]}}, "additionalProperties": false},
+    "override": {"type": "object", "required": ["allowed"], "properties": {"allowed": {"type": "boolean"}}, "additionalProperties": false},
+    "tags": {"$ref": "common.schema.json#/$defs/stringArray"}
+  },
+  "additionalProperties": false
+}
