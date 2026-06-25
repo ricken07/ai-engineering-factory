@@ -136,3 +136,18 @@ def test_prepare_phase_automatically_materializes_skill_context(tmp_path: Path):
     assert prepared["phase"]["skill"] == "validate-change"
     assert prepared["engineeringContexts"][0]["repository"] == "main"
     assert "testing-baseline" in {item["id"] for item in prepared["engineeringContexts"][0]["practices"]}
+
+
+def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    execution=service.start("Corrige un problème de paiement")
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "analyze-impact": break
+        phase["status"]="completed"
+    execution.data["status"]="running"; execution.save()
+    output={"summary":"Cross-repository payment impact","status":"completed","evidence":["repository-map"],"unknowns":[],"details":{"risk":"high","repositories":["main","secondary"],"changeTypes":["functional-change"],"domains":["payment"]}}
+    service.complete_phase(execution.data["metadata"]["id"],output)
+    task=TaskRegistry(project).load(execution.data["task"])
+    tracking=yaml.safe_load((project/".ai/runtime/tasks"/task["metadata"]["id"]/"tracking.yaml").read_text())
+    assert tracking["decision"]["level"] == "required"
+    assert set(tracking["reasons"]) == {"externally-track-high-risk","externally-track-cross-repository"}

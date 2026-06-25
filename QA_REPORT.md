@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.6.0`
+Version: `1.7.0`
 
 Checks completed successfully:
 
@@ -42,5 +42,10 @@ Checks completed successfully:
 - Effective contexts are filtered by repository profiles and Skill categories.
 - Project and repository overrides are path-confined, explicit and traceable.
 - Profile validation persists its resolved testing/security engineering context.
+- Tracking policy rules are interpreted from Core policy data with most-restrictive-wins semantics.
+- Provider resolution fails explicitly for missing provider, unsupported capability, missing MCP and missing authentication.
+- Duplicate search precedes creation; linking and L2 creation require approval.
+- Completed external operations are idempotent and transient retries preserve the operation ID.
+- Required unresolved tracking blocks before implementation and successful canonical linking resumes the Execution.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

@@ -11,7 +11,7 @@ from .compiler import compile_workflow
 from .intake import TaskRegistry, create_request, normalize_task, resolve_intent
 from .project import find_project, load_project
 from .runtime import Execution
-from .tracking import evaluate_tracking
+from .tracking import TaskTrackingManager, evaluate_tracking
 from .capabilities import execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 
@@ -21,7 +21,7 @@ AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
 class RuntimeService:
     """Deterministic boundary shared by all agent adapters."""
 
-    def __init__(self, project: Path, factory: Path):
+    def __init__(self, project: Path, factory: Path, environment: dict[str, str] | None = None):
         self.project_root = find_project(project)
         self.project = load_project(self.project_root)
         self.factory = factory.resolve()
@@ -33,6 +33,7 @@ class RuntimeService:
         requested = self.project.get("factory", {}).get("version")
         if installed != requested:
             raise RuntimeError(f"project requires Factory {requested}, but {installed} was provided")
+        self.tracking = TaskTrackingManager(self.project_root,self.factory,self.project,environment)
 
     def intake(self, text: str, agent: str | None = None) -> dict[str, Any]:
         request = create_request(text, agent)
@@ -70,7 +71,12 @@ class RuntimeService:
         if errors:
             details = "; ".join(f"{'.'.join(map(str, error.path)) or 'root'}: {error.message}" for error in errors)
             raise ValueError(f"invalid output for {definition['skill']}: {details}")
+        completed_skill=phase["skill"]
         execution.advance(output)
+        if completed_skill == "analyze-impact" and output.get("status") == "completed":
+            details=output.get("details",{}); impact=details.get("impact",details)
+            observations={key:impact[key] for key in ("risk","repositories","changeTypes","domains") if key in impact}
+            self.reassess_tracking(execution.data["task"],observations)
         return execution
 
     def _impacted_repository_ids(self, execution: Execution, task: dict[str, Any]) -> list[str]:
@@ -130,6 +136,12 @@ class RuntimeService:
         phase = execution.next_phase()
         if phase is None: return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[]}
         task = TaskRegistry(self.project_root).load(execution.data["task"])
+        if phase["id"] == "implementation":
+            tracking_path=self.project_root/".ai"/"runtime"/"tasks"/task["metadata"]["id"]/"tracking.yaml"
+            tracking=yaml.safe_load(tracking_path.read_text(encoding="utf-8")) if tracking_path.is_file() else self.tracking.assess(task["metadata"]["id"])
+            if tracking["decision"]["level"] == "required" and tracking["externalTracking"]["status"] != "linked":
+                if execution.data["status"] != "blocked": execution.block({"type":"external-tracking-required","message":"external task tracking must be resolved before implementation","task":task["metadata"]["id"],"requiredBefore":"implementation"})
+                return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"],"tracking":tracking}
         repository_ids = self._impacted_repository_ids(execution, task)
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next(item for item in compiled["phases"] if item["id"] == phase["id"])
@@ -169,13 +181,19 @@ class RuntimeService:
         return report
 
     def reassess_tracking(self, task_id: str, impact: dict[str, Any]) -> dict[str, Any]:
-        registry = TaskRegistry(self.project_root)
-        task = registry.load(task_id)
-        decision = evaluate_tracking(task, impact)
-        task["tracking"] = {**task.get("tracking", {}), "level": decision.level}
-        task.setdefault("classification", {})
-        if impact.get("risk"): task["classification"]["risk"] = impact["risk"]
-        if impact.get("changeTypes") is not None: task["classification"]["changeTypes"] = impact["changeTypes"]
-        if impact.get("repositories") is not None: task.setdefault("scope", {})["repositories"] = impact["repositories"]
-        registry.save(task)
-        return {"task": task, "decision": decision.as_dict()}
+        tracking=self.tracking.assess(task_id,impact)
+        decision={**tracking["decision"],"reasons":tracking["reasons"],"requiredBefore":tracking["requiredBefore"]}
+        return {"task":TaskRegistry(self.project_root).load(task_id),"decision":decision,"tracking":tracking}
+
+    def resume_tracking_executions(self, task_id: str) -> list[str]:
+        resumed=[]; root=self.project_root/".ai"/"runtime"/"executions"
+        for path in root.glob("*/execution.yaml") if root.is_dir() else []:
+            execution=Execution.load(path.parent)
+            if execution.data.get("task") == task_id and execution.data.get("blockingReason",{}).get("type") == "external-tracking-required":
+                execution.resume("external-tracking-required"); resumed.append(execution.data["metadata"]["id"])
+        return resumed
+
+    def execute_tracking_operation(self, task_id: str, operation_id: str, executor: Callable[[dict[str, Any]],dict[str, Any]]) -> dict[str, Any]:
+        operation=self.tracking.execute(task_id,operation_id,executor)
+        if operation["status"] == "completed" and operation["operation"] in {"create-task","link-task"}: self.resume_tracking_executions(task_id)
+        return operation

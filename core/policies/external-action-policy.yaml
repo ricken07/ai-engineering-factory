@@ -12,3 +12,6 @@ rules:
   - id: merge-protected
     when: {externalAction: merge-protected-branch}
     effect: {requireApproval: [before-merge]}
+  - id: task-provider-write
+    when: {externalAction: task-provider-write, authorizedAutonomyBelow: L3}
+    effect: {requireApproval: [before-external-task-write]}

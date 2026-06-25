@@ -9,10 +9,12 @@ When operating in a Factory-enabled project:
 5. Retrieve/understand the active task.
 6. Perform impact analysis before loading broad repository context.
 7. Resolve risk, autonomy and required gates into a PolicyDecision.
-8. Execute only actions authorized by that PolicyDecision.
-9. Resolve `aief execution engineering-context` for every impacted repository and active Skill; use only that effective subset and never resolve organization inheritance in the adapter.
-10. When the active Core Skill is `validate-change`, delegate repository/profile planning and execution to `aief execution profile-validation`; do not reconstruct commands in the adapter.
-11. Produce evidence-backed validation, review and traceability artifacts.
-12. Promote durable knowledge only under the memory policy.
+8. After impact analysis, use the Runtime tracking operations; map only the prepared abstract operation to the configured MCP and submit its result without choosing another provider.
+9. Stop at tracking gates and let the human select a duplicate or approve creation when required.
+10. Execute only actions authorized by the PolicyDecision.
+11. Resolve `aief execution engineering-context` for every impacted repository and active Skill; use only that effective subset and never resolve organization inheritance in the adapter.
+12. When the active Core Skill is `validate-change`, delegate repository/profile planning and execution to `aief execution profile-validation`; do not reconstruct commands in the adapter.
+13. Produce evidence-backed validation, review and traceability artifacts.
+14. Promote durable knowledge only under the memory policy.
 
 This adapter does not redefine Core workflow semantics.

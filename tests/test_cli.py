@@ -32,3 +32,12 @@ def test_engineering_context_command(capsys):
     output = capsys.readouterr().out
     assert '"kind": "EffectiveEngineeringContext"' in output
     assert '"id": "organization-code-review"' in output
+
+def test_task_tracking_status_command(tmp_path: Path, capsys):
+    from aief.project import initialize
+    from aief.service import RuntimeService
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    intake=service.intake("Corrige un petit bug"); identifier=intake["task"]["metadata"]["id"]
+    service.reassess_tracking(identifier,{"risk":"low","repositories":["main"],"changeTypes":["refactoring"]})
+    assert main(["task","tracking",identifier,"--project",str(project),"--factory",".","--json"]) == 0
+    assert '"level": "optional"' in capsys.readouterr().out

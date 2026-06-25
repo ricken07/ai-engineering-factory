@@ -45,13 +45,13 @@ It fails closed when impact is unknown, a repository ID is absent from `project.
 Planning is side-effect free:
 
 ```bash
-aief execution profile-validation <execution-id> --project . --factory /factory/1.6.0
+aief execution profile-validation <execution-id> --project . --factory /factory/1.7.0
 ```
 
 Execution is explicit:
 
 ```bash
-aief execution profile-validation <execution-id> --execute --project . --factory /factory/1.6.0
+aief execution profile-validation <execution-id> --execute --project . --factory /factory/1.7.0
 ```
 
 The Runtime executes commands only when:
