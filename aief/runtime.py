@@ -61,6 +61,13 @@ class Execution:
         self._persist_output(phase, output)
         phase["status"] = "failed"; self.data["status"] = "failed"; self.save()
         return "failed"
+    def block(self, reason: dict[str, str]) -> str:
+        if self.data["status"] in {"completed","failed","cancelled"}: raise RuntimeError(f"terminal execution cannot be blocked: {self.data['status']}")
+        self.data["status"]="blocked"; self.data["blockingReason"]=reason; self.save(); return "blocked"
+    def resume(self, blocking_type: str) -> str:
+        reason=self.data.get("blockingReason")
+        if self.data["status"] != "blocked" or not reason or reason["type"] != blocking_type: raise RuntimeError(f"execution is not blocked by {blocking_type}")
+        self.data.pop("blockingReason",None); self.data["status"]="running"; self.save(); return "running"
     def handoff(self) -> Path:
         next_phase = self.next_phase()
         data = {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"Handoff","metadata":{"id":f"handoff-{self.data['metadata']['id']}"},"execution":self.data["metadata"]["id"],"task":self.data["task"],"status":self.data["status"],"summary":f"Execution {self.data['status']} for workflow {self.data['workflow']['id']}.","artifacts":self.data["artifacts"],"decisions":[],"constraints":[],"openQuestions":[],"nextActions":([f"Resume phase {next_phase['id']}"] if next_phase else [])}

@@ -5,19 +5,23 @@ scope: factory
 priority: 100
 rules:
   - id: externally-track-high-risk
-    when: {risk: {containsAny: [high, critical]}}
-    before: [implementation]
-    effect: {tracking: required}
+    when: {riskAtLeast: high}
+    effect: {tracking: required, requiredBefore: [implementation]}
   - id: externally-track-cross-repository
-    when: {impactedRepositories: {greaterThan: 1}}
-    before: [implementation]
-    effect: {tracking: required}
+    when: {impactedRepositoriesGreaterThan: 1}
+    effect: {tracking: required, requiredBefore: [implementation]}
   - id: recommend-functional-tracking
-    when: {changeTypes: {containsAny: [functional-change, source-code, configuration, dependency]}}
-    effect: {trackingAtLeast: recommended}
+    when: {changeTypesContain: [functional-change, source-code, configuration, dependency]}
+    effect: {tracking: recommended}
   - id: optional-informational-work
-    when: {taskNature: {containsAny: [informational, validation, review]}}
+    when: {taskNatureIn: [informational, validation, review]}
     effect: {tracking: optional}
   - id: optional-documentation-only
-    when: {changeTypes: {containsOnly: [documentation]}}
+    when: {changeTypesContainOnly: [documentation]}
     effect: {tracking: optional}
+  - id: optional-small-refactoring
+    when: {changeTypesContainOnly: [refactoring], riskAtMost: low}
+    effect: {tracking: optional}
+  - id: recommend-meaningful-change
+    when: {taskNatureIn: [change], changeTypesNotContainOnly: [refactoring, documentation]}
+    effect: {tracking: recommended}

@@ -19,7 +19,7 @@ rules:
     effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review]}
   - id: l3-actions
     when: {authorizedAutonomy: L3}
-    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review, commit, push, submit-change, update-task]}
+    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review, commit, push, submit-change, create-task, link-task, update-task]}
   - id: l4-actions
     when: {authorizedAutonomy: L4}
-    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review, commit, push, submit-change, update-task, merge-authorized-intermediate]}
+    effect: {allow: [read, analyze, plan, modify-local-files, run-validation, review, commit, push, submit-change, create-task, link-task, update-task, merge-authorized-intermediate]}

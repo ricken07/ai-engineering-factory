@@ -103,7 +103,7 @@ Inspect a repository/Skill context without an Execution:
 ```bash
 aief engineering-context egw-api review-change \
   --project examples/emmany \
-  --factory /factory/1.6.0
+  --factory /factory/1.7.0
 ```
 
 Resolve and persist it for the current execution phase:
@@ -112,13 +112,13 @@ Resolve and persist it for the current execution phase:
 aief execution engineering-context <execution-id> \
   --repository egw-api \
   --project . \
-  --factory /factory/1.6.0
+  --factory /factory/1.7.0
 ```
 
 Normal adapter progression uses:
 
 ```bash
-aief execution next <execution-id> --project . --factory /factory/1.6.0
+aief execution next <execution-id> --project . --factory /factory/1.7.0
 ```
 
 Once impact information identifies repositories, this command automatically resolves and persists the category subset required by the next Skill. The explicit `engineering-context` command remains available for inspection and diagnostics.

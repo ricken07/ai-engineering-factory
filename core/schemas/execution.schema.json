@@ -135,6 +135,11 @@
     "artifacts": {
       "$ref": "common.schema.json#/$defs/stringArray"
     },
+    "blockingReason": {
+      "type":"object", "required":["type","message"],
+      "properties":{"type":{"type":"string"},"message":{"type":"string"},"task":{"type":"string"},"requiredBefore":{"type":"string"}},
+      "additionalProperties":false
+    },
     "traceability": {
       "type": "object",
       "additionalProperties": {

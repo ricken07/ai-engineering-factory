@@ -127,11 +127,11 @@
         "canonicalReference": {"type": "string"},
         "external": {
           "type": "object",
-          "required": ["provider", "reference", "status"],
+          "required": ["provider", "status"],
           "properties": {
             "provider": {"type": "string"},
             "reference": {"type": "string"},
-            "status": {"enum": ["candidate", "linked", "unavailable"]}
+            "status": {"enum": ["unresolved", "searching", "awaiting-link", "awaiting-creation", "candidate", "linked", "unavailable"]}
           },
           "additionalProperties": false
         }

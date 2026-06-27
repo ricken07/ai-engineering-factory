@@ -26,6 +26,8 @@ KIND_SCHEMAS = {
     "IntegrationContract": "integration-contract.schema.json", "IntegrationLock": "integration-lock.schema.json",
     "Request": "request.schema.json", "IntentResolution": "intent-resolution.schema.json",
     "Practice": "practice.schema.json", "EffectiveEngineeringContext": "effective-engineering-context.schema.json",
+    "TaskTrackingDecision": "task-tracking-decision.schema.json", "IntegrationResolution": "integration-resolution.schema.json",
+    "ExternalTaskSearch": "external-task-search.schema.json", "ExternalTaskProposal": "external-task-proposal.schema.json", "ExternalOperation": "external-operation.schema.json",
 }
 
 
@@ -38,6 +40,17 @@ class ValidationIssue:
 def load_yaml(path: Path) -> Any:
     with path.open(encoding="utf-8") as stream:
         return yaml.safe_load(stream)
+
+
+def assert_schema(factory_root: Path, schema_name: str, data: dict[str, Any]) -> None:
+    registry=Registry(); schemas={}
+    for path in (factory_root/"core"/"schemas").glob("*.json"):
+        schema=json.loads(path.read_text(encoding="utf-8")); schemas[path.name]=schema; registry=registry.with_resource(schema["$id"],Resource.from_contents(schema))
+    if schema_name not in schemas: raise KeyError(f"unknown schema: {schema_name}")
+    errors=sorted(Draft202012Validator(schemas[schema_name],registry=registry).iter_errors(data),key=lambda item:list(item.path))
+    if errors:
+        details="; ".join(f"{'.'.join(map(str,error.path)) or 'root'}: {error.message}" for error in errors)
+        raise ValueError(f"invalid {data.get('kind','document')}: {details}")
 
 
 def validate_project(project_root: Path, factory_root: Path) -> list[ValidationIssue]:

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.0 — Task Tracking & Provider Resolution Runtime
+
+- Interpreted the Core task-tracking policy deterministically with most-restrictive-wins semantics.
+- Added TaskTrackingDecision, IntegrationResolution, ExternalTaskSearch, ExternalTaskProposal and ExternalOperation contracts.
+- Added strict provider, operation, MCP endpoint, adapter and authentication resolution without fallback.
+- Added duplicate-search preparation and structured hybrid duplicate assessment.
+- Added human-gated existing-task linking and autonomy-gated external-task creation.
+- Added stable operation IDs, completed-result reuse and same-key retry after transient failures.
+- Added canonical external references while preserving local Task identity.
+- Automatically re-evaluated tracking after impact analysis and blocked before implementation when unresolved.
+- Automatically resumed blocked Executions after successful link/create.
+- Added deterministic CLI primitives and agent adapter protocol documentation.
+
 ## 1.6.0 — Organization engineering context
 
 - Added a versioned organization catalog of standards and practices outside the agnostic Core.

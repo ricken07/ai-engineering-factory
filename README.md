@@ -1,6 +1,6 @@
 # AI Engineering Factory
 
-**Version:** 1.6.0
+**Version:** 1.7.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
@@ -58,14 +58,15 @@ Read in this order:
 10. `docs/14-universal-runtime.md`
 11. `docs/15-profile-runtime.md`
 12. `docs/16-organization-engineering-context.md`
+13. `docs/17-task-tracking-provider-runtime.md`
 
 ## Executable Runtime
 
 The `aief` CLI provides the shared deterministic path used by agent adapters. Explicit commands and natural language are normalized identically:
 
 ```bash
-aief run "/implement EGW-142" --agent codex --project . --factory /path/to/factory/1.6.0
-aief run "Corrige le bug EGW-327" --agent claude-code --project . --factory /path/to/factory/1.6.0
+aief run "/implement EGW-142" --agent codex --project . --factory /path/to/factory/1.7.0
+aief run "Corrige le bug EGW-327" --agent claude-code --project . --factory /path/to/factory/1.7.0
 ```
 
 See `docs/14-universal-runtime.md` for task intake, execution, gates, handoff and complete examples.

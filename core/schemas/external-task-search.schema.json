@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/external-task-search.schema.json",
+  "type":"object", "required":["apiVersion","kind","metadata","task","provider","query","matches","status"],
+  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"ExternalTaskSearch"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},"task":{"type":"string"},"provider":{"type":"string"},"query":{"type":"object"},"matches":{"type":"array","items":{"type":"object","required":["reference","title","confidence","recommendation"],"properties":{"reference":{"type":"string"},"title":{"type":"string"},"confidence":{"enum":["high","medium","low"]},"rationale":{"$ref":"common.schema.json#/$defs/stringArray"},"recommendation":{"enum":["link-existing","review","ignore"]}},"additionalProperties":false}},"status":{"enum":["completed","failed"]}},
+  "additionalProperties":false
+}

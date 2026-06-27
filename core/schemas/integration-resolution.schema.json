@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/integration-resolution.schema.json",
+  "type":"object", "required":["apiVersion","kind","metadata","capability","provider","status","operations"],
+  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"IntegrationResolution"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},"capability":{"type":"string"},"provider":{"type":"object","required":["id","version"],"properties":{"id":{"type":"string"},"version":{"$ref":"common.schema.json#/$defs/semanticVersion"}},"additionalProperties":false},"status":{"enum":["available","unavailable"]},"operations":{"$ref":"common.schema.json#/$defs/stringArray"},"mcp":{"type":"object","properties":{"status":{"enum":["available","not-configured","unavailable","authentication-required"]},"transport":{"type":"string"},"toolHints":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false},"error":{"type":"object","properties":{"code":{"type":"string"},"message":{"type":"string"}},"additionalProperties":false}},
+  "additionalProperties":false
+}

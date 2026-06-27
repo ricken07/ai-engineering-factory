@@ -50,6 +50,11 @@
 - `core/schemas/skill.schema.json`
 - `core/schemas/standard.schema.json`
 - `core/schemas/task.schema.json`
+- `core/schemas/task-tracking-decision.schema.json`
+- `core/schemas/integration-resolution.schema.json`
+- `core/schemas/external-task-search.schema.json`
+- `core/schemas/external-task-proposal.schema.json`
+- `core/schemas/external-operation.schema.json`
 - `core/schemas/task-memory.schema.json`
 - `core/schemas/workflow.schema.json`
 - `core/skills/README.md`
@@ -130,6 +135,7 @@
 - `docs/14-universal-runtime.md`
 - `docs/15-profile-runtime.md`
 - `docs/16-organization-engineering-context.md`
+- `docs/17-task-tracking-provider-runtime.md`
 - `examples/emmany/.ai/context/architecture.md`
 - `examples/emmany/.ai/context/conventions.md`
 - `examples/emmany/.ai/context/domain.md`
