@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.7.0`
+Version: `1.8.0`
 
 Checks completed successfully:
 
@@ -47,5 +47,11 @@ Checks completed successfully:
 - Duplicate search precedes creation; linking and L2 creation require approval.
 - Completed external operations are idempotent and transient retries preserve the operation ID.
 - Required unresolved tracking blocks before implementation and successful canonical linking resumes the Execution.
+- Git inspection uses structured argv commands with `shell=False` and persists a schema-valid workspace snapshot.
+- Dirty repositories, wrong base branches, unmerged conflicts and workspace drift block mutation.
+- Poly-repo preparation is preflighted before branch creation; worktree mode starts from the configured base commit.
+- Force push, hard reset, clean, branch deletion and change-discard operations are rejected deterministically.
+- Conservative rollback only touches clean, execution-owned worktrees or clean task branches and never deletes branches.
+- The complete automated suite passes with 76 tests.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

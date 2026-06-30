@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/workspace-snapshot.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "capturedAt", "repositories", "decision"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "WorkspaceSnapshot"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "capturedAt": {"type": "string", "format": "date-time"},
+    "repositories": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path", "branch", "clean", "headCommit", "baseCommit", "baseBranch", "taskBranch", "changes", "conflicts"],
+        "properties": {
+          "path": {"type": "string"}, "executionPath": {"type": "string"},
+          "branch": {"type": "string"}, "clean": {"type": "boolean"},
+          "headCommit": {"type":"string"}, "baseCommit": {"type": "string"}, "baseBranch": {"type": "string"},
+          "taskBranch": {"type": "string"},
+          "changes": {"type": "array", "items": {"type": "string"}},
+          "conflicts": {"type": "array", "items": {"type": "string"}}
+        }, "additionalProperties": false
+      }
+    },
+    "decision": {
+      "type": "object", "required": ["status", "mode", "reasons"],
+      "properties": {
+        "status": {"enum": ["ready", "blocked", "isolation-required", "branch-required", "rolled-back"]},
+        "mode": {"enum": ["require-clean", "worktree"]},
+        "isolated": {"type": "boolean"},
+        "reasons": {"type": "array", "items": {"type": "object", "required": ["repository", "reason"], "properties": {"repository":{"type":"string"}, "reason":{"type":"string"}}, "additionalProperties": false}}
+      }, "additionalProperties": false
+    },
+    "operations": {"type": "array", "items": {"type":"object"}},
+    "rollbackOperations": {"type": "array", "items": {"type":"object"}}
+  }, "additionalProperties": false
+}

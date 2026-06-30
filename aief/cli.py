@@ -45,10 +45,18 @@ def parser() -> argparse.ArgumentParser:
     profile_validation=execution_sub.add_parser("profile-validation"); profile_validation.add_argument("id"); profile_validation.add_argument("--project",default="."); profile_validation.add_argument("--factory",default="."); profile_validation.add_argument("--execute",action="store_true"); profile_validation.add_argument("--json",action="store_true")
     engineering_context=execution_sub.add_parser("engineering-context"); engineering_context.add_argument("id"); engineering_context.add_argument("--repository",required=True); engineering_context.add_argument("--project",default="."); engineering_context.add_argument("--factory",default="."); engineering_context.add_argument("--json",action="store_true")
     engineering=sub.add_parser("engineering-context"); engineering.add_argument("repository"); engineering.add_argument("skill"); engineering.add_argument("--project",default="."); engineering.add_argument("--factory",default="."); engineering.add_argument("--json",action="store_true")
+    workspace=sub.add_parser("workspace"); workspace_sub=workspace.add_subparsers(dest="workspace_command",required=True)
+    for name in ("inspect","prepare","verify","status","rollback"):
+        command=workspace_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
+        if name in {"prepare","rollback"}: command.add_argument("--execute",action="store_true")
     return root
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "workspace":
+        service=RuntimeService(Path(args.project),Path(args.factory))
+        data=service.workspace(args.id,args.workspace_command,getattr(args,"execute",False))
+        print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "engineering-context":
         data=RuntimeService(Path(args.project),Path(args.factory)).resolve_repository_context(args.repository,args.skill)
         print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0

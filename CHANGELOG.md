@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0 — Workspace & Git Safety Runtime
+
+- Added deterministic Git inspection for impacted mono-repo and poly-repo workspaces.
+- Blocked implementation when developer changes, conflicts, or unresolved workspace preparation are detected.
+- Added explicit task-branch preparation and optional isolated Git worktrees.
+- Added persisted `WorkspaceSnapshot` artifacts and drift verification.
+- Rejected force push, hard reset, clean, branch deletion, and change-discard operations at the Runtime boundary.
+- Added `aief workspace inspect|prepare|verify|status` and safety-focused tests.
+
 ## 1.7.0 — Task Tracking & Provider Resolution Runtime
 
 - Interpreted the Core task-tracking policy deterministically with most-restrictive-wins semantics.

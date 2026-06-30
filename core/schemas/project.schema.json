@@ -56,6 +56,15 @@
       },
       "additionalProperties": false
     },
+    "workspaceSafety": {
+      "type": "object",
+      "properties": {
+        "mode": {"type":"string", "enum":["require-clean", "worktree"], "default":"require-clean"},
+        "baseBranch": {"type":"string", "default":"main"},
+        "taskBranchPrefix": {"type":"string", "default":"aief"}
+      },
+      "additionalProperties": false
+    },
     "repositories": {
       "type": "array",
       "items": {
