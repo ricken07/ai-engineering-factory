@@ -57,6 +57,7 @@
 - `core/schemas/external-operation.schema.json`
 - `core/schemas/task-memory.schema.json`
 - `core/schemas/workflow.schema.json`
+- `core/schemas/workspace-snapshot.schema.json`
 - `core/skills/README.md`
 - `core/skills/analyze-impact/README.md`
 - `core/skills/analyze-impact/skill.yaml`
@@ -220,3 +221,6 @@
 - `tools/README.md`
 - `tools/requirements.txt`
 - `tools/validate_package.py`
+- `aief/workspace.py`
+- `docs/18-workspace-git-safety.md`
+- `tests/test_workspace.py`

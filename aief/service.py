@@ -14,6 +14,7 @@ from .runtime import Execution
 from .tracking import TaskTrackingManager, evaluate_tracking
 from .capabilities import execute_plan, validation_plan
 from .engineering import resolve_engineering_context
+from .workspace import WorkspaceManager
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
 
@@ -142,6 +143,22 @@ class RuntimeService:
             if tracking["decision"]["level"] == "required" and tracking["externalTracking"]["status"] != "linked":
                 if execution.data["status"] != "blocked": execution.block({"type":"external-tracking-required","message":"external task tracking must be resolved before implementation","task":task["metadata"]["id"],"requiredBefore":"implementation"})
                 return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"],"tracking":tracking}
+            repository_ids = self._impacted_repository_ids(execution, task)
+            if not repository_ids:
+                execution.block({"type":"workspace-safety-unresolved","message":"impacted repositories are required before implementation"})
+                return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"]}
+            manager = WorkspaceManager(self.project_root, self.project, execution.root)
+            try:
+                workspace = manager.load()
+                verification = manager.verify() if workspace["decision"]["status"] == "ready" else {"status":workspace["decision"]["status"]}
+            except FileNotFoundError:
+                workspace = manager.inspect(repository_ids, task.get("tracking", {}).get("canonicalReference") or task["metadata"]["id"])
+                verification = {"status":workspace["decision"]["status"]}
+            if verification["status"] != "ready":
+                reason = "unrelated-local-changes" if workspace["decision"]["status"] == "blocked" else "workspace-preparation-required"
+                if execution.data["status"] != "blocked":
+                    execution.block({"type":reason,"message":"workspace safety must be resolved before implementation"})
+                return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"],"workspace":workspace}
         repository_ids = self._impacted_repository_ids(execution, task)
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next(item for item in compiled["phases"] if item["id"] == phase["id"])
@@ -149,6 +166,25 @@ class RuntimeService:
         if definition.get("engineeringContext"):
             contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
         return {"execution":execution_id,"status":execution.data["status"],"phase":phase,"engineeringContexts":contexts}
+
+    def workspace(self, execution_id: str, action: str, execute: bool = False) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        task = TaskRegistry(self.project_root).load(execution.data["task"])
+        repositories = self._impacted_repository_ids(execution, task)
+        if not repositories:
+            raise RuntimeError("no impacted repository is recorded; complete impact analysis first")
+        manager = WorkspaceManager(self.project_root, self.project, execution.root)
+        reference = task.get("tracking", {}).get("canonicalReference") or task["metadata"]["id"]
+        if action == "inspect": result = manager.inspect(repositories, reference)
+        elif action == "prepare": result = manager.prepare(repositories, reference, execute)
+        elif action == "verify": result = manager.verify()
+        elif action == "status": result = manager.load()
+        elif action == "rollback": result = manager.rollback(execute)
+        else: raise ValueError(f"unknown workspace action: {action}")
+        if result.get("decision", {}).get("status") == "ready" or result.get("status") == "ready":
+            if execution.data.get("blockingReason", {}).get("type") in {"workspace-preparation-required", "unrelated-local-changes", "workspace-safety-unresolved"}:
+                execution.resume(execution.data["blockingReason"]["type"])
+        return result
 
     def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
         execution = self.execution(execution_id)

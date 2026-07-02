@@ -151,3 +151,26 @@ def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
     tracking=yaml.safe_load((project/".ai/runtime/tasks"/task["metadata"]["id"]/"tracking.yaml").read_text())
     assert tracking["decision"]["level"] == "required"
     assert set(tracking["reasons"]) == {"externally-track-high-risk","externally-track-cross-repository"}
+
+
+def test_implementation_phase_is_blocked_until_workspace_is_prepared(tmp_path: Path):
+    import subprocess
+    project=tmp_path/"project"; initialize(Path("templates/project"),project)
+    subprocess.run(["git","init","-b","main"],cwd=project,check=True,capture_output=True)
+    subprocess.run(["git","config","user.email","factory@example.invalid"],cwd=project,check=True)
+    subprocess.run(["git","config","user.name","Factory Test"],cwd=project,check=True)
+    subprocess.run(["git","add","."],cwd=project,check=True)
+    subprocess.run(["git","commit","-m","baseline"],cwd=project,check=True,capture_output=True)
+    service=RuntimeService(project,Path(".")); execution=service.start("Refactore le composant local")
+    task=TaskRegistry(project).load(execution.data["task"]); task["scope"]={"repositories":["main"]}; TaskRegistry(project).save(task)
+    service.reassess_tracking(task["metadata"]["id"],{"risk":"low","repositories":["main"],"changeTypes":["refactoring"]})
+    for phase in execution.data["phases"]:
+        if phase["id"] == "implementation": break
+        phase["status"]="completed"
+    execution.data["status"]="running"; execution.save()
+    prepared=service.prepare_phase(execution.data["metadata"]["id"])
+    assert prepared["status"] == "blocked"
+    assert prepared["blockingReason"]["type"] == "workspace-preparation-required"
+    workspace=service.workspace(execution.data["metadata"]["id"],"prepare",execute=True)
+    assert workspace["decision"]["status"] == "ready"
+    assert service.prepare_phase(execution.data["metadata"]["id"])["status"] == "running"

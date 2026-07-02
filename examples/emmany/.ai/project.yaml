@@ -4,11 +4,15 @@ metadata:
   id: emmany
   name: Emmany Gateway
 factory:
-  version: 1.7.0
+  version: 1.8.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: polyrepo
   root: .
+workspaceSafety:
+  mode: worktree
+  baseBranch: main
+  taskBranchPrefix: aief
 repositories:
   - id: egw-api
     path: ./egw-api
@@ -17,6 +21,8 @@ repositories:
     responsibilities: [payment-orchestration, transactions, webhooks, provider-integrations]
     dependencies: []
     criticalDomains: [payment, payout, authentication, transaction]
+    git:
+      baseBranch: main
     engineering:
       practices:
         hexagonal-architecture: {mode: enable}
@@ -32,6 +38,8 @@ repositories:
     dependencies:
       - {repository: egw-api, type: REST}
     criticalDomains: [transaction]
+    git:
+      baseBranch: main
 context:
   project: .ai/context/project.md
   architecture: .ai/context/architecture.md

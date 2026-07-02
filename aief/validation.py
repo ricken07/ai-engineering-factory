@@ -28,6 +28,7 @@ KIND_SCHEMAS = {
     "Practice": "practice.schema.json", "EffectiveEngineeringContext": "effective-engineering-context.schema.json",
     "TaskTrackingDecision": "task-tracking-decision.schema.json", "IntegrationResolution": "integration-resolution.schema.json",
     "ExternalTaskSearch": "external-task-search.schema.json", "ExternalTaskProposal": "external-task-proposal.schema.json", "ExternalOperation": "external-operation.schema.json",
+    "WorkspaceSnapshot": "workspace-snapshot.schema.json",
 }
 
 

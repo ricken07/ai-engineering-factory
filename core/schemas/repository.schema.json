@@ -57,6 +57,14 @@
       "$ref": "common.schema.json#/$defs/stringArray"
     },
     "engineering": {"$ref": "engineering-config.schema.json"}
+    ,"git": {
+      "type":"object",
+      "properties": {
+        "baseBranch":{"type":"string"},
+        "taskBranchPrefix":{"type":"string"}
+      },
+      "additionalProperties":false
+    }
   },
   "additionalProperties": false
 }

@@ -1,9 +1,11 @@
 # AI Engineering Factory
 
-**Version:** 1.7.0
+**Version:** 1.8.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
+
+Version 1.8 adds a deterministic Git safety boundary: impacted repositories are inspected before implementation, developer changes fail closed or are isolated in execution-owned worktrees, and unsafe Git operations are rejected. See [Workspace & Git Safety](docs/18-workspace-git-safety.md).
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
 
