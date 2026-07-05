@@ -15,6 +15,7 @@ from .tracking import TaskTrackingManager, evaluate_tracking
 from .capabilities import execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 from .workspace import WorkspaceManager
+from .concurrency import ExecutionLease, OperationJournal
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
 
@@ -57,8 +58,18 @@ class RuntimeService:
             raise FileNotFoundError(f"execution not found: {execution_id}")
         return Execution.load(root)
 
-    def complete_phase(self, execution_id: str, output: dict[str, Any]) -> Execution:
+    def _assert_lease(self, execution: Execution, owner: str | None) -> None:
+        lease=ExecutionLease(execution.root)
+        if lease.read() is not None:
+            if owner is None: raise PermissionError("an execution lease is active; owner is required")
+            lease.assert_owner(owner)
+
+    def complete_phase(self, execution_id: str, output: dict[str, Any], operation_id: str | None = None, owner: str | None = None) -> Execution:
         execution = self.execution(execution_id)
+        self._assert_lease(execution,owner)
+        if operation_id:
+            result,replayed=OperationJournal(execution.root).execute(operation_id,"complete-phase",output,lambda:self.complete_phase(execution_id,output,owner=owner).data)
+            return self.execution(execution_id)
         phase = execution.next_phase()
         if phase is None:
             raise RuntimeError("execution is already complete")
@@ -79,6 +90,30 @@ class RuntimeService:
             observations={key:impact[key] for key in ("risk","repositories","changeTypes","domains") if key in impact}
             self.reassess_tracking(execution.data["task"],observations)
         return execution
+
+    def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None) -> Execution:
+        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+        payload={"decision":"approve"}
+        if operation_id:
+            OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner).data)
+            return self.execution(execution_id)
+        execution.advance(approved=True); return execution
+
+    def lease(self, execution_id: str, action: str, owner: str | None = None, ttl_seconds: int = 300) -> dict[str, Any] | None:
+        manager=ExecutionLease(self.execution(execution_id).root)
+        if action=="status": return manager.read()
+        if owner is None: raise ValueError("lease owner is required")
+        if action=="acquire": return manager.acquire(owner,ttl_seconds)
+        if action=="renew": return manager.renew(owner,ttl_seconds)
+        if action=="release": return manager.release(owner)
+        raise ValueError(f"unknown lease action: {action}")
+
+    def handoff_execution(self, execution_id: str, owner: str | None = None) -> Path:
+        execution=self.execution(execution_id); manager=ExecutionLease(execution.root)
+        if manager.read() is not None:
+            if owner is None: raise PermissionError("lease owner is required to hand off an active execution")
+            manager.release(owner)
+        return execution.handoff()
 
     def _impacted_repository_ids(self, execution: Execution, task: dict[str, Any]) -> list[str]:
         identifiers = list(execution.data.get("repositories", [])) or list(task.get("scope", {}).get("repositories", []))

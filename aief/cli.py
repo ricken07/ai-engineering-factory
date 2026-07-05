@@ -39,9 +39,12 @@ def parser() -> argparse.ArgumentParser:
     approval=task_sub.add_parser("operation-approval"); approval.add_argument("id"); approval.add_argument("operation"); approval.add_argument("decision",choices=["approve","reject"]); approval.add_argument("--project",default="."); approval.add_argument("--factory",default="."); approval.add_argument("--json",action="store_true")
     complete_operation=task_sub.add_parser("complete-operation"); complete_operation.add_argument("id"); complete_operation.add_argument("operation"); complete_operation.add_argument("--result",required=True); complete_operation.add_argument("--project",default="."); complete_operation.add_argument("--factory",default="."); complete_operation.add_argument("--json",action="store_true")
     execution=sub.add_parser("execution"); execution_sub=execution.add_subparsers(dest="execution_command",required=True)
-    for name in ("inspect","next","approve","handoff"):
+    for name in ("inspect","next","handoff"):
         command=execution_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
-    complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--project",default="."); complete.add_argument("--factory",default="."); complete.add_argument("--json",action="store_true")
+        if name == "handoff": command.add_argument("--owner")
+    complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--operation-id"); complete.add_argument("--owner"); complete.add_argument("--project",default="."); complete.add_argument("--factory",default="."); complete.add_argument("--json",action="store_true")
+    approve_execution=execution_sub.add_parser("approve"); approve_execution.add_argument("id"); approve_execution.add_argument("--operation-id"); approve_execution.add_argument("--owner"); approve_execution.add_argument("--project",default="."); approve_execution.add_argument("--factory",default="."); approve_execution.add_argument("--json",action="store_true")
+    lease=execution_sub.add_parser("lease"); lease.add_argument("action",choices=["acquire","renew","release","status"]); lease.add_argument("id"); lease.add_argument("--owner"); lease.add_argument("--ttl",type=int,default=300); lease.add_argument("--project",default="."); lease.add_argument("--factory",default="."); lease.add_argument("--json",action="store_true")
     profile_validation=execution_sub.add_parser("profile-validation"); profile_validation.add_argument("id"); profile_validation.add_argument("--project",default="."); profile_validation.add_argument("--factory",default="."); profile_validation.add_argument("--execute",action="store_true"); profile_validation.add_argument("--json",action="store_true")
     engineering_context=execution_sub.add_parser("engineering-context"); engineering_context.add_argument("id"); engineering_context.add_argument("--repository",required=True); engineering_context.add_argument("--project",default="."); engineering_context.add_argument("--factory",default="."); engineering_context.add_argument("--json",action="store_true")
     engineering=sub.add_parser("engineering-context"); engineering.add_argument("repository"); engineering.add_argument("skill"); engineering.add_argument("--project",default="."); engineering.add_argument("--factory",default="."); engineering.add_argument("--json",action="store_true")
@@ -103,9 +106,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.execution_command=="complete-phase":
             output=yaml.safe_load(Path(args.output).read_text(encoding="utf-8"))
             if not isinstance(output,dict): raise ValueError("phase output must be an object")
-            execution=service.complete_phase(args.id,output)
-        if args.execution_command=="approve": execution.advance(approved=True)
-        if args.execution_command=="handoff": execution.handoff()
+            execution=service.complete_phase(args.id,output,args.operation_id,args.owner)
+        if args.execution_command=="approve": execution=service.approve_execution(args.id,args.operation_id,args.owner)
+        if args.execution_command=="lease":
+            data=service.lease(args.id,args.action,args.owner,args.ttl)
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+        if args.execution_command=="handoff": service.handoff_execution(args.id,args.owner)
         if args.execution_command=="next":
             data=service.prepare_phase(args.id)
         else: data=execution.data

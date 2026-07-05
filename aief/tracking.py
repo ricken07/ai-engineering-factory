@@ -157,6 +157,10 @@ class TaskTrackingManager:
 
     def approve(self, task_id: str, operation_id: str, approved: bool) -> dict[str, Any]:
         operation=self._read(task_id,f"operations/{operation_id}.yaml")
+        previous=operation.get("approval",{}).get("status")
+        expected="approved" if approved else "rejected"
+        if previous == expected: return operation
+        if previous in {"approved","rejected"}: raise RuntimeError(f"operation approval is already {previous}")
         if operation["status"] != "waiting-approval": raise RuntimeError("operation is not waiting for approval")
         operation["approval"]["status"]="approved" if approved else "rejected"; operation["status"]="pending" if approved else "failed"
         if not approved: operation["error"]={"code":"HUMAN_GATE_REJECTED","message":"external action was rejected"}

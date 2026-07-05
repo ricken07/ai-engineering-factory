@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://factory.gaddigital.io/schemas/execution-lease.schema.json",
+  "type":"object",
+  "required":["apiVersion","kind","metadata","execution","owner","acquiredAt","expiresAt","status"],
+  "properties":{
+    "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},
+    "kind":{"const":"ExecutionLease"},
+    "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "execution":{"type":"string"},"owner":{"type":"string","minLength":1},
+    "acquiredAt":{"type":"string","format":"date-time"},"expiresAt":{"type":"string","format":"date-time"},
+    "releasedAt":{"type":"string","format":"date-time"},"status":{"enum":["active","released"]}
+  },"additionalProperties":false
+}
