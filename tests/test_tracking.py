@@ -124,6 +124,15 @@ def test_rejected_creation_stays_unlinked_and_cannot_retry(tmp_path):
     assert "canonicalReference" not in TaskRegistry(runtime.project_root).load(identifier)["tracking"]
 
 
+def test_external_operation_approval_is_idempotent(tmp_path):
+    runtime=service(tmp_path); identifier=local_task(runtime)
+    runtime.tracking.prepare_search(identifier); runtime.tracking.complete_search(identifier,[]); runtime.tracking.write_proposal(identifier,proposal(identifier))
+    operation=runtime.tracking.prepare_create(identifier)
+    first=runtime.tracking.approve(identifier,operation["metadata"]["id"],True)
+    second=runtime.tracking.approve(identifier,operation["metadata"]["id"],True)
+    assert first == second and second["approval"]["status"] == "approved"
+
+
 def test_external_task_is_already_canonical_and_needs_no_creation(tmp_path):
     runtime=service(tmp_path); intake=runtime.intake("/implement EMM-123")
     tracking=runtime.tracking.assess(intake["task"]["metadata"]["id"],{"risk":"high"})

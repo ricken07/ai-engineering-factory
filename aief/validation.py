@@ -29,6 +29,8 @@ KIND_SCHEMAS = {
     "TaskTrackingDecision": "task-tracking-decision.schema.json", "IntegrationResolution": "integration-resolution.schema.json",
     "ExternalTaskSearch": "external-task-search.schema.json", "ExternalTaskProposal": "external-task-proposal.schema.json", "ExternalOperation": "external-operation.schema.json",
     "WorkspaceSnapshot": "workspace-snapshot.schema.json",
+    "ExecutionLease": "execution-lease.schema.json",
+    "RuntimeOperation": "runtime-operation.schema.json",
 }
 
 

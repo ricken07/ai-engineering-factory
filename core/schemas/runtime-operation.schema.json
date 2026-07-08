@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://factory.gaddigital.io/schemas/runtime-operation.schema.json",
+  "type":"object",
+  "required":["apiVersion","kind","metadata","execution","operationId","operationKind","fingerprint","status","startedAt"],
+  "properties":{
+    "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"RuntimeOperation"},
+    "metadata":{"$ref":"common.schema.json#/$defs/metadata"},"execution":{"type":"string"},
+    "operationId":{"type":"string"},"operationKind":{"enum":["complete-phase","approve-gate"]},
+    "fingerprint":{"type":"string","pattern":"^[a-f0-9]{64}$"},"status":{"enum":["running","completed","failed"]},
+    "startedAt":{"type":"string","format":"date-time"},"completedAt":{"type":"string","format":"date-time"},
+    "result":{},"error":{"type":"object"}
+  },"additionalProperties":false
+}

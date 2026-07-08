@@ -30,7 +30,9 @@ class Execution:
     @classmethod
     def load(cls, root: Path) -> "Execution":
         return cls(root, yaml.safe_load((root / "execution.yaml").read_text(encoding="utf-8")))
-    def save(self) -> None: (self.root / "execution.yaml").write_text(yaml.safe_dump(self.data, sort_keys=False), encoding="utf-8")
+    def save(self) -> None:
+        target=self.root/"execution.yaml"; temporary=self.root/"execution.yaml.tmp"
+        temporary.write_text(yaml.safe_dump(self.data, sort_keys=False), encoding="utf-8"); temporary.replace(target)
     def next_phase(self) -> dict[str, Any] | None:
         return next((p for p in self.data["phases"] if p["status"] not in TERMINAL), None)
     def _persist_output(self, phase: dict[str, Any], output: dict[str, Any]) -> None:

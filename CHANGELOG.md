@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0 — Idempotence & Execution Leases
+
+- Added atomic, expiring ownership leases shared by all agent adapters.
+- Added replay-safe `complete-phase` and gate approval operations using stable operation IDs and input fingerprints.
+- Made repeated external-operation approvals idempotent while rejecting contradictory decisions.
+- Added atomic Execution state replacement to avoid partially written state files.
+- Added explicit lease acquire, renew, status and release commands.
+- Made handoff release ownership so another agent can safely resume.
+
 ## 1.8.0 — Workspace & Git Safety Runtime
 
 - Added deterministic Git inspection for impacted mono-repo and poly-repo workspaces.

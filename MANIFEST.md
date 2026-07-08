@@ -27,6 +27,7 @@
 - `core/schemas/artifact.schema.json`
 - `core/schemas/common.schema.json`
 - `core/schemas/execution.schema.json`
+- `core/schemas/execution-lease.schema.json`
 - `core/schemas/factory.schema.json`
 - `core/schemas/gate.schema.json`
 - `core/schemas/handoff.schema.json`
@@ -57,6 +58,7 @@
 - `core/schemas/external-operation.schema.json`
 - `core/schemas/task-memory.schema.json`
 - `core/schemas/workflow.schema.json`
+- `core/schemas/runtime-operation.schema.json`
 - `core/schemas/workspace-snapshot.schema.json`
 - `core/skills/README.md`
 - `core/skills/analyze-impact/README.md`
@@ -222,5 +224,8 @@
 - `tools/requirements.txt`
 - `tools/validate_package.py`
 - `aief/workspace.py`
+- `aief/concurrency.py`
 - `docs/18-workspace-git-safety.md`
+- `docs/19-idempotence-execution-leases.md`
 - `tests/test_workspace.py`
+- `tests/test_concurrency.py`

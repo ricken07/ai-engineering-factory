@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.8.0`
+Version: `1.9.0`
 
 Checks completed successfully:
 
@@ -52,6 +52,11 @@ Checks completed successfully:
 - Poly-repo preparation is preflighted before branch creation; worktree mode starts from the configured base commit.
 - Force push, hard reset, clean, branch deletion and change-discard operations are rejected deterministically.
 - Conservative rollback only touches clean, execution-owned worktrees or clean task branches and never deletes branches.
-- The complete automated suite passes with 76 tests.
+- Execution leases are atomically acquired, renewed and released; a different owner cannot mutate an active Execution.
+- Runtime transitions use stable operation IDs and content fingerprints to prevent duplicate phase completion and approval.
+- Identical operation replay returns the persisted result; conflicting replay and concurrent running operations fail closed.
+- Handoff releases ownership explicitly, allowing another agent session to acquire the Execution.
+- Execution state writes use atomic file replacement, and lease/operation artifacts validate against Factory schemas.
+- The complete automated suite passes with 85 tests.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.
