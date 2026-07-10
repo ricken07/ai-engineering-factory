@@ -1,11 +1,11 @@
 # AI Engineering Factory
 
-**Version:** 1.9.0
+**Version:** 1.10.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
 
-Version 1.9 adds replay-safe Runtime transitions and filesystem execution leases so Claude Code and Codex cannot mutate the same Execution concurrently. See [Idempotence & Execution Leases](docs/19-idempotence-execution-leases.md).
+Version 1.10 dynamically re-evaluates risk, autonomy, tracking and human gates when impact or planning reveals new scope. See [Dynamic Policy Re-evaluation](docs/20-dynamic-policy-reevaluation.md).
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
 

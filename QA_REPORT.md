@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.9.0`
+Version: `1.10.0`
 
 Checks completed successfully:
 
@@ -57,6 +57,13 @@ Checks completed successfully:
 - Identical operation replay returns the persisted result; conflicting replay and concurrent running operations fail closed.
 - Handoff releases ownership explicitly, allowing another agent session to acquire the Execution.
 - Execution state writes use atomic file replacement, and lease/operation artifacts validate against Factory schemas.
-- The complete automated suite passes with 85 tests.
+- Dynamic policy evaluation derives effective risk from domains, change types, repository count and repository critical domains.
+- Risk, scope and constraints cannot silently decrease during an Execution; the most restrictive observation wins.
+- Project autonomy ceilings combine deterministically with Factory risk limits.
+- Re-evaluation occurs automatically after impact analysis and planning and persists versioned PolicyDecision artifacts.
+- Dynamic pre-phase gates prevent implementation or submission before required human approval.
+- Policy approval resumes the Execution without completing or skipping the protected phase.
+- Tracking consumes the governed effective risk, including repository-derived criticality, rather than a lower raw agent observation.
+- The complete automated suite passes with 90 tests.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.
