@@ -16,6 +16,9 @@ from .capabilities import execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
+from .policy import evaluate_runtime_policy
+from .validation import assert_schema
+from datetime import datetime, timezone
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
 
@@ -84,12 +87,47 @@ class RuntimeService:
             details = "; ".join(f"{'.'.join(map(str, error.path)) or 'root'}: {error.message}" for error in errors)
             raise ValueError(f"invalid output for {definition['skill']}: {details}")
         completed_skill=phase["skill"]
+        if completed_skill in {"analyze-impact","create-plan"} and output.get("status") == "completed":
+            details=output.get("details",{}); observations=details.get("impact",details)
+            self.reassess_policy(execution,observations,completed_skill)
         execution.advance(output)
         if completed_skill == "analyze-impact" and output.get("status") == "completed":
             details=output.get("details",{}); impact=details.get("impact",details)
             observations={key:impact[key] for key in ("risk","repositories","changeTypes","domains") if key in impact}
+            observations["risk"]=execution.data.get("risk",observations.get("risk","unknown"))
+            observations["repositories"]=execution.data.get("repositories",observations.get("repositories",[]))
             self.reassess_tracking(execution.data["task"],observations)
         return execution
+
+    def reassess_policy(self, execution: Execution, observations: dict[str, Any], trigger: str) -> dict[str, Any]:
+        task=TaskRegistry(self.project_root).load(execution.data["task"])
+        merged={key:observations[key] for key in ("risk","repositories","changeTypes","domains") if key in observations}
+        impacted=merged.get("repositories") or task.get("scope",{}).get("repositories",[])
+        catalog={item["id"]:item for item in self.project.get("repositories",[])}
+        inherited_domains=[domain for identifier in impacted for domain in catalog.get(identifier,{}).get("criticalDomains",[])]
+        if inherited_domains: merged["domains"]=list(dict.fromkeys([*merged.get("domains",[]),*inherited_domains]))
+        decision=evaluate_runtime_policy(self.factory,self.project,task,merged)
+        history=sorted(execution.root.glob("policy-decision-*.yaml")); revision=len(history)+1
+        artifact={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"PolicyDecision",
+                  "metadata":{"id":f"policy-{execution.data['metadata']['id']}-{revision:03d}"},"task":execution.data["task"],
+                  "risk":{"effective":decision["effectiveRisk"],"reasons":decision["reasons"]},
+                  "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"],"reasons":decision["reasons"]},
+                  "permissions":{"allowed":decision["allowedActions"],"denied":decision["deniedActions"]},
+                  "gates":{"required":decision["requiredGates"]},"matchedRules":decision["matchedRules"]}
+        assert_schema(self.factory,"policy-decision.schema.json",artifact)
+        name=f"policy-decision-{revision:03d}.yaml"; (execution.root/name).write_text(yaml.safe_dump(artifact,sort_keys=False),encoding="utf-8")
+        gates={item["id"]:item for item in execution.data.get("policyGates",[])}
+        for identifier in decision["requiredGates"]:
+            gates.setdefault(identifier,{"id":identifier,"status":"pending"})
+        execution.data.update({"policyDecision":name,"risk":decision["effectiveRisk"],
+                               "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]},
+                               "repositories":decision["observations"]["repositories"],"policyGates":list(gates.values())})
+        if name not in execution.data["artifacts"]: execution.data["artifacts"].append(name)
+        task.setdefault("classification",{}).update({"risk":decision["effectiveRisk"],"domains":decision["observations"]["domains"],"changeTypes":decision["observations"]["changeTypes"]})
+        task.setdefault("scope",{})["repositories"]=decision["observations"]["repositories"]
+        task["autonomy"]={"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]}
+        TaskRegistry(self.project_root).save(task); execution.save()
+        return artifact
 
     def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
@@ -97,7 +135,22 @@ class RuntimeService:
         if operation_id:
             OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner).data)
             return self.execution(execution_id)
-        execution.advance(approved=True); return execution
+        phase=execution.next_phase(); execution.advance(approved=True)
+        if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",owner or "human")
+        return execution
+
+    def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
+        gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
+        if gate and gate["status"] != "approved": gate.update({"status":"approved","approvedAt":datetime.now(timezone.utc).isoformat(),"approvedBy":approved_by}); execution.save()
+
+    def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None) -> Execution:
+        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+        gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
+        if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
+        if gate["status"] == "approved": return execution
+        self._approve_policy_gate(execution,gate_id,owner or "human")
+        if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
+        return execution
 
     def lease(self, execution_id: str, action: str, owner: str | None = None, ttl_seconds: int = 300) -> dict[str, Any] | None:
         manager=ExecutionLease(self.execution(execution_id).root)
@@ -172,6 +225,11 @@ class RuntimeService:
         phase = execution.next_phase()
         if phase is None: return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[]}
         task = TaskRegistry(self.project_root).load(execution.data["task"])
+        required_for_phase={"implementation":{"before-implementation"},"submission":{"before-commit","before-submission"}}
+        pending=required_for_phase.get(phase["id"],set()).intersection(item["id"] for item in execution.data.get("policyGates",[]) if item["status"]=="pending")
+        if pending:
+            execution.data["status"]="waiting-approval"; execution.save()
+            return {"execution":execution_id,"status":"waiting-approval","phase":phase,"engineeringContexts":[],"requiredPolicyGates":sorted(pending)}
         if phase["id"] == "implementation":
             tracking_path=self.project_root/".ai"/"runtime"/"tasks"/task["metadata"]["id"]/"tracking.yaml"
             tracking=yaml.safe_load(tracking_path.read_text(encoding="utf-8")) if tracking_path.is_file() else self.tracking.assess(task["metadata"]["id"])

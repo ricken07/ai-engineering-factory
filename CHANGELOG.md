@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.0 — Dynamic Policy Re-evaluation
+
+- Added deterministic risk derivation from domains, change types and repository blast radius.
+- Re-evaluated policy automatically after `analyze-impact` and `create-plan`.
+- Applied most-restrictive-wins across prior risk, project autonomy limits and newly discovered constraints.
+- Persisted versioned, schema-valid `PolicyDecision` artifacts with matched rules and effective permissions.
+- Added pre-phase policy gates so sensitive implementation and submission cannot begin before approval.
+- Inherited repository `criticalDomains` during policy evaluation.
+- Recalculated task scope, tracking, autonomy and execution state from new evidence.
+
 ## 1.9.0 — Idempotence & Execution Leases
 
 - Added atomic, expiring ownership leases shared by all agent adapters.

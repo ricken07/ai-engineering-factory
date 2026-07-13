@@ -3,7 +3,7 @@ kind: Factory
 metadata:
   id: gad-ai-engineering-factory
   name: Gad Digital AI Engineering Factory
-  version: 1.9.0
+  version: 1.10.0
 core:
   schemas: core/schemas
   policies: core/policies

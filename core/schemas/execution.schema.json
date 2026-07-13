@@ -61,6 +61,10 @@
     "policyDecision": {
       "type": "string"
     },
+    "policyGates": {
+      "type":"array",
+      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"}},"additionalProperties":false}
+    },
     "risk": {
       "$ref": "common.schema.json#/$defs/riskLevel"
     },

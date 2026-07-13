@@ -44,6 +44,7 @@ def parser() -> argparse.ArgumentParser:
         if name == "handoff": command.add_argument("--owner")
     complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--operation-id"); complete.add_argument("--owner"); complete.add_argument("--project",default="."); complete.add_argument("--factory",default="."); complete.add_argument("--json",action="store_true")
     approve_execution=execution_sub.add_parser("approve"); approve_execution.add_argument("id"); approve_execution.add_argument("--operation-id"); approve_execution.add_argument("--owner"); approve_execution.add_argument("--project",default="."); approve_execution.add_argument("--factory",default="."); approve_execution.add_argument("--json",action="store_true")
+    approve_policy=execution_sub.add_parser("approve-policy"); approve_policy.add_argument("id"); approve_policy.add_argument("gate"); approve_policy.add_argument("--owner"); approve_policy.add_argument("--project",default="."); approve_policy.add_argument("--factory",default="."); approve_policy.add_argument("--json",action="store_true")
     lease=execution_sub.add_parser("lease"); lease.add_argument("action",choices=["acquire","renew","release","status"]); lease.add_argument("id"); lease.add_argument("--owner"); lease.add_argument("--ttl",type=int,default=300); lease.add_argument("--project",default="."); lease.add_argument("--factory",default="."); lease.add_argument("--json",action="store_true")
     profile_validation=execution_sub.add_parser("profile-validation"); profile_validation.add_argument("id"); profile_validation.add_argument("--project",default="."); profile_validation.add_argument("--factory",default="."); profile_validation.add_argument("--execute",action="store_true"); profile_validation.add_argument("--json",action="store_true")
     engineering_context=execution_sub.add_parser("engineering-context"); engineering_context.add_argument("id"); engineering_context.add_argument("--repository",required=True); engineering_context.add_argument("--project",default="."); engineering_context.add_argument("--factory",default="."); engineering_context.add_argument("--json",action="store_true")
@@ -108,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(output,dict): raise ValueError("phase output must be an object")
             execution=service.complete_phase(args.id,output,args.operation_id,args.owner)
         if args.execution_command=="approve": execution=service.approve_execution(args.id,args.operation_id,args.owner)
+        if args.execution_command=="approve-policy": execution=service.approve_policy_gate(args.id,args.gate,args.owner)
         if args.execution_command=="lease":
             data=service.lease(args.id,args.action,args.owner,args.ttl)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0

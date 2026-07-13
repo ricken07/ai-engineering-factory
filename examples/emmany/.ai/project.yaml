@@ -4,7 +4,7 @@ metadata:
   id: emmany
   name: Emmany Gateway
 factory:
-  version: 1.9.0
+  version: 1.10.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: polyrepo

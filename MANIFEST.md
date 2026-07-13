@@ -227,5 +227,7 @@
 - `aief/concurrency.py`
 - `docs/18-workspace-git-safety.md`
 - `docs/19-idempotence-execution-leases.md`
+- `docs/20-dynamic-policy-reevaluation.md`
 - `tests/test_workspace.py`
 - `tests/test_concurrency.py`
+- `tests/test_dynamic_policy.py`
