@@ -26,3 +26,5 @@ policyRefs:
 rules:
 - Identify direct and transitive impact.
 - Do not modify source code.
+engineeringContext:
+  requires: [architecture, security]

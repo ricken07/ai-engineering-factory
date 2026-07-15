@@ -117,6 +117,8 @@
       },
       "additionalProperties": false
     },
+    "engineering": {"$ref":"engineering-config.schema.json"},
+    "constraints": {"$ref":"common.schema.json#/$defs/stringArray"},
     "workflow": {
       "type": "string"
     },

@@ -207,7 +207,8 @@ class RuntimeService:
         execution = self.execution(execution_id)
         phase = execution.next_phase()
         if phase is None: raise RuntimeError("execution is already complete")
-        context = resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, phase["skill"])
+        task=TaskRegistry(self.project_root).load(execution.data["task"])
+        context = resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, phase["skill"],task)
         if persist:
             name = f"engineering-context-{repository_id}-{phase['skill']}.yaml"
             path = execution.root / name
@@ -217,8 +218,9 @@ class RuntimeService:
             execution.save()
         return context
 
-    def resolve_repository_context(self, repository_id: str, skill_id: str) -> dict[str, Any]:
-        return resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, skill_id)
+    def resolve_repository_context(self, repository_id: str, skill_id: str, task_id: str | None = None) -> dict[str, Any]:
+        task=TaskRegistry(self.project_root).load(task_id) if task_id else None
+        return resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, skill_id,task)
 
     def prepare_phase(self, execution_id: str) -> dict[str, Any]:
         execution = self.execution(execution_id)

@@ -1,11 +1,11 @@
 # AI Engineering Factory
 
-**Version:** 1.10.0
+**Version:** 1.11.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
 
-Version 1.10 dynamically re-evaluates risk, autonomy, tracking and human gates when impact or planning reveals new scope. See [Dynamic Policy Re-evaluation](docs/20-dynamic-policy-reevaluation.md).
+Version 1.11 resolves a minimal, task-aware and fingerprinted engineering context for every repository and Skill. See [Effective Engineering Context](docs/21-effective-engineering-context.md).
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.11.0 — Effective Engineering Context Resolver
+
+- Completed the inheritance chain `Organization → Profiles → Project → Repository → Task`.
+- Added task-local practice selection, overrides and protected mandatory-practice enforcement.
+- Added structured Task objective, scope, classification and constraints to the effective context.
+- Added profile version/source resolution and practice document provenance with SHA-256 hashes.
+- Added a stable context fingerprint for audit and multi-agent handoff verification.
+- Made profile practice reference resolution deterministic while preserving declaration order.
+- Enabled progressive architecture/security context for impact and risk analysis.
+- Kept per-Skill category filtering so unrelated organization knowledge is not loaded.
+
 ## 1.10.0 — Dynamic Policy Re-evaluation
 
 - Added deterministic risk derivation from domains, change types and repository blast radius.
