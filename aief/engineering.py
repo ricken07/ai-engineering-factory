@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import yaml
+import hashlib
+import json
 
 from .capabilities import resolve_profiles
 
@@ -66,20 +68,21 @@ def _local_document(project_root: Path, reference: str, owner: str) -> Path:
     return document
 
 
-def resolve_engineering_context(factory: Path, project_root: Path, project: dict[str, Any], repository_id: str, skill_id: str) -> dict[str, Any]:
+def resolve_engineering_context(factory: Path, project_root: Path, project: dict[str, Any], repository_id: str, skill_id: str, task: dict[str, Any] | None = None) -> dict[str, Any]:
     repositories = {repository["id"]: repository for repository in project.get("repositories", [])}
     if repository_id not in repositories:
         raise EngineeringContextError(f"unknown repository: {repository_id}")
     repository = repositories[repository_id]
     resolved_profiles = resolve_profiles(factory, repository.get("profiles", []))
     profile_ids = [profile["metadata"]["id"] for profile in resolved_profiles]
+    profile_resolutions=[{"id":profile["metadata"]["id"],"version":profile["metadata"]["version"],"source":str(factory/"profiles"/profile["metadata"]["id"]/"profile.yaml"),"extends":profile.get("extends",[])} for profile in resolved_profiles]
     profile_set = set(profile_ids)
     skill_path = factory / "core" / "skills" / skill_id / "skill.yaml"
     if not skill_path.is_file(): raise EngineeringContextError(f"unknown Core Skill: {skill_id}")
     skill = yaml.safe_load(skill_path.read_text(encoding="utf-8"))
     categories = list(skill.get("engineeringContext", {}).get("requires", []))
     catalog = load_practices(factory)
-    profile_refs = {reference for profile in resolved_profiles for reference in profile.get("practiceRefs", [])}
+    profile_refs = list(dict.fromkeys(reference for profile in resolved_profiles for reference in profile.get("practiceRefs", [])))
     active: dict[str, dict[str, Any]] = {}
     resolutions: list[dict[str, Any]] = []
 
@@ -129,6 +132,7 @@ def resolve_engineering_context(factory: Path, project_root: Path, project: dict
 
     apply_configuration(project.get("engineering", {}), "project")
     apply_configuration(repository.get("engineering", {}), "repository")
+    if task: apply_configuration(task.get("engineering", {}), "task")
 
     # Project context complements selected organization practices without pretending to be an organization rule.
     context = project.get("context", {})
@@ -141,15 +145,24 @@ def resolve_engineering_context(factory: Path, project_root: Path, project: dict
 
     practices = []
     for identifier, practice in sorted(active.items()):
-        source = "repository" if any(item["practice"] == identifier and item["source"] == "repository" for item in resolutions) else "project" if any(item["practice"] == identifier and item["source"] == "project" for item in resolutions) else "organization"
+        source = next((candidate for candidate in ("task","repository","project") if any(item["practice"] == identifier and item["source"] == candidate for item in resolutions)),"organization")
         document = practice["_document"]
         content = document.read_text(encoding="utf-8")
         if practice.get("_base_document") and practice.get("inheritance", {}).get("strategy", "merge") == "merge":
             content = practice["_base_document"].read_text(encoding="utf-8").rstrip() + "\n\n# Project/repository specialization\n\n" + content.lstrip()
-        item = {"id":identifier,"version":practice["metadata"]["version"],"category":practice["category"],"enforcement":practice["enforcement"],"source":source,"document":str(document),"content":content}
+        content_hash=hashlib.sha256(content.encode()).hexdigest()
+        provenance={"source":source,"document":str(document)}
+        if practice.get("_manifest"): provenance["manifest"]=str(practice["_manifest"])
+        item = {"id":identifier,"version":practice["metadata"]["version"],"category":practice["category"],"enforcement":practice["enforcement"],"source":source,"document":str(document),"content":content,"contentHash":content_hash,"provenance":provenance}
         if practice.get("_overrides"): item["overrides"] = practice["_overrides"]
         practices.append(item)
-    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"EffectiveEngineeringContext","metadata":{"id":f"{project['metadata']['id']}-{repository_id}-{skill_id}"},"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,"profiles":profile_ids,"categories":categories,"practices":practices,"resolutions":resolutions}
+    task_context={key:task[key] for key in ("objective","scope","classification","constraints") if task and key in task}
+    identity={"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,
+              "profiles":[{"id":item["id"],"version":item["version"],"extends":item["extends"]} for item in profile_resolutions],"categories":categories,
+              "practices":[{"id":item["id"],"version":item["version"],"source":item["source"],"contentHash":item["contentHash"]} for item in practices],"taskContext":task_context}
+    fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"EffectiveEngineeringContext","metadata":{"id":f"{project['metadata']['id']}-{repository_id}-{skill_id}"},"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,
+            **({"task":task["metadata"]["id"]} if task else {}),"profiles":profile_ids,"profileResolutions":profile_resolutions,"categories":categories,"practices":practices,"resolutions":resolutions,"taskContext":task_context,"fingerprint":fingerprint}
 
 
 def validate_engineering_configuration(factory: Path, project_root: Path, project: dict[str, Any]) -> list[str]:

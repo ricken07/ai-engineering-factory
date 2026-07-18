@@ -228,6 +228,7 @@
 - `docs/18-workspace-git-safety.md`
 - `docs/19-idempotence-execution-leases.md`
 - `docs/20-dynamic-policy-reevaluation.md`
+- `docs/21-effective-engineering-context.md`
 - `tests/test_workspace.py`
 - `tests/test_concurrency.py`
 - `tests/test_dynamic_policy.py`

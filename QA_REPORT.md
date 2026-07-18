@@ -1,7 +1,7 @@
 # QA Report
 
 Package: `ai-engineering-factory`
-Version: `1.10.0`
+Version: `1.11.0`
 
 Checks completed successfully:
 
@@ -64,6 +64,13 @@ Checks completed successfully:
 - Dynamic pre-phase gates prevent implementation or submission before required human approval.
 - Policy approval resumes the Execution without completing or skipping the protected phase.
 - Tracking consumes the governed effective risk, including repository-derived criticality, rather than a lower raw agent observation.
-- The complete automated suite passes with 90 tests.
+- Effective engineering context resolves Organization, Profile, Project, Repository and Task layers in deterministic order.
+- Task-local overrides are path-confined and cannot weaken mandatory or protected organization practices.
+- Skill category declarations progressively exclude unrelated engineering knowledge.
+- Profile IDs, versions, sources and inheritance are included in context provenance.
+- Practice contents carry SHA-256 hashes and explicit organization/project/repository/task provenance.
+- Stable context fingerprints detect relevant profile, document or Task changes across agent handoffs.
+- Impact and risk phases now receive architecture/security context without loading review or testing material.
+- The complete automated suite passes with 95 tests.
 
 This QA checks structural consistency, not the behavior of a specific coding agent or provider MCP.

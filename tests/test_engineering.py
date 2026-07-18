@@ -76,3 +76,39 @@ def test_review_skill_loads_review_practice_but_validation_does_not():
     validation = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-api", "validate-change")
     assert "organization-code-review" in practice_ids(review)
     assert "organization-code-review" not in practice_ids(validation)
+
+
+def test_task_is_final_inheritance_layer_and_is_included_without_session_memory():
+    active_task={"metadata":{"id":"EGW-142"},"objective":{"summary":"Expose failure reason","acceptanceCriteria":["API exposes normalized reason"]},
+                 "scope":{"repositories":["egw-api"]},"classification":{"risk":"high","domains":["payment"],"changeTypes":["source-code"]},
+                 "constraints":["Do not expose provider errors"],"engineering":{"practices":{"java-coding-conventions":{"mode":"override","ref":".ai/context/conventions.md"}}}}
+    context=resolve_engineering_context(ROOT,PROJECT_ROOT,project(),"egw-api","implement-change",active_task)
+    practice=next(item for item in context["practices"] if item["id"]=="java-coding-conventions")
+    assert context["task"] == "EGW-142" and context["taskContext"]["constraints"] == ["Do not expose provider errors"]
+    assert practice["source"] == "task" and practice["document"].endswith(".ai/context/conventions.md")
+
+
+def test_context_has_stable_fingerprint_and_document_provenance():
+    first=resolve_engineering_context(ROOT,PROJECT_ROOT,project(),"egw-api","review-change")
+    second=resolve_engineering_context(ROOT,PROJECT_ROOT,project(),"egw-api","review-change")
+    assert first["fingerprint"] == second["fingerprint"] and len(first["fingerprint"]) == 64
+    assert all(len(item["contentHash"])==64 and item["provenance"]["document"]==item["document"] for item in first["practices"])
+    assert {item["id"]:item["version"] for item in first["profileResolutions"]}["java"] == "0.1.0"
+
+
+def test_task_cannot_override_mandatory_organization_practice():
+    active_task={"metadata":{"id":"EGW-142"},"objective":{"summary":"Unsafe override"},"engineering":{"practices":{"secret-management":{"mode":"disable"}}}}
+    with pytest.raises(PracticeConflict,match="task cannot disable mandatory practice secret-management"):
+        resolve_engineering_context(ROOT,PROJECT_ROOT,project(),"egw-api","implement-change",active_task)
+
+
+def test_progressive_loading_returns_no_practices_for_skill_without_requested_categories():
+    context=resolve_engineering_context(ROOT,PROJECT_ROOT,project(),"egw-api","understand-task",{"metadata":{"id":"EGW-1"},"objective":{"summary":"Understand"}})
+    assert context["categories"] == [] and context["practices"] == []
+
+
+def test_impact_analysis_loads_architecture_and_security_but_not_review_or_testing():
+    context=resolve_engineering_context(ROOT,PROJECT_ROOT,project(),"egw-api","analyze-impact")
+    assert context["categories"] == ["architecture","security"]
+    assert "project-architecture" in practice_ids(context) and "secret-management" in practice_ids(context)
+    assert "organization-code-review" not in practice_ids(context) and "testing-baseline" not in practice_ids(context)

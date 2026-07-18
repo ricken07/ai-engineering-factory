@@ -24,3 +24,5 @@ policyRefs:
 rules:
 - Apply risk policy inputs conservatively.
 - Uncertainty must not reduce risk.
+engineeringContext:
+  requires: [architecture, security]
