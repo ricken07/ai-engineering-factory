@@ -61,6 +61,8 @@ Read in this order:
 11. `docs/15-profile-runtime.md`
 12. `docs/16-organization-engineering-context.md`
 13. `docs/17-task-tracking-provider-runtime.md`
+14. `docs/22-project-installation-guide.md`
+15. `docs/23-first-steps.md`
 
 ## Executable Runtime
 
@@ -84,6 +86,10 @@ A project does **not** clone the Factory into its repositories. The Factory is i
 The project clones only `templates/project/`, then adapts `.ai/project.yaml`, `.ai/repository-map.yaml` and its context.
 
 See `examples/emmany/` for a poly-repository example.
+
+For a complete, commented installation procedure covering clone, CLI, adapters,
+project configuration, validation and optional MCP activation, see
+`docs/22-project-installation-guide.md`.
 
 ## Stability
 

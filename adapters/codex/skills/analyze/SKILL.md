@@ -5,6 +5,10 @@ description: Execute the AI Engineering Factory analyze-task workflow for the cu
 
 # Analyze
 
+Before any task work, execute the mandatory Codex Runtime Protocol at
+`$GAD_AI_FACTORY_HOME/adapters/codex/runtime-protocol.md`. Pass the complete
+user request to `aief run`; do not orchestrate this workflow only in chat.
+
 1. Locate the nearest workspace `.ai/project.yaml`.
 2. Resolve its pinned Factory version; fail closed if unavailable or incompatible.
 3. Load Factory workflow `analyze-task`, referenced policies, standards and Core Skills.

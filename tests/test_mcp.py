@@ -44,3 +44,19 @@ def test_adapter_install_is_plannable_and_idempotent(tmp_path):
     installed=install_adapter(ROOT,"codex",tmp_path)
     assert len(installed)==8
     assert install_adapter(ROOT,"codex",tmp_path)==installed
+
+def test_every_adapter_skill_enters_the_shared_runtime_protocol():
+    for agent, identity in (("codex", "--agent codex"), ("claude-code", "--agent claude-code")):
+        adapter=ROOT / "adapters" / agent
+        protocol=(adapter / "runtime-protocol.md").read_text(encoding="utf-8")
+        assert "aief run" in protocol
+        assert "aief execution next" in protocol
+        assert "aief execution complete-phase" in protocol
+        assert identity in protocol
+        skills=sorted((adapter / "skills").glob("*/SKILL.md"))
+        assert len(skills)==8
+        for skill in skills:
+            content=skill.read_text(encoding="utf-8")
+            assert "Runtime Protocol" in content
+            assert "user request" in content
+            assert "aief run" in content

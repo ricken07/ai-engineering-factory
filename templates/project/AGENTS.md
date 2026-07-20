@@ -6,7 +6,10 @@ This project is governed by the AI Engineering Factory.
 
 Before engineering work:
 
-1. Read `.ai/project.yaml` and `.ai/repository-map.yaml`.
+1. Route every engineering request, including free text, through the installed
+   Factory adapter and its mandatory Runtime protocol. Do not ask the developer
+   to invoke `aief run`.
+2. Read `.ai/project.yaml` and `.ai/repository-map.yaml`.
 2. Resolve the pinned Factory version from the configured Factory home.
 3. Use its adapter for the active agent and its Core workflow for the user intent.
 4. Resolve policies before side effects and stop at unmet gates.
@@ -20,3 +23,6 @@ Before engineering work:
 See `.ai/README.md` for the project AI configuration. Do not duplicate Factory workflows, profiles, provider instructions or stack commands here.
 
 Supported intents: `analyze`, `implement`, `fix`, `refactor`, `test`, `review`, `document`, `promote`.
+
+Daily entry point: start Codex or Claude Code from this workspace root, then use
+an agent-native intent (`$implement` or `/implement`) or natural language.

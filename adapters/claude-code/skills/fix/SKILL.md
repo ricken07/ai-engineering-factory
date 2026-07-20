@@ -5,6 +5,10 @@ description: Execute the AI Engineering Factory fix-bug workflow for the current
 
 # Fix
 
+Before any task work, execute the mandatory Claude Code Runtime Protocol at
+`$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md`. Pass the
+complete user request to `aief run`; do not orchestrate this workflow only in chat.
+
 1. Locate the nearest workspace `.ai/project.yaml`.
 2. Resolve its pinned Factory version; fail closed if unavailable or incompatible.
 3. Load Factory workflow `fix-bug`, referenced policies, standards and Core Skills.
