@@ -24,6 +24,23 @@ Workspace projet
 
 Le Core, les workflows et les skills ne sont jamais copiés dans le projet.
 
+### Quand l’installation est-elle réellement effective ?
+
+La présence de `.ai/project.yaml` signifie seulement que le projet est
+**configuré**. La Factory est **opérationnelle** lorsque les cinq couches
+suivantes sont vérifiées :
+
+| Couche | Vérification attendue |
+| --- | --- |
+| Factory centrale | Le tag demandé existe dans `GAD_AI_FACTORY_HOME` |
+| Runtime | `aief` est installé et accessible dans le `PATH` |
+| Adapter | Les skills existent dans `~/.agents/skills` ou `~/.claude/skills` |
+| Projet | `.ai/project.yaml`, `AGENTS.md` et `CLAUDE.md` sont présents à la racine |
+| Session | L’agent a été redémarré après l’installation des skills |
+
+Un projet peut donc réussir `aief validate` tout en affichant
+`No commands match "/implement"` si l’adapter Claude Code n’est pas installé.
+
 ## 1.1 Expérience quotidienne cible
 
 Après l’installation initiale, le développeur ne lance pas `aief run` pour travailler.
@@ -148,6 +165,9 @@ uv tool install "$AIEF_HOME"
 
 # Confirme que l’exécutable est disponible.
 aief --help
+
+# Affiche l’exécutable réellement utilisé, par exemple ~/.local/bin/aief.
+command -v aief
 ```
 
 Pendant le développement de la Factory uniquement :
@@ -166,6 +186,11 @@ export GAD_AI_FACTORY_HOME="$AIEF_HOME"
 # Rend la variable persistante pour les nouvelles sessions Zsh.
 echo "export GAD_AI_FACTORY_HOME=\"$AIEF_HOME\"" >> "$HOME/.zshrc"
 source "$HOME/.zshrc"
+
+# Vérifie que la session courante résout la Factory et ses assets.
+test -n "$GAD_AI_FACTORY_HOME"
+test -d "$GAD_AI_FACTORY_HOME/core"
+test -f "$GAD_AI_FACTORY_HOME/pyproject.toml"
 ```
 
 ## 5. Installer les adapters agents
@@ -192,6 +217,23 @@ aief setup-adapter claude-code --factory "$AIEF_HOME" --execute
 
 Les adapters restent minces : `$implement` côté Codex et `/implement` côté Claude déclenchent le même workflow du Core.
 
+Vérifier physiquement l’installation :
+
+```bash
+# Doit trouver le manifeste du skill Codex.
+test -f "$HOME/.agents/skills/implement/SKILL.md"
+
+# Doit trouver le manifeste du skill Claude Code.
+test -f "$HOME/.claude/skills/implement/SKILL.md"
+
+# Affiche les liens vers la Factory centrale lorsqu’ils sont installés en symlink.
+ls -la "$HOME/.agents/skills/implement"
+ls -la "$HOME/.claude/skills/implement"
+```
+
+Si l’un de ces tests échoue, l’agent correspondant ne pourra pas découvrir sa
+commande native `implement`.
+
 ## 6. Initialiser le projet
 
 Définir le workspace cible :
@@ -215,6 +257,25 @@ cp -R "$AIEF_HOME/templates/project/.ai" "$PROJECT_ROOT/.ai"
 ```
 
 Les éventuels `AGENTS.md` et `CLAUDE.md` existants doivent être analysés et fusionnés manuellement. Ne les écrasez jamais avec une copie aveugle.
+
+Si ces fichiers n’existent pas encore, installer les bootstraps du template :
+
+```bash
+# Les gardes empêchent tout écrasement d’instructions existantes.
+test ! -e "$PROJECT_ROOT/AGENTS.md"
+test ! -e "$PROJECT_ROOT/CLAUDE.md"
+
+cp "$AIEF_HOME/templates/project/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
+cp "$AIEF_HOME/templates/project/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
+
+# Confirme que le lancement depuis PROJECT_ROOT exposera les deux bootstraps.
+test -f "$PROJECT_ROOT/AGENTS.md"
+test -f "$PROJECT_ROOT/CLAUDE.md"
+```
+
+Pour un fichier existant, fusionner uniquement les instructions Factory après
+revue humaine. `CLAUDE.md` doit importer `AGENTS.md` avec `@AGENTS.md` afin
+d’éviter deux copies divergentes.
 
 ## 7. Configurer `.ai/project.yaml`
 
@@ -396,6 +457,37 @@ aief integrations doctor "$PROJECT_ROOT" --factory "$AIEF_HOME"
 
 Le lock vide ne configure aucun MCP. Il prouve que l’absence d’intégration est intentionnelle.
 
+### Contrôle Go/No-Go avant de lancer un agent
+
+Exécuter ces contrôles depuis une nouvelle session de terminal :
+
+```bash
+# 1. Runtime disponible.
+command -v aief
+
+# 2. Factory centrale résolue.
+test -n "$GAD_AI_FACTORY_HOME"
+test -d "$GAD_AI_FACTORY_HOME/core"
+
+# 3. Projet et bootstraps présents.
+test -f "$PROJECT_ROOT/.ai/project.yaml"
+test -f "$PROJECT_ROOT/AGENTS.md"
+test -f "$PROJECT_ROOT/CLAUDE.md"
+
+# 4. Adapter Claude Code, si Claude sera utilisé.
+test -f "$HOME/.claude/skills/implement/SKILL.md"
+
+# 5. Adapter Codex, si Codex sera utilisé.
+test -f "$HOME/.agents/skills/implement/SKILL.md"
+
+# 6. Configuration déterministe valide.
+aief validate "$PROJECT_ROOT" --factory "$GAD_AI_FACTORY_HOME"
+aief doctor "$PROJECT_ROOT"
+```
+
+Tous les contrôles applicables doivent réussir. Une erreur doit être corrigée
+avant d’ouvrir la première session agent.
+
 ## 12. Premier test contrôlé depuis Claude Code ou Codex
 
 Commencer par une tâche locale et non mutante :
@@ -407,6 +499,10 @@ cd "$PROJECT_ROOT"
 codex
 # ou : claude
 ```
+
+Fermer toute session Claude Code ou Codex ouverte avant l’installation des
+skills, puis démarrer une nouvelle session. Les commandes natives sont
+découvertes au démarrage de l’agent.
 
 Dans la session de l’agent, après installation des adapters :
 
@@ -440,6 +536,48 @@ Puis tester une modification locale limitée, sur un workspace propre ou un work
 Codex      $test Ajoute uniquement les tests manquants pour ce comportement.
 Claude     /test Ajoute uniquement les tests manquants pour ce comportement.
 ```
+
+### Diagnostic de `No commands match "/implement"`
+
+Ce message indique que Claude Code n’a pas découvert le skill. Il ne signifie
+pas nécessairement que `.ai/project.yaml` est invalide.
+
+Vérifier dans cet ordre :
+
+```bash
+# 1. Le skill Claude est-il réellement installé ?
+test -f "$HOME/.claude/skills/implement/SKILL.md"
+
+# 2. Le lien éventuel pointe-t-il vers une cible existante ?
+ls -la "$HOME/.claude/skills/implement"
+
+# 3. La Factory centrale est-elle résolue dans cette session ?
+printenv GAD_AI_FACTORY_HOME
+test -f "$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md"
+
+# 4. Les instructions projet existent-elles à la racine de lancement ?
+test -f "$PROJECT_ROOT/CLAUDE.md"
+test -f "$PROJECT_ROOT/AGENTS.md"
+```
+
+Si le skill manque :
+
+```bash
+aief setup-adapter claude-code \
+  --factory "$GAD_AI_FACTORY_HOME" \
+  --execute
+```
+
+Quitter ensuite complètement Claude Code et le relancer depuis la racine :
+
+```bash
+cd "$PROJECT_ROOT"
+claude
+```
+
+Pour Codex, remplacer `~/.claude/skills/implement` par
+`~/.agents/skills/implement`, installer l’adapter `codex`, puis relancer
+`codex`.
 
 ## 13. Activer ultérieurement un provider MCP
 
