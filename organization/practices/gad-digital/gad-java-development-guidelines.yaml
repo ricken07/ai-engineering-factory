@@ -1,0 +1,18 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata:
+  id: gad-java-development-guidelines
+  name: Gad Digital Java Development Guidelines
+  version: 1.0.0
+category: convention
+enforcement: default
+appliesTo:
+  profiles: [java]
+  skills: [create-plan, implement-change, review-change]
+document:
+  path: ../../catalogs/gad-guidelines/dev-guidelines.md
+inheritance:
+  strategy: merge
+override:
+  allowed: true
+tags: [java, coding, git]

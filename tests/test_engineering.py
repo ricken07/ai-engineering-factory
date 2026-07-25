@@ -33,6 +33,19 @@ def test_effective_context_composes_organization_profile_project_and_repository(
     assert not list(Draft202012Validator(schemas["effective-engineering-context.schema.json"], registry=registry).iter_errors(context))
 
 
+def test_gad_java_guidelines_are_inherited_but_role_guidelines_are_opt_in():
+    data=project()
+    context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
+    identifiers=practice_ids(context)
+    assert "gad-java-development-guidelines" in identifiers
+    assert "gad-api-guidelines" not in identifiers
+    assert "gad-app-architecture" not in identifiers
+
+    data["repositories"][0]["engineering"]={"practices":{"gad-api-guidelines@1.0.0":{"mode":"enable"}}}
+    context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
+    assert "gad-api-guidelines" in practice_ids(context)
+
+
 def test_context_is_filtered_by_repository_profiles_and_skill_categories():
     context = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-app", "implement-change")
     identifiers = practice_ids(context)

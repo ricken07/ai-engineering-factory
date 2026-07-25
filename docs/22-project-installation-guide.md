@@ -6,13 +6,13 @@ Après installation, poursuivre avec
 [`23-first-steps.md`](23-first-steps.md) pour le parcours quotidien depuis Claude
 Code ou Codex.
 
-Les exemples utilisent la version `1.11.0`. Remplacez les valeurs entre `<...>` avant exécution.
+Les exemples utilisent la version `1.12.0`. Remplacez les valeurs entre `<...>` avant exécution.
 
 ## 1. Résultat attendu
 
 ```text
 Poste développeur
-├── ~/.gad/ai-engineering-factory/1.11.0/  # Factory centrale, en lecture seule
+├── ~/.gad/ai-engineering-factory/1.12.0/  # Factory centrale, en lecture seule
 ├── ~/.agents/skills/                      # Entrées Codex vers la Factory
 └── ~/.claude/skills/                      # Entrées Claude Code vers la Factory
 
@@ -126,7 +126,7 @@ Définir les paramètres de l’installation :
 export AIEF_REPOSITORY_URL="<FACTORY_GIT_URL>"
 
 # Version immuable demandée par les projets.
-export AIEF_VERSION="1.11.0"
+export AIEF_VERSION="1.12.0"
 
 # Racine organisationnelle locale. Ce dossier n’appartient à aucun projet métier.
 export AIEF_INSTALL_ROOT="$HOME/.gad/ai-engineering-factory"
@@ -290,7 +290,7 @@ metadata:
   name: My Project                       # Nom destiné aux humains.
 
 factory:
-  version: 1.11.0                        # Version centrale exigée par le projet.
+  version: 1.12.0                        # Version centrale exigée par le projet.
   homeEnv: GAD_AI_FACTORY_HOME           # Variable qui localise son installation.
 
 workspace:

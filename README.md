@@ -1,11 +1,15 @@
 # AI Engineering Factory
 
-**Version:** 1.11.0
+**Version:** 1.12.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
 
 Version 1.11 resolves a minimal, task-aware and fingerprinted engineering context for every repository and Skill. See [Effective Engineering Context](docs/21-effective-engineering-context.md).
+
+Version 1.12 integrates the version-pinned Gad Digital guidelines catalog as
+governed organization Practices, with profile inheritance and explicit
+repository-role activation. See [Organization knowledge catalog](docs/24-organization-knowledge-catalog.md).
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
 
@@ -63,6 +67,7 @@ Read in this order:
 13. `docs/17-task-tracking-provider-runtime.md`
 14. `docs/22-project-installation-guide.md`
 15. `docs/23-first-steps.md`
+16. `docs/24-organization-knowledge-catalog.md`
 
 ## Executable Runtime
 
