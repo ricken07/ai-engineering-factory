@@ -119,6 +119,21 @@
       }
     },
     "integrationLock": {"type":"string", "default":".ai/integration-lock.yaml"},
+    "taskTracking": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["local", "external"],
+          "default": "external"
+        },
+        "namespace": {"type":"string", "minLength":1},
+        "referenceFormat": {"enum":["provider-native","container-iid","url"]},
+        "workflowStates": {"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},
+        "defaultLabels": {"$ref":"common.schema.json#/$defs/stringArray"}
+      },
+      "additionalProperties": false
+    },
     "engineering": {"$ref": "engineering-config.schema.json"},
     "autonomy": {
       "type": "object",

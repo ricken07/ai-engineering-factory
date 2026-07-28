@@ -63,6 +63,21 @@ An adapter must not implement intent rules or workflow logic. It must:
 
 Claude `/implement` and Codex `$implement` are therefore different native entry points to the same Runtime.
 
+Native adapters must pin the canonical intent independently from the request
+title. For example, `/implement Feature 1.1` invokes:
+
+```bash
+aief run "Feature 1.1" --agent claude-code \
+  --intent implement --expect-workflow implement-task \
+  --project "$PROJECT_ROOT" --factory "$FACTORY_HOME"
+```
+
+The Runtime returns a receipt containing the concrete Execution ID, resolved
+intent, workflow and next phase. A model statement such as “Task normalized” is
+not evidence. An adapter must fail closed when the receipt is absent or the
+workflow differs, and source mutation is forbidden until `execution next`
+returns the `implement-change` Skill.
+
 ## CLI examples
 
 Create only the normalized task:

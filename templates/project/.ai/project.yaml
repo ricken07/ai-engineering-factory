@@ -4,7 +4,7 @@ metadata:
   id: replace-me
   name: Replace Me
 factory:
-  version: 1.12.0
+  version: 1.13.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: monorepo
@@ -39,10 +39,15 @@ runtime:
   executionRetentionDays: 14
 integrations: {}
 integrationLock: .ai/integration-lock.yaml
+taskTracking:
+  # local: .ai/runtime is the traceability system; no task-provider is required.
+  # external: required tracking must be linked through the configured task-provider.
+  mode: local
 autonomy:
   default: L1
   maximum: L2
 policyRefs: []
 engineering:
   inheritOrganization: true
+  organizationCatalogs: [factory-default@1.0.0]
   practices: {}

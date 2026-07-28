@@ -31,6 +31,27 @@ def test_runtime_service_creates_schema_valid_execution_and_handoff(tmp_path: Pa
     assert execution.next_phase()["id"] == "understand"
 
 
+def test_task_log_traces_workflow_and_structured_phase_decisions(tmp_path: Path):
+    project = tmp_path / "project"
+    initialize(Path("templates/project"), project)
+    service = RuntimeService(project, Path("."))
+    execution = service.start("/analyze DEMO-42", "claude-code")
+    execution_id = execution.data["metadata"]["id"]
+    service.prepare_phase(execution_id)
+    output = yaml.safe_load(Path("core/skills/understand-task/examples/output.yaml").read_text())
+    service.complete_phase(execution_id, output)
+    events = service.task_events("DEMO-42")
+
+    assert [item["event"] for item in events] == [
+        "task.normalized", "workflow.started", "phase.prepared", "phase.completed"
+    ]
+    assert events[1]["execution"] == execution_id
+    assert events[1]["data"]["workflow"]["id"] == "analyze-task"
+    assert events[-1]["data"]["artifact"] == "understand.yaml"
+    assert events[-1]["summary"] == output["summary"]
+    assert (project / ".ai/runtime/tasks/DEMO-42/events.jsonl").is_file()
+
+
 def test_gate_persists_phase_output_before_waiting(tmp_path: Path):
     workflow = {"metadata":{"id":"demo","version":"1.0.0"},"phases":[{"id":"plan","skill":"create-plan","gate":{"id":"before-implementation","type":"human-approval"}}]}
     execution = __import__("aief.runtime", fromlist=["Execution"]).Execution.create(tmp_path, workflow, "TASK-1")
@@ -138,8 +159,24 @@ def test_prepare_phase_automatically_materializes_skill_context(tmp_path: Path):
     assert "testing-baseline" in {item["id"] for item in prepared["engineeringContexts"][0]["practices"]}
 
 
+def test_prepare_phase_resolves_core_skill_contract_without_native_invocation(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project)
+    service=RuntimeService(project,Path(".")); execution=service.start("/implement Feature 1.1","claude-code")
+    prepared=service.prepare_phase(execution.data["metadata"]["id"])
+    contract=prepared["skillContract"]
+    assert contract["id"] == "understand-task"
+    assert contract["invocation"] == "core-contract"
+    assert Path(contract["manifest"]).is_file()
+    assert Path(contract["instructions"]).name == "SKILL.md"
+    assert Path(contract["outputSchema"]).name == "output.schema.json"
+
+
 def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
-    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    project=tmp_path/"project"; initialize(Path("templates/project"),project)
+    project_data=yaml.safe_load((project/".ai/project.yaml").read_text())
+    project_data["repositories"].append({"id":"secondary","path":".","role":"application","profiles":["generic"],"responsibilities":[],"dependencies":[],"criticalDomains":[]})
+    (project/".ai/project.yaml").write_text(yaml.safe_dump(project_data,sort_keys=False))
+    service=RuntimeService(project,Path("."))
     execution=service.start("Corrige un problème de paiement")
     for phase in execution.data["phases"]:
         if phase["skill"] == "analyze-impact": break
@@ -148,9 +185,55 @@ def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
     output={"summary":"Cross-repository payment impact","status":"completed","evidence":["repository-map"],"unknowns":[],"details":{"risk":"high","repositories":["main","secondary"],"changeTypes":["functional-change"],"domains":["payment"]}}
     service.complete_phase(execution.data["metadata"]["id"],output)
     task=TaskRegistry(project).load(execution.data["task"])
+    persisted=service.execution(execution.data["metadata"]["id"])
+    assert persisted.data["repositories"] == ["main", "secondary"]
+    assert task["scope"]["repositories"] == ["main", "secondary"]
     tracking=yaml.safe_load((project/".ai/runtime/tasks"/task["metadata"]["id"]/"tracking.yaml").read_text())
     assert tracking["decision"]["level"] == "required"
     assert set(tracking["reasons"]) == {"externally-track-high-risk","externally-track-cross-repository"}
+
+
+def test_mutating_workflow_rejects_impact_without_repositories_before_advancing(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    execution=service.start("Implémente une évolution locale")
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "analyze-impact": break
+        phase["status"]="completed"
+    execution.data["status"]="running"; execution.save()
+    output={"summary":"Impact incomplete","status":"completed","evidence":["code"],"unknowns":[],"details":{"repositories":[]}}
+
+    with pytest.raises(ValueError, match="at least one impacted repository"):
+        service.complete_phase(execution.data["metadata"]["id"],output)
+
+    persisted=service.execution(execution.data["metadata"]["id"])
+    assert persisted.next_phase()["skill"] == "analyze-impact"
+    assert not (persisted.root/"analyze-impact.yaml").exists()
+
+
+def test_impact_rejects_unknown_repository_identifier(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    execution=service.start("Implémente une évolution locale")
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "analyze-impact": break
+        phase["status"]="completed"
+    execution.data["status"]="running"; execution.save()
+    output={"summary":"Unknown repository","status":"completed","evidence":["code"],"unknowns":[],"details":{"repositories":["invented-repo"]}}
+
+    with pytest.raises(ValueError, match="unknown project repositories: invented-repo"):
+        service.complete_phase(execution.data["metadata"]["id"],output)
+
+
+def test_task_registry_rejects_duplicate_yaml_keys(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project)
+    task_root=project/".ai/runtime/tasks/local-duplicate"; task_root.mkdir(parents=True)
+    (task_root/"task.yaml").write_text(
+        "apiVersion: factory.gaddigital.io/v1alpha1\nkind: Task\nmetadata: {id: local-duplicate}\n"
+        "objective: {summary: demo}\nscope: {repositories: [main]}\nscope: {repositories: []}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="duplicate YAML key 'scope'"):
+        TaskRegistry(project).load("local-duplicate")
 
 
 def test_implementation_phase_is_blocked_until_workspace_is_prepared(tmp_path: Path):

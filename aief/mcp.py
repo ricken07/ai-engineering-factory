@@ -32,7 +32,7 @@ def resolve_capability(factory: Path, project: dict[str,Any], capability: str, o
     if url_env:
         if not env.get(url_env): raise EnvironmentError(f"required MCP endpoint variable {url_env} is not set")
         transport["url"]=env[url_env]
-    return {"provider":provider,"capability":capability,"operation":operation,"version":manifest["metadata"]["version"],"transport":transport,"toolHints":mcp.get("toolHints",[])}
+    return {"provider":provider,"capability":capability,"operation":operation,"version":manifest["metadata"]["version"],"transport":transport,"authentication":mcp.get("authentication"),"adapterOverrides":mcp.get("adapterOverrides",{}),"toolHints":mcp.get("toolHints",[])}
 
 def resolve_bindings(factory: Path, project: dict[str,Any], environment: dict[str,str] | None=None) -> list[dict[str,Any]]:
     grouped: dict[str,dict[str,Any]]={}
@@ -53,8 +53,31 @@ def integration_lock(factory: Path, project: dict[str,Any]) -> dict[str,Any]:
 
 def render_codex(bindings: list[dict[str,Any]]) -> str:
     lines=["# BEGIN AIEF MANAGED MCP","# Secrets remain in the environment."]
-    for binding in sorted(bindings,key=lambda item:item["provider"]): lines.extend(["",f"[mcp_servers.{binding['provider']}]",f"url = \"{binding['transport']['url']}\""])
+    for binding in sorted(bindings,key=lambda item:item["provider"]):
+        transport,authentication=_adapter_configuration(binding,"codex")
+        lines.extend(["",f"[mcp_servers.{binding['provider']}]"])
+        if transport["type"]=="http": lines.append(f"url = \"{transport['url']}\"")
+        else:
+            lines.append(f"command = \"{transport['command']}\"")
+            lines.append("args = "+json.dumps(transport.get("args",[]),ensure_ascii=False))
+        if authentication and authentication.get("type")=="bearer":
+            lines.append(f"bearer_token_env_var = \"{authentication['tokenEnvironment']}\"")
     return "\n".join(lines)+"\n# END AIEF MANAGED MCP\n"
 
 def render_claude(bindings: list[dict[str,Any]]) -> dict[str,Any]:
-    return {"mcpServers":{item["provider"]:{"type":"http","url":item["transport"]["url"]} for item in sorted(bindings,key=lambda value:value["provider"])}}
+    servers={}
+    for item in sorted(bindings,key=lambda value:value["provider"]):
+        transport,authentication=_adapter_configuration(item,"claude-code")
+        server={"type":transport["type"]}
+        if transport["type"]=="http": server["url"]=transport["url"]
+        else: server.update({"command":transport["command"],"args":transport.get("args",[])})
+        if authentication and authentication.get("type")=="bearer":
+            server["headers"]={"Authorization":f"Bearer ${{{authentication['tokenEnvironment']}}}"}
+        servers[item["provider"]]=server
+    return {"mcpServers":servers}
+
+def _adapter_configuration(binding: dict[str,Any], agent: str) -> tuple[dict[str,Any],dict[str,Any] | None]:
+    override=binding.get("adapterOverrides",{}).get(agent,{})
+    transport=dict(override.get("transport",binding["transport"]))
+    transport.setdefault("type","http" if "url" in transport else "stdio")
+    return transport,override.get("authentication",binding.get("authentication"))

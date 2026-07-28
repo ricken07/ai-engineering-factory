@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from .engineering import validate_engineering_configuration
+from .yamlio import load_yaml
 
 
 KIND_SCHEMAS = {
@@ -26,6 +26,7 @@ KIND_SCHEMAS = {
     "IntegrationContract": "integration-contract.schema.json", "IntegrationLock": "integration-lock.schema.json",
     "Request": "request.schema.json", "IntentResolution": "intent-resolution.schema.json",
     "Practice": "practice.schema.json", "EffectiveEngineeringContext": "effective-engineering-context.schema.json",
+    "OrganizationCatalog": "organization-catalog.schema.json",
     "TaskTrackingDecision": "task-tracking-decision.schema.json", "IntegrationResolution": "integration-resolution.schema.json",
     "ExternalTaskSearch": "external-task-search.schema.json", "ExternalTaskProposal": "external-task-proposal.schema.json", "ExternalOperation": "external-operation.schema.json",
     "WorkspaceSnapshot": "workspace-snapshot.schema.json",
@@ -38,11 +39,6 @@ KIND_SCHEMAS = {
 class ValidationIssue:
     path: str
     message: str
-
-
-def load_yaml(path: Path) -> Any:
-    with path.open(encoding="utf-8") as stream:
-        return yaml.safe_load(stream)
 
 
 def assert_schema(factory_root: Path, schema_name: str, data: dict[str, Any]) -> None:
@@ -72,7 +68,10 @@ def validate_project(project_root: Path, factory_root: Path) -> list[ValidationI
     candidates = [project_root / ".ai" / "project.yaml", project_root / ".ai" / "repository-map.yaml"]
     runtime = project_root / ".ai" / "runtime"
     if runtime.is_dir():
-        candidates.extend(sorted(runtime.rglob("*.yaml")))
+        candidates.extend(sorted(
+            path for path in runtime.rglob("*.yaml")
+            if "worktrees" not in path.relative_to(runtime).parts
+        ))
     for path in candidates:
         if not path.is_file():
             issues.append(ValidationIssue(str(path.relative_to(project_root)), "required document is missing"))
@@ -81,6 +80,11 @@ def validate_project(project_root: Path, factory_root: Path) -> list[ValidationI
             data = load_yaml(path)
             kind = data.get("kind") if isinstance(data, dict) else None
             if kind not in KIND_SCHEMAS:
+                # Phase outputs and task-local helper artifacts intentionally use
+                # their Skill schema rather than a top-level Factory `kind`.
+                # Runtime worktrees may also contain arbitrary project YAML.
+                if path.is_relative_to(runtime):
+                    continue
                 raise ValueError(f"unsupported or missing kind: {kind}")
             errors = Draft202012Validator(schemas[KIND_SCHEMAS[kind]], registry=registry).iter_errors(data)
             for error in sorted(errors, key=lambda item: list(item.path)):
@@ -170,6 +174,19 @@ def validate_package(root: Path) -> list[ValidationIssue]:
                 identifier = ref.partition("@")[0]
                 if identifier not in catalogs.get("Practice", set()):
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown practiceRef '{ref}'"))
+        if data.get("kind") == "OrganizationCatalog":
+            for ref in data.get("extends", []):
+                if ref.partition("@")[0] not in catalogs.get("OrganizationCatalog", set()):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown organization catalog '{ref}'"))
+            for ref in data.get("practiceRefs", []):
+                if ref.partition("@")[0] not in catalogs.get("Practice", set()):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown organization practice '{ref}'"))
+            for profile, refs in data.get("profileBindings", {}).items():
+                if profile not in catalogs.get("Profile", set()):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown profile binding '{profile}'"))
+                for ref in refs:
+                    if ref.partition("@")[0] not in catalogs.get("Practice", set()):
+                        issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown organization practice '{ref}'"))
         if data.get("kind") == "Practice":
             document = (path.parent / data["document"]["path"]).resolve()
             organization = (root / "organization").resolve()

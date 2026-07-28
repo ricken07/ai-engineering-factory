@@ -14,6 +14,26 @@ def test_project_provider_selection_resolves_mcp_bindings():
     assert set(render_claude(values)["mcpServers"])=={"github","jira","confluence"}
     assert resolve_capability(ROOT,PROJECT,"task-provider","get-task",ENV)["provider"]=="jira"
 
+def test_gitlab_uses_codex_stdio_oauth_proxy_and_claude_native_oauth():
+    project={"integrations":{"source-control":"gitlab"}}
+    env={"GITLAB_MCP_URL":"https://gitlab.example/mcp"}
+    values=resolve_bindings(ROOT,project,env)
+    codex=render_codex(values)
+    claude=render_claude(values)["mcpServers"]["gitlab"]
+    assert 'command = "npx"' in codex
+    assert 'mcp-remote@0.1.26' in codex
+    assert '\\"scope\\":\\"mcp\\"' in codex
+    assert 'bearer_token_env_var' not in codex
+    assert "headers" not in claude
+    assert values[0]["authentication"]["type"]=="oauth"
+
+def test_bearer_authentication_is_rendered_by_reference_without_secret_value():
+    values=[{"provider":"private","transport":{"url":"https://private.invalid/mcp"},"authentication":{"type":"bearer","tokenEnvironment":"PRIVATE_TOKEN"}}]
+    codex=render_codex(values)
+    claude=render_claude(values)["mcpServers"]["private"]
+    assert 'bearer_token_env_var = "PRIVATE_TOKEN"' in codex
+    assert claude["headers"]["Authorization"]=="Bearer ${PRIVATE_TOKEN}"
+
 def test_integration_lock_is_deterministic_and_secret_free(tmp_path):
     project={**PROJECT,"metadata":{"id":"demo"},"factory":{"version":"1.3.0"},"integrationLock":".ai/integration-lock.yaml"}
     first=integration_lock(ROOT,project); second=integration_lock(ROOT,project)

@@ -8,7 +8,21 @@
     "status": {"enum": ["completed", "blocked", "failed"]},
     "evidence": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
     "unknowns": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-    "details": {"type": "object"}
+    "details": {
+      "type": "object",
+      "required": ["repositories"],
+      "properties": {
+        "repositories": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "risk": {"enum": ["unknown", "low", "medium", "high", "critical"]},
+        "changeTypes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "domains": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": false
 }

@@ -6,6 +6,7 @@ from typing import Any
 import re
 import uuid
 import yaml
+from .yamlio import load_yaml
 
 
 INTENT_WORKFLOWS = {
@@ -20,7 +21,7 @@ INTENT_WORKFLOWS = {
 }
 
 MUTATING = {"implement", "fix", "refactor", "test", "document", "promote"}
-REFERENCE = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z][A-Z0-9]+-\d+|!\d+|#\d+)(?![A-Za-z0-9])")
+REFERENCE = re.compile(r"https?://[^\s]+/-/issues/\d+|(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+#\d+|(?<![A-Za-z0-9])(?:[A-Z][A-Z0-9]+-\d+|!\d+|#\d+)(?![A-Za-z0-9])")
 COMMAND = re.compile(r"^\s*[/\$](analyze|implement|fix|refactor|test|review|document|promote)(?:\s+(.*))?$", re.I | re.S)
 
 KEYWORDS = {
@@ -98,6 +99,8 @@ def normalize_task(request: dict[str, Any], resolution: dict[str, Any]) -> dict[
     intent = resolution["intent"]
     nature = "informational" if intent == "analyze" else "review" if intent == "review" else "validation" if intent == "test" else "change"
     source: dict[str, str] = {"type": "issue", "reference": reference} if reference else {"type": "local"}
+    if reference and ("/-/issues/" in reference or ("/" in reference and "#" in reference)):
+        source["provider"]="gitlab"
     return {
         "apiVersion": "factory.gaddigital.io/v1alpha1",
         "kind": "Task",
@@ -130,5 +133,4 @@ class TaskRegistry:
         path = self.root / safe_task_id(task_id) / "task.yaml"
         if not path.is_file():
             raise FileNotFoundError(f"task not found: {task_id}")
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
-
+        return load_yaml(path)

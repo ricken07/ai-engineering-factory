@@ -6,5 +6,20 @@ capabilities: [source-control, task-provider, continuous-integration]
 transport:
   type: http
   urlEnvironment: GITLAB_MCP_URL
-  environment: [GITLAB_MCP_URL, GITLAB_TOKEN]
+  environment: [GITLAB_MCP_URL]
+authentication:
+  type: oauth
+adapterOverrides:
+  codex:
+    transport:
+      type: stdio
+      command: npx
+      args:
+        - -y
+        - mcp-remote@0.1.26
+        - https://gitlab.com/api/v4/mcp
+        - --static-oauth-client-metadata
+        - '{"scope":"mcp"}'
+    authentication:
+      type: oauth
 toolHints: [gitlab.*]

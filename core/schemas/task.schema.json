@@ -126,6 +126,7 @@
       "type": "object",
       "properties": {
         "level": {"enum": ["optional", "recommended", "required"]},
+        "mode": {"enum": ["local", "external"]},
         "canonicalReference": {"type": "string"},
         "external": {
           "type": "object",

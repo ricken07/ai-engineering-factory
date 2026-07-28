@@ -33,17 +33,38 @@ def test_effective_context_composes_organization_profile_project_and_repository(
     assert not list(Draft202012Validator(schemas["effective-engineering-context.schema.json"], registry=registry).iter_errors(context))
 
 
-def test_gad_java_guidelines_are_inherited_but_role_guidelines_are_opt_in():
+def test_organization_catalog_selection_changes_effective_practices():
     data=project()
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
     identifiers=practice_ids(context)
-    assert "gad-java-development-guidelines" in identifiers
+    assert "gad-java-development-guidelines" not in identifiers
     assert "gad-api-guidelines" not in identifiers
     assert "gad-app-architecture" not in identifiers
 
+    data["engineering"]["organizationCatalogs"]=["gad-digital@1.0.0"]
     data["repositories"][0]["engineering"]={"practices":{"gad-api-guidelines@1.0.0":{"mode":"enable"}}}
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
-    assert "gad-api-guidelines" in practice_ids(context)
+    assert {"gad-api-guidelines","gad-java-development-guidelines"} <= practice_ids(context)
+    assert [item["id"] for item in context["organizationCatalogs"]] == ["factory-default","gad-digital"]
+
+
+def test_project_can_use_only_local_knowledge_without_organization_catalog():
+    data=project()
+    data["engineering"]={"inheritOrganization":True,"organizationCatalogs":[],"practices":{}}
+    data["repositories"][0]["engineering"]={"practices":{"payment-module-conventions":{"mode":"enable","category":"convention","ref":".ai/context/payment-module-conventions.md"}}}
+    context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
+    assert context["organizationCatalogs"] == []
+    assert practice_ids(context) == {"project-architecture","project-convention","payment-module-conventions"}
+
+
+def test_unknown_or_incompatible_organization_catalog_fails_closed():
+    data=project()
+    data["engineering"]["organizationCatalogs"]=["unknown-organization@1.0.0"]
+    with pytest.raises(EngineeringContextError,match="unknown organization catalog"):
+        resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
+    data["engineering"]["organizationCatalogs"]=["factory-default@9.0.0"]
+    with pytest.raises(EngineeringContextError,match="requires version 9.0.0"):
+        resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
 
 
 def test_context_is_filtered_by_repository_profiles_and_skill_categories():

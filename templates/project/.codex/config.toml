@@ -1,0 +1,7 @@
+# Shared project configuration. Codex loads it only after the project is trusted.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = false
+

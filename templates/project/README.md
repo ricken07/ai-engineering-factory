@@ -9,3 +9,14 @@ Replace placeholders only with verified project information. `context/` and `dec
 After onboarding, start `codex` or `claude` from this workspace root. Use an
 agent-native intent or natural language; the installed adapter invokes `aief`
 internally. Developers do not normally run `aief run` themselves.
+
+Review the shared least-privilege agent configuration in
+`.claude/settings.json`, `.codex/config.toml` and
+`.codex/rules/factory.rules`. Extend it only with validation commands required
+by the project Profiles; keep gates, external writes and Git publication
+interactive.
+
+The template starts with `taskTracking.mode: local`: `.ai/runtime` provides the
+Task trace, artifacts and execution log, so no external task manager is
+required. Change it to `external` only when the project also configures a
+`task-provider` and wants required Tasks linked to that provider.

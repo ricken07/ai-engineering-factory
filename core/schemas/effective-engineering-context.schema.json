@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://factory.gaddigital.io/schemas/effective-engineering-context.schema.json",
   "type": "object",
-  "required": ["apiVersion", "kind", "metadata", "project", "repository", "skill", "profiles", "profileResolutions", "categories", "practices", "resolutions", "taskContext", "fingerprint"],
+  "required": ["apiVersion", "kind", "metadata", "project", "repository", "skill", "profiles", "profileResolutions", "organizationCatalogs", "categories", "practices", "resolutions", "taskContext", "fingerprint"],
   "properties": {
     "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
     "kind": {"const": "EffectiveEngineeringContext"},
@@ -14,6 +14,7 @@
     "fingerprint": {"type":"string","pattern":"^[a-f0-9]{64}$"},
     "profiles": {"$ref": "common.schema.json#/$defs/stringArray"},
     "profileResolutions": {"type":"array","items":{"type":"object","required":["id","version","source"],"properties":{"id":{"type":"string"},"version":{"$ref":"common.schema.json#/$defs/semanticVersion"},"source":{"type":"string"},"extends":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false}},
+    "organizationCatalogs": {"type":"array","items":{"type":"object","required":["id","version","source"],"properties":{"id":{"type":"string"},"version":{"$ref":"common.schema.json#/$defs/semanticVersion"},"source":{"type":"string"},"extends":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false}},
     "categories": {"$ref": "common.schema.json#/$defs/stringArray"},
     "practices": {
       "type": "array",

@@ -22,7 +22,19 @@ Declare:
 - repository list,
 - enabled profiles,
 - capability integrations,
+- Task tracking mode (`local` or `external`),
 - default/maximum autonomy.
+
+For a project without a task manager or MCP, declare:
+
+```yaml
+integrations: {}
+taskTracking:
+  mode: local
+```
+
+For provider-backed tracking, declare `mode: external` and bind
+`integrations.task-provider`. The Runtime never infers or changes this choice.
 
 ## 4. Configure `.ai/repository-map.yaml`
 
@@ -52,9 +64,9 @@ Initialize `.ai/memory/` without speculative project facts. Keep `.ai/runtime/` 
 Examples:
 
 ```text
-/implement TASK-123
-/review CR-52
-/analyze TASK-456
+Codex: $implement TASK-123
+Claude Code: /implement TASK-123
+Natural language: Implémente TASK-123.
 ```
 
 Exact slash-command syntax is adapter-specific; the Factory workflow identity remains stable.

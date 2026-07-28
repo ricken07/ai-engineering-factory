@@ -20,6 +20,13 @@ Repository documentaire organisationnel
 Le Core reste agnostique : il définit seulement le contrat `Practice` et les
 catégories de contexte consommées par les Skills.
 
+Ce catalogue de connaissances ne doit pas être confondu avec le catalogue des
+intégrations. Les conventions et pratiques vivent sous `organization/`; les
+providers GitLab, GitHub, Jira ou Confluence vivent sous `integrations/`.
+L'organisation gouverne les deux, mais un projet ne fait qu'en sélectionner les
+éléments autorisés. Le modèle MCP complet est défini dans
+[`13-agent-adapters-and-mcp.md`](13-agent-adapters-and-mcp.md).
+
 ## Sources et responsabilités
 
 | Niveau | Responsabilité |
@@ -27,8 +34,9 @@ catégories de contexte consommées par les Skills.
 | Dépôt guidelines | Contenu humain de référence et historique éditorial |
 | `organization/catalogs/` | Révision exacte de la source installée avec la Factory |
 | Manifeste `Practice` | Version, catégorie, enforcement, applicabilité et override |
-| Profile | Sélection par technologie des pratiques générales |
-| Projet | Activation globale et conventions propres au projet |
+| `OrganizationCatalog` | Liste des Practices, héritage et bindings par Profile |
+| Profile | Détection et connaissance technique, sans préférence d’organisation |
+| Projet | Sélection explicite des catalogues et conventions propres au projet |
 | Repository | Activation liée à son rôle et spécialisation locale |
 | Task | Contrainte temporaire gouvernée, jamais mémoire globale |
 
@@ -57,6 +65,41 @@ Clone existant :
 ```bash
 git submodule update --init --recursive
 ```
+
+## Déclarer un catalogue configurable
+
+Une Factory peut embarquer plusieurs catalogues sans en imposer un globalement :
+
+```yaml
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: OrganizationCatalog
+metadata:
+  id: example-organization
+  name: Example Organization Engineering Catalog
+  version: 1.0.0
+extends: [factory-default@1.0.0]
+practiceRefs:
+  - example-java-guidelines@1.0.0
+  - example-app-architecture@1.0.0
+profileBindings:
+  java: [example-java-guidelines@1.0.0]
+```
+
+Le catalogue `factory-default` constitue un socle optionnel. Une organisation
+peut l’étendre, sélectionner plusieurs catalogues compatibles ou fournir un
+catalogue entièrement indépendant.
+
+Le projet choisit explicitement :
+
+```yaml
+engineering:
+  inheritOrganization: true
+  organizationCatalogs:
+    - example-organization@1.0.0
+```
+
+Le Runtime résout les parents, vérifie les versions, refuse les cycles et inclut
+la provenance des catalogues dans le fingerprint du contexte effectif.
 
 ## Transformer un document en Practice
 
@@ -122,15 +165,18 @@ enforcement: optional
 override: {allowed: false}
 ```
 
-## Sélection par Profile
+## Binding par Profile sans coupler les Profiles
 
-Une convention Java générale peut être assemblée automatiquement :
+Les Profiles restent indépendants des organisations. C’est le catalogue qui
+associe une pratique générale à une technologie :
 
 ```yaml
-# profiles/java/profile.yaml
-practiceRefs:
-  - java-coding-conventions
-  - organization-java-development-guidelines
+# organization/catalogs/example-organization.yaml
+profileBindings:
+  java:
+    - example-java-development-guidelines@1.0.0
+  spring:
+    - example-spring-guidelines@1.0.0
 ```
 
 Une architecture propre aux repositories `*-api` ou `*-app` ne doit pas être
@@ -142,6 +188,7 @@ Elle doit rester `optional` et être sélectionnée au niveau repository.
 ```yaml
 engineering:
   inheritOrganization: true
+  organizationCatalogs: [example-organization@1.0.0]
 
 repositories:
   - id: product-api
@@ -161,6 +208,26 @@ repositories:
 
 Le suffixe `@version` fait échouer explicitement la résolution si la Factory
 installée expose une autre version de la pratique.
+
+### Organisation uniquement au niveau d’un projet
+
+Un projet qui ne dépend d’aucun catalogue organisationnel peut désactiver cette
+couche sans désactiver ses propres conventions :
+
+```yaml
+engineering:
+  inheritOrganization: true
+  organizationCatalogs: []
+  practices:
+    product-architecture:
+      mode: enable
+      category: architecture
+      ref: .ai/context/architecture.md
+```
+
+Dans ce cas, seules les pratiques locales explicites et les documents de
+contexte projet sont transmis aux Skills. Aucune règle Gad Digital ou d’une
+autre organisation n’est chargée implicitement.
 
 ## Ajouter une convention propre au projet
 
@@ -229,6 +296,8 @@ depuis une installation déjà publiée.
 ## Contrôles avant publication
 
 - [ ] identifiant de Practice unique et stable ;
+- [ ] identifiant et version de catalogue stables ;
+- [ ] héritage de catalogue sans cycle ;
 - [ ] version cohérente avec le contenu ;
 - [ ] catégorie consommée par les Skills attendus ;
 - [ ] profiles et skills d’applicabilité minimaux ;
@@ -239,4 +308,3 @@ depuis une installation déjà publiée.
 - [ ] activation repository testée ;
 - [ ] contexte effectif inspecté et fingerprinté ;
 - [ ] aucune règle projet dupliquée dans le catalogue organisationnel.
-

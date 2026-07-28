@@ -4,7 +4,7 @@ metadata:
   id: emmany
   name: Emmany Gateway
 factory:
-  version: 1.12.0
+  version: 1.13.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: polyrepo
@@ -63,11 +63,14 @@ integrations:
   knowledge-base:
     provider: confluence
 integrationLock: .ai/integration-lock.yaml
+taskTracking:
+  mode: external
 autonomy:
   default: L2
   maximum: L3
 policyRefs: []
 engineering:
   inheritOrganization: true
+  organizationCatalogs: [factory-default@1.0.0]
   practices:
     api-design: {mode: enable}

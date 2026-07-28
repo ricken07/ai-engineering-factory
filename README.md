@@ -1,6 +1,6 @@
 # AI Engineering Factory
 
-**Version:** 1.12.0
+**Version:** 1.13.0
 **Status:** Stable
 
 AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
@@ -10,6 +10,10 @@ Version 1.11 resolves a minimal, task-aware and fingerprinted engineering contex
 Version 1.12 integrates the version-pinned Gad Digital guidelines catalog as
 governed organization Practices, with profile inheritance and explicit
 repository-role activation. See [Organization knowledge catalog](docs/24-organization-knowledge-catalog.md).
+
+Version 1.13 makes organization knowledge project-selectable. Technical
+Profiles no longer impose one organization’s conventions; versioned
+`OrganizationCatalog` contracts provide inheritance and Profile bindings.
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
 
@@ -68,15 +72,23 @@ Read in this order:
 14. `docs/22-project-installation-guide.md`
 15. `docs/23-first-steps.md`
 16. `docs/24-organization-knowledge-catalog.md`
+17. `docs/28-gitlab-issues-and-board.md`
+17. `docs/25-agent-permissions.md`
+18. `docs/26-task-execution-log.md`
+19. `docs/27-codex-usage.md`
 
 ## Executable Runtime
 
 The `aief` CLI provides the shared deterministic path used by agent adapters. Explicit commands and natural language are normalized identically:
 
 ```bash
-aief run "/implement EGW-142" --agent codex --project . --factory /path/to/factory/1.7.0
+aief run "Implémente EGW-142" --agent codex --intent implement --expect-workflow implement-task --project . --factory /path/to/factory/1.13.0
 aief run "Corrige le bug EGW-327" --agent claude-code --project . --factory /path/to/factory/1.7.0
 ```
+
+Dans l'interface Codex, l'entrée native correspondante est `$implement
+EGW-142`. `/implement` est réservé à l'adapter Claude Code. Voir
+[`docs/27-codex-usage.md`](docs/27-codex-usage.md).
 
 See `docs/14-universal-runtime.md` for task intake, execution, gates, handoff and complete examples.
 

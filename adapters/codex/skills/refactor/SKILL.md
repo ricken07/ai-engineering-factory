@@ -5,9 +5,12 @@ description: Execute the AI Engineering Factory refactor-code workflow for the c
 
 # Refactor
 
+Invoke `aief run` with the complete user request and the pinned arguments below.
+
 Before any task work, execute the mandatory Codex Runtime Protocol at
 `$GAD_AI_FACTORY_HOME/adapters/codex/runtime-protocol.md`. Pass the complete
-user request to `aief run`; do not orchestrate this workflow only in chat.
+request with `--intent refactor --expect-workflow refactor-code`; do not
+continue without a Runtime receipt.
 
 1. Locate the nearest workspace `.ai/project.yaml`.
 2. Resolve its pinned Factory version; fail closed if unavailable or incompatible.

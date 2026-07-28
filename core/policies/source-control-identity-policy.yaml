@@ -1,0 +1,27 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Policy
+metadata:
+  id: source-control-identity-policy
+  name: Developer Source-Control Identity
+  version: 1.0.0
+scope: factory
+priority: 100
+rules:
+  - id: developer-identity-required
+    when: {externalAction: commit}
+    effect:
+      require: [developer-git-identity]
+      forbid: [agent-git-identity]
+  - id: preserve-git-profile
+    when: {externalAction: commit}
+    effect:
+      require: [use-existing-user-name, use-existing-user-email, use-existing-signing-config]
+      forbid: [override-user-name, override-user-email, override-signing-key]
+  - id: no-agent-authorship
+    when: {externalAction: commit}
+    effect:
+      forbid: [agent-as-author, agent-as-committer, ai-signature-attribution]
+  - id: identity-before-commit
+    when: {externalAction: commit}
+    effect:
+      requireEvidence: [git-user-name, git-user-email, git-signing-state]

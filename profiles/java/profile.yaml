@@ -14,9 +14,6 @@ discovery:
 commands: {}
 practices:
 - java-language-conventions
-practiceRefs:
-- java-coding-conventions
-- gad-java-development-guidelines
 policyRefs: []
 standardRefs:
 - validation

@@ -1,2 +1,3 @@
 .ai/runtime/
 .ai/mcp.env
+.claude/settings.local.json

@@ -10,6 +10,7 @@ from .intake import TaskRegistry
 from .knowledge import safe_task_id
 from .provider_runtime import ProviderResolutionError, resolve_task_provider
 from .validation import assert_schema
+from .yamlio import load_yaml
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ class TaskTrackingManager:
     def __init__(self, project_root: Path, factory: Path, project: dict[str, Any], environment: dict[str, str] | None = None):
         self.project_root, self.factory, self.project, self.environment = project_root, factory, project, environment
         self.registry = TaskRegistry(project_root)
-        policy=yaml.safe_load((factory/"core"/"policies"/"task-tracking-policy.yaml").read_text(encoding="utf-8")); self.rules=policy["rules"]
+        policy=load_yaml(factory/"core"/"policies"/"task-tracking-policy.yaml"); self.rules=policy["rules"]
 
     def _root(self, task_id: str) -> Path:
         root = self.project_root/".ai"/"runtime"/"tasks"/safe_task_id(task_id); root.mkdir(parents=True,exist_ok=True); return root
@@ -72,16 +73,18 @@ class TaskTrackingManager:
     def _read(self, task_id: str, name: str) -> dict[str, Any]:
         path=self._root(task_id)/name
         if not path.is_file(): raise FileNotFoundError(f"tracking artifact not found: {name}")
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
+        return load_yaml(path)
 
     def assess(self, task_id: str, impact: dict[str, Any] | None = None) -> dict[str, Any]:
         task=self.registry.load(task_id); decision=evaluate_tracking(task,impact,self.rules)
+        mode=self.project.get("taskTracking",{}).get("mode","external")
         external = task.get("source",{}).get("type") == "issue"
         reference = task.get("source",{}).get("reference")
-        status = "linked" if external and reference else task.get("tracking",{}).get("external",{}).get("status","unresolved")
-        artifact={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"TaskTrackingDecision","metadata":{"id":f"tracking-{safe_task_id(task_id)}"},"task":task_id,"decision":{"level":decision.level},"reasons":list(decision.reasons),"requiredBefore":([decision.required_before] if decision.required_before else []),"provider":{"capability":"task-provider","status":"unresolved"},"duplicateSearch":{"required":not external,"status":"skipped" if external else "pending"},"externalTracking":{"status":status,**({"reference":reference} if reference else {})}}
+        status = "not-required" if mode == "local" else "linked" if external and reference else task.get("tracking",{}).get("external",{}).get("status","unresolved")
+        satisfied = mode == "local" or status == "linked" or decision.level != "required"
+        artifact={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"TaskTrackingDecision","metadata":{"id":f"tracking-{safe_task_id(task_id)}"},"task":task_id,"decision":{"level":decision.level,"mode":mode,"satisfied":satisfied},"reasons":list(decision.reasons),"requiredBefore":([decision.required_before] if decision.required_before else []),"provider":{"capability":"task-provider","status":"not-required" if mode == "local" else "unresolved"},"duplicateSearch":{"required":mode == "external" and not external,"status":"skipped" if mode == "local" or external else "pending"},"externalTracking":{"status":status,**({"reference":reference} if reference else {})}}
         assert_schema(self.factory,"task-tracking-decision.schema.json",artifact)
-        task["tracking"]={**task.get("tracking",{}),"level":decision.level}
+        task["tracking"]={**task.get("tracking",{}),"level":decision.level,"mode":mode}
         if reference: task["tracking"].update({"canonicalReference":reference,"external":{"provider":task.get("source",{}).get("provider","external"),"reference":reference,"status":"linked"}})
         if impact:
             if impact.get("repositories") is not None: task.setdefault("scope",{})["repositories"]=impact["repositories"]
@@ -91,6 +94,8 @@ class TaskTrackingManager:
         self.registry.save(task); self._write(task_id,"tracking.yaml",artifact); return artifact
 
     def resolve_provider(self, task_id: str, operations: list[str] | None = None, agent: str | None = None) -> dict[str, Any]:
+        if self.project.get("taskTracking",{}).get("mode","external") == "local":
+            raise ProviderResolutionError("PROVIDER_NOT_REQUIRED", "project task tracking mode is local")
         operations=operations or ["search-task","create-task","link-task"]
         try: resolution=resolve_task_provider(self.factory,self.project_root,self.project,operations,agent,self.environment)
         except ProviderResolutionError as exc:
@@ -138,6 +143,15 @@ class TaskTrackingManager:
     def write_proposal(self, task_id: str, proposal: dict[str, Any]) -> Path:
         if proposal.get("kind") != "ExternalTaskProposal" or proposal.get("sourceTask") != task_id: raise ValueError("invalid ExternalTaskProposal")
         assert_schema(self.factory,"external-task-proposal.schema.json",proposal)
+        tracking_config=self.project.get("taskTracking",{})
+        if tracking_config.get("mode","external")=="external" and tracking_config.get("namespace"):
+            target=proposal.get("target",{})
+            if not target.get("container"):
+                raise ValueError("external task proposal must select a target container")
+            target.setdefault("namespace",tracking_config["namespace"])
+            proposal["target"]=target
+            proposal["labels"]=sorted(set(tracking_config.get("defaultLabels",[])+proposal.get("labels",[])))
+            assert_schema(self.factory,"external-task-proposal.schema.json",proposal)
         search=self._read(task_id,"tracking.yaml")
         if search["duplicateSearch"]["status"] != "completed": raise RuntimeError("duplicate search must complete before task creation")
         return self._write(task_id,"external-task-proposal.yaml",proposal)

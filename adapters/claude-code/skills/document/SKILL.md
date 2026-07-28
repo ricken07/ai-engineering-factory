@@ -5,9 +5,12 @@ description: Execute the AI Engineering Factory update-documentation workflow fo
 
 # Document
 
+Invoke `aief run` with the complete user request and the pinned arguments below.
+
 Before any task work, execute the mandatory Claude Code Runtime Protocol at
 `$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md`. Pass the
-complete user request to `aief run`; do not orchestrate this workflow only in chat.
+complete request with `--intent document --expect-workflow update-documentation`;
+do not continue without a Runtime receipt.
 
 1. Locate the nearest workspace `.ai/project.yaml`.
 2. Resolve its pinned Factory version; fail closed if unavailable or incompatible.

@@ -8,6 +8,7 @@ For each impacted repository and active Skill, the Runtime computes:
 
 ```text
 Organization mandatory/default practices
+  + Project-selected organization catalogs
   + inherited and selected Profiles
   + Project practices and context documents
   + Repository selections and overrides
@@ -67,6 +68,9 @@ provenance:
 ```
 
 The final context has a stable `fingerprint`. It changes when a selected profile version, practice version, document content, Task constraint or relevant category changes. Absolute installation paths are excluded, so identical Factory content remains comparable across developer machines. Claude Code and Codex can therefore verify that a resumed execution is using the same engineering context without sharing conversation memory.
+
+Every selected organization catalog also records its ID, version, manifest,
+inheritance and profile bindings. Catalog identity is part of the fingerprint.
 
 ## Runtime usage
 

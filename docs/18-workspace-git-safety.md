@@ -2,6 +2,23 @@
 
 Version 1.8.0 introduces a deterministic safety boundary before every `implementation` phase. It does not rely on Claude Code or Codex remembering Git precautions.
 
+## Impact scope precondition
+
+The `analyze-impact` artifact is the authoritative source of the initial Git
+scope. It must contain `details.repositories` with identifiers declared in
+`.ai/project.yaml`. For any workflow containing `implement-change`, the Runtime
+rejects an empty list, an unknown identifier, or a malformed artifact before it
+completes the impact phase.
+
+The Runtime then persists the normalized list in both
+`Task.scope.repositories` and `Execution.repositories`. Workspace safety reads
+only this persisted state. An adapter must never repair
+`workspace-safety-unresolved` by editing Runtime YAML directly.
+
+All persisted Factory YAML is loaded with duplicate-key detection. A document
+containing two `scope` mappings, for example, fails explicitly instead of
+silently accepting the last value.
+
 ## Safety invariant
 
 The Runtime never resets, cleans, stashes, overwrites, commits, or incorporates pre-existing developer changes. A dirty repository is blocked in `require-clean` mode and isolated in `worktree` mode.

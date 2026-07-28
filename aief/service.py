@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 from collections.abc import Callable
 
 from .compiler import compile_workflow
-from .intake import TaskRegistry, create_request, normalize_task, resolve_intent
+from .intake import INTENT_WORKFLOWS, TaskRegistry, create_request, normalize_task, resolve_intent
 from .project import find_project, load_project
 from .runtime import Execution
 from .tracking import TaskTrackingManager, evaluate_tracking
@@ -18,6 +18,8 @@ from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy
 from .validation import assert_schema
+from .task_log import TaskEventLog
+from .yamlio import load_yaml
 from datetime import datetime, timezone
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
@@ -33,27 +35,50 @@ class RuntimeService:
         manifest_path = self.factory / "factory.yaml"
         if not manifest_path.is_file():
             raise FileNotFoundError(f"Factory manifest not found: {manifest_path}")
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        manifest = load_yaml(manifest_path)
         installed = manifest.get("metadata", {}).get("version")
         requested = self.project.get("factory", {}).get("version")
         if installed != requested:
             raise RuntimeError(f"project requires Factory {requested}, but {installed} was provided")
         self.tracking = TaskTrackingManager(self.project_root,self.factory,self.project,environment)
 
-    def intake(self, text: str, agent: str | None = None) -> dict[str, Any]:
+    def intake(self, text: str, agent: str | None = None, intent: str | None = None,
+               expected_workflow: str | None = None) -> dict[str, Any]:
         request = create_request(text, agent)
+        if intent is not None:
+            if intent not in INTENT_WORKFLOWS:
+                raise ValueError(f"unsupported adapter intent: {intent}")
+            request["command"] = intent
+            request["arguments"] = text.strip()
         intent = resolve_intent(request)
+        if expected_workflow is not None and intent["workflow"] != expected_workflow:
+            raise RuntimeError(
+                f"adapter expected workflow {expected_workflow}, but Runtime resolved {intent['workflow']}"
+            )
         task = normalize_task(request, intent)
         task_path = TaskRegistry(self.project_root).save(task)
         intake_root = task_path.parent
         (intake_root / "request.yaml").write_text(yaml.safe_dump(request, sort_keys=False, allow_unicode=True), encoding="utf-8")
         (intake_root / "intent.yaml").write_text(yaml.safe_dump(intent, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        TaskEventLog(self.project_root, task["metadata"]["id"]).append(
+            "task.normalized", agent=agent, status="created",
+            summary=task["objective"]["summary"],
+            data={"intent":intent["intent"], "workflow":intent["workflow"],
+                  "mutating":intent["mutating"], "source":intent["source"]},
+        )
         return {"request": request, "intent": intent, "task": task, "path": str(task_path)}
 
-    def start(self, text: str, agent: str | None = None) -> Execution:
-        intake = self.intake(text, agent)
+    def start(self, text: str, agent: str | None = None, intent: str | None = None,
+              expected_workflow: str | None = None) -> Execution:
+        intake = self.intake(text, agent, intent, expected_workflow)
         workflow = compile_workflow(self.factory, intake["task"]["workflow"])
-        return Execution.create(self.project_root, workflow, intake["task"]["metadata"]["id"], agent)
+        execution = Execution.create(self.project_root, workflow, intake["task"]["metadata"]["id"], agent)
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            "workflow.started", execution=execution.data["metadata"]["id"],
+            agent=agent, phase=execution.next_phase()["id"], status=execution.data["status"],
+            data={"workflow":execution.data["workflow"]},
+        )
+        return execution
 
     def execution(self, execution_id: str) -> Execution:
         root = self.project_root / ".ai" / "runtime" / "executions" / execution_id
@@ -87,17 +112,52 @@ class RuntimeService:
             details = "; ".join(f"{'.'.join(map(str, error.path)) or 'root'}: {error.message}" for error in errors)
             raise ValueError(f"invalid output for {definition['skill']}: {details}")
         completed_skill=phase["skill"]
-        if completed_skill in {"analyze-impact","create-plan"} and output.get("status") == "completed":
-            details=output.get("details",{}); observations=details.get("impact",details)
-            self.reassess_policy(execution,observations,completed_skill)
-        execution.advance(output)
+        observations: dict[str, Any] = {}
         if completed_skill == "analyze-impact" and output.get("status") == "completed":
-            details=output.get("details",{}); impact=details.get("impact",details)
-            observations={key:impact[key] for key in ("risk","repositories","changeTypes","domains") if key in impact}
+            observations = self._impact_observations(output)
+            self._validate_impact_repositories(compiled, observations["repositories"])
+        if completed_skill in {"analyze-impact","create-plan"} and output.get("status") == "completed":
+            phase_observations = observations or output.get("details", {}).get("impact", output.get("details", {}))
+            self.reassess_policy(execution,phase_observations,completed_skill)
+        execution.advance(output)
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            "phase.completed", execution=execution_id,
+            agent=execution.data.get("agent", {}).get("adapter"), phase=phase["id"],
+            status=output.get("status", "completed"), summary=output.get("summary"),
+            data={"skill":completed_skill, "artifact":f"{phase['id']}.yaml",
+                  "evidence":output.get("evidence", [])},
+        )
+        if completed_skill == "analyze-impact" and output.get("status") == "completed":
+            observations={key:observations[key] for key in ("risk","repositories","changeTypes","domains") if key in observations}
             observations["risk"]=execution.data.get("risk",observations.get("risk","unknown"))
             observations["repositories"]=execution.data.get("repositories",observations.get("repositories",[]))
             self.reassess_tracking(execution.data["task"],observations)
         return execution
+
+    @staticmethod
+    def _impact_observations(output: dict[str, Any]) -> dict[str, Any]:
+        details = output.get("details")
+        if not isinstance(details, dict):
+            raise ValueError("analyze-impact details must be an object")
+        repositories = details.get("repositories")
+        if not isinstance(repositories, list) or any(not isinstance(item, str) or not item.strip() for item in repositories):
+            raise ValueError("analyze-impact details.repositories must be an array of repository identifiers")
+        return {
+            key: details[key]
+            for key in ("risk", "repositories", "changeTypes", "domains")
+            if key in details
+        }
+
+    def _validate_impact_repositories(self, workflow: dict[str, Any], repositories: list[str]) -> None:
+        mutating = any(phase.get("skill") == "implement-change" for phase in workflow.get("phases", []))
+        if mutating and not repositories:
+            raise ValueError(
+                "analyze-impact must identify at least one impacted repository before a mutating workflow can continue"
+            )
+        declared = {item["id"] for item in self.project.get("repositories", [])}
+        unknown = sorted(set(repositories) - declared)
+        if unknown:
+            raise ValueError(f"analyze-impact references unknown project repositories: {', '.join(unknown)}")
 
     def reassess_policy(self, execution: Execution, observations: dict[str, Any], trigger: str) -> dict[str, Any]:
         task=TaskRegistry(self.project_root).load(execution.data["task"])
@@ -127,6 +187,16 @@ class RuntimeService:
         task.setdefault("scope",{})["repositories"]=decision["observations"]["repositories"]
         task["autonomy"]={"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]}
         TaskRegistry(self.project_root).save(task); execution.save()
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            "policy.reclassified", execution=execution.data["metadata"]["id"],
+            agent=execution.data.get("agent", {}).get("adapter"),
+            phase=execution.next_phase()["id"] if execution.next_phase() else None,
+            status="decided", summary=f"Risk {decision['effectiveRisk']}, autonomy {decision['authorizedAutonomy']}",
+            data={"trigger":trigger, "risk":decision["effectiveRisk"],
+                  "authorizedAutonomy":decision["authorizedAutonomy"],
+                  "requiredGates":decision["requiredGates"], "reasons":decision["reasons"],
+                  "artifact":name},
+        )
         return artifact
 
     def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None) -> Execution:
@@ -137,6 +207,11 @@ class RuntimeService:
             return self.execution(execution_id)
         phase=execution.next_phase(); execution.advance(approved=True)
         if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",owner or "human")
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            "gate.approved", execution=execution_id, agent=execution.data.get("agent", {}).get("adapter"),
+            phase=phase["id"] if phase else None, status="approved",
+            data={"approvedBy":owner or "human", "gate":"phase-gate"},
+        )
         return execution
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
@@ -150,6 +225,11 @@ class RuntimeService:
         if gate["status"] == "approved": return execution
         self._approve_policy_gate(execution,gate_id,owner or "human")
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            "gate.approved", execution=execution_id, agent=execution.data.get("agent", {}).get("adapter"),
+            phase=execution.next_phase()["id"] if execution.next_phase() else None,
+            status="approved", data={"approvedBy":owner or "human", "gate":gate_id},
+        )
         return execution
 
     def lease(self, execution_id: str, action: str, owner: str | None = None, ttl_seconds: int = 300) -> dict[str, Any] | None:
@@ -173,7 +253,7 @@ class RuntimeService:
         if not identifiers:
             artifact = execution.root / "analyze-impact.yaml"
             if artifact.is_file():
-                details = yaml.safe_load(artifact.read_text(encoding="utf-8")).get("details", {})
+                details = load_yaml(artifact).get("details", {})
                 repositories = details.get("repositories", [])
                 if isinstance(repositories, dict): identifiers = list(repositories)
                 elif isinstance(repositories, list): identifiers = [item.get("id") if isinstance(item, dict) else item for item in repositories]
@@ -222,6 +302,28 @@ class RuntimeService:
         task=TaskRegistry(self.project_root).load(task_id) if task_id else None
         return resolve_engineering_context(self.factory, self.project_root, self.project, repository_id, skill_id,task)
 
+    def _skill_contract(self, skill_id: str, definition: dict[str, Any]) -> dict[str, Any]:
+        root = (self.factory / "core" / "skills" / skill_id).resolve()
+        manifest = root / "skill.yaml"
+        instructions = root / "SKILL.md"
+        schema = (self.factory / definition["outputSchema"]).resolve()
+        for label, path in (("manifest", manifest), ("instructions", instructions), ("output schema", schema)):
+            if not path.is_file():
+                raise FileNotFoundError(f"Core Skill {skill_id} {label} not found: {path}")
+        data = load_yaml(manifest)
+        if data.get("metadata", {}).get("id") != skill_id:
+            raise RuntimeError(f"Core Skill manifest identity mismatch: expected {skill_id}")
+        return {
+            "id": skill_id,
+            "version": data.get("metadata", {}).get("version"),
+            "mode": data.get("mode"),
+            "root": str(root),
+            "manifest": str(manifest),
+            "instructions": str(instructions),
+            "outputSchema": str(schema),
+            "invocation": "core-contract",
+        }
+
     def prepare_phase(self, execution_id: str) -> dict[str, Any]:
         execution = self.execution(execution_id)
         phase = execution.next_phase()
@@ -233,11 +335,15 @@ class RuntimeService:
             execution.data["status"]="waiting-approval"; execution.save()
             return {"execution":execution_id,"status":"waiting-approval","phase":phase,"engineeringContexts":[],"requiredPolicyGates":sorted(pending)}
         if phase["id"] == "implementation":
-            tracking_path=self.project_root/".ai"/"runtime"/"tasks"/task["metadata"]["id"]/"tracking.yaml"
-            tracking=yaml.safe_load(tracking_path.read_text(encoding="utf-8")) if tracking_path.is_file() else self.tracking.assess(task["metadata"]["id"])
-            if tracking["decision"]["level"] == "required" and tracking["externalTracking"]["status"] != "linked":
+            # Re-evaluate from persisted Task observations so a reviewed project
+            # configuration change (for example external -> local tracking) is
+            # reflected without editing Runtime artifacts by hand.
+            tracking=self.tracking.assess(task["metadata"]["id"])
+            if tracking["decision"]["level"] == "required" and not tracking["decision"].get("satisfied", tracking["externalTracking"]["status"] == "linked"):
                 if execution.data["status"] != "blocked": execution.block({"type":"external-tracking-required","message":"external task tracking must be resolved before implementation","task":task["metadata"]["id"],"requiredBefore":"implementation"})
                 return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"],"tracking":tracking}
+            if execution.data.get("blockingReason", {}).get("type") == "external-tracking-required":
+                execution.resume("external-tracking-required")
             repository_ids = self._impacted_repository_ids(execution, task)
             if not repository_ids:
                 execution.block({"type":"workspace-safety-unresolved","message":"impacted repositories are required before implementation"})
@@ -257,10 +363,19 @@ class RuntimeService:
         repository_ids = self._impacted_repository_ids(execution, task)
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next(item for item in compiled["phases"] if item["id"] == phase["id"])
+        skill_contract = self._skill_contract(phase["skill"], definition)
         contexts = []
         if definition.get("engineeringContext"):
             contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
-        return {"execution":execution_id,"status":execution.data["status"],"phase":phase,"engineeringContexts":contexts}
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            "phase.prepared", execution=execution_id,
+            agent=execution.data.get("agent", {}).get("adapter"), phase=phase["id"],
+            status=execution.data["status"], data={"skill":phase["skill"],
+                                                   "skillContract":skill_contract,
+                                                   "engineeringContexts":[item["metadata"]["id"] for item in contexts]},
+        )
+        return {"execution":execution_id,"status":execution.data["status"],"phase":phase,
+                "skillContract":skill_contract,"engineeringContexts":contexts}
 
     def workspace(self, execution_id: str, action: str, execute: bool = False) -> dict[str, Any]:
         execution = self.execution(execution_id)
@@ -279,6 +394,12 @@ class RuntimeService:
         if result.get("decision", {}).get("status") == "ready" or result.get("status") == "ready":
             if execution.data.get("blockingReason", {}).get("type") in {"workspace-preparation-required", "unrelated-local-changes", "workspace-safety-unresolved"}:
                 execution.resume(execution.data["blockingReason"]["type"])
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            f"workspace.{action}", execution=execution_id,
+            agent=execution.data.get("agent", {}).get("adapter"),
+            phase=execution.next_phase()["id"] if execution.next_phase() else None,
+            status=result.get("status") or result.get("decision", {}).get("status"),
+        )
         return result
 
     def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
@@ -307,9 +428,20 @@ class RuntimeService:
         }
         if failures:
             execution.fail_phase(report)
+            event = "validation.failed"
         else:
             self.complete_phase(execution_id, report)
+            event = "validation.completed"
+        TaskEventLog(self.project_root, execution.data["task"]).append(
+            event, execution=execution_id, agent=execution.data.get("agent", {}).get("adapter"),
+            phase="validation", status=report["status"], summary=report["summary"],
+            data={"evidence":report["evidence"]},
+        )
         return report
+
+    def task_events(self, task_id: str) -> list[dict[str, Any]]:
+        TaskRegistry(self.project_root).load(task_id)
+        return TaskEventLog(self.project_root, task_id).read()
 
     def reassess_tracking(self, task_id: str, impact: dict[str, Any]) -> dict[str, Any]:
         tracking=self.tracking.assess(task_id,impact)

@@ -214,6 +214,9 @@
 - `templates/project/.ai/memory/shared.md`
 - `templates/project/.ai/project.yaml`
 - `templates/project/.ai/repository-map.yaml`
+- `templates/project/.claude/settings.json`
+- `templates/project/.codex/config.toml`
+- `templates/project/.codex/rules/factory.rules`
 - `templates/project/.gitignore`
 - `templates/project/.ai/README.md`
 - `templates/project/.ai/mcp.env.example`
@@ -229,6 +232,9 @@
 - `docs/19-idempotence-execution-leases.md`
 - `docs/20-dynamic-policy-reevaluation.md`
 - `docs/21-effective-engineering-context.md`
+- `docs/25-agent-permissions.md`
+- `docs/26-task-execution-log.md`
+- `docs/27-codex-usage.md`
 - `tests/test_workspace.py`
 - `tests/test_concurrency.py`
 - `tests/test_dynamic_policy.py`

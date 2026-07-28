@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 import uuid, yaml
 from .knowledge import create_task_memory
+from .yamlio import load_yaml
 
 TERMINAL = {"completed", "failed", "skipped"}
 
@@ -19,7 +20,7 @@ class Execution:
         project_file = project / ".ai" / "project.yaml"
         project_id = "local-project"
         if project_file.is_file():
-            project_id = yaml.safe_load(project_file.read_text(encoding="utf-8")).get("metadata", {}).get("id", project_id)
+            project_id = load_yaml(project_file).get("metadata", {}).get("id", project_id)
         metadata = workflow.get("metadata", {})
         workflow_id = workflow.get("id") or metadata.get("id")
         workflow_version = workflow.get("version") or metadata.get("version", "0.0.0")
@@ -29,7 +30,7 @@ class Execution:
         execution.save(); return execution
     @classmethod
     def load(cls, root: Path) -> "Execution":
-        return cls(root, yaml.safe_load((root / "execution.yaml").read_text(encoding="utf-8")))
+        return cls(root, load_yaml(root / "execution.yaml"))
     def save(self) -> None:
         target=self.root/"execution.yaml"; temporary=self.root/"execution.yaml.tmp"
         temporary.write_text(yaml.safe_dump(self.data, sort_keys=False), encoding="utf-8"); temporary.replace(target)

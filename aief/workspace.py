@@ -7,6 +7,7 @@ import re
 import subprocess
 
 import yaml
+from .yamlio import load_yaml
 
 
 Runner = Callable[..., Any]
@@ -119,7 +120,7 @@ class WorkspaceManager:
     def load(self) -> dict[str, Any]:
         if not self.state_path.is_file():
             raise FileNotFoundError(f"workspace state not found: {self.state_path}")
-        return yaml.safe_load(self.state_path.read_text(encoding="utf-8"))
+        return load_yaml(self.state_path)
 
     def prepare(self, identifiers: list[str], task_reference: str, execute: bool = False) -> dict[str, Any]:
         state = self.inspect(identifiers, task_reference)

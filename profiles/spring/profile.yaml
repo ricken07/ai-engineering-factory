@@ -16,8 +16,6 @@ practices:
 - spring-component-boundaries
 - dependency-injection
 - transaction-boundaries
-practiceRefs:
-- spring-conventions
 policyRefs: []
 standardRefs:
 - validation

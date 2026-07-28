@@ -4,6 +4,7 @@
   "type": "object",
   "properties": {
     "inheritOrganization": {"type": "boolean", "default": true},
+    "organizationCatalogs": {"$ref": "common.schema.json#/$defs/stringArray"},
     "practices": {
       "type": "object",
       "additionalProperties": {

@@ -6,8 +6,9 @@ The organization catalog capitalizes engineering knowledge once and distributes 
 
 ```text
 Core contracts
+  → project-selected OrganizationCatalog
   → organization standards/practices
-  → profile references
+  → catalog profile bindings
   → project selection/override
   → repository specialization
   → Skill category requirements
@@ -35,27 +36,33 @@ override: {allowed: true}
 Enforcement has deterministic meaning:
 
 - `mandatory`: automatically inherited when applicable; never disabled or overridden;
-- `default`: inherited through profile references and replaceable only when allowed;
+- `default`: inherited through bindings in a selected organization catalog and replaceable only when allowed;
 - `optional`: inactive until a project or repository explicitly enables it.
 
-## Profile as assembler
+## Organization catalog and Profile binding
 
-Profiles select organization knowledge by ID:
+Profiles remain technical and organization-neutral. A selected catalog binds
+organization knowledge to Profile IDs:
 
 ```yaml
-metadata: {id: spring}
-extends: [java]
-practiceRefs:
-  - spring-conventions
+kind: OrganizationCatalog
+metadata: {id: example-organization, version: 1.0.0}
+extends: [factory-default@1.0.0]
+practiceRefs: [spring-conventions@1.0.0]
+profileBindings:
+  spring: [spring-conventions@1.0.0]
 ```
 
-Profile inheritance is resolved first. A Spring repository therefore obtains references from `generic`, `java` and `spring` without copying their documents.
+Profile inheritance is resolved first, then bindings from only the
+project-selected catalogs are applied. A Spring repository can therefore use
+different conventions in two organizations without changing `profiles/spring`.
 
 ## Project and repository configuration
 
 ```yaml
 engineering:
   inheritOrganization: true
+  organizationCatalogs: [example-organization@1.0.0]
   practices:
     api-design: {mode: enable}
 

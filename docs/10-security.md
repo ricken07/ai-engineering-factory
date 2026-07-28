@@ -16,3 +16,11 @@ The Factory is not a security sandbox by itself. Agent runtime permissions and M
 ## Provider permissions
 
 Integration configuration should expose only capabilities needed by the project. Do not grant write permissions to knowledge bases or SCM providers when the workflow only needs read access.
+
+## Native agent permissions
+
+Every adopted project must review and commit the native permission templates
+from `templates/project/.claude/` and `templates/project/.codex/`. They keep
+routine Factory diagnostics and local work usable while requiring confirmation
+for gates and external/Git mutations, and forbidding destructive recovery
+shortcuts. See [Project agent permissions](25-agent-permissions.md).

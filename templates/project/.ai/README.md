@@ -11,6 +11,13 @@ This directory contains project-owned configuration and knowledge consumed by th
 - `decisions/`: approved durable decision records.
 - `memory/`: approved reusable patterns, constraints and lessons.
 - `runtime/`: gitignored, agent-neutral task and execution state.
+- `.claude/settings.json` and `.codex/`: project-level native permissions that
+  enforce the Factory least-privilege baseline; they do not replace policies.
+
+`project.yaml` explicitly selects `taskTracking.mode`. Use `local` when the
+Task, Execution, artifacts and logs under `.ai/runtime/` are the tracking system
+and no external task manager is configured. Use `external` only when required
+Tasks must be linked through a configured `task-provider`.
 
 ## Responsibility boundaries
 

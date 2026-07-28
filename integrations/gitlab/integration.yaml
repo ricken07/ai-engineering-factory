@@ -25,11 +25,17 @@ capabilities:
   - search-task
   - create-task
   - comment-task
-  - update-task
   - link-task
   - link-change
   mcpToolHints:
   - gitlab.*
+  operationMappings:
+    get-task: get_issue
+    search-task: search
+    create-task: create_issue
+    comment-task: create_workitem_note
+    link-task: link_work_items
+    link-change: link_work_items
 - id: continuous-integration
   operations:
   - get-pipeline

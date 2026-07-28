@@ -3,10 +3,10 @@
   "type":"object", "required":["apiVersion","kind","metadata","task","decision","reasons","requiredBefore","provider","duplicateSearch","externalTracking"],
   "properties":{
     "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"}, "kind":{"const":"TaskTrackingDecision"}, "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
-    "task":{"type":"string"}, "decision":{"type":"object","required":["level"],"properties":{"level":{"enum":["optional","recommended","required"]}},"additionalProperties":false},
+    "task":{"type":"string"}, "decision":{"type":"object","required":["level"],"properties":{"level":{"enum":["optional","recommended","required"]},"mode":{"enum":["local","external"]},"satisfied":{"type":"boolean"}},"additionalProperties":false},
     "reasons":{"$ref":"common.schema.json#/$defs/stringArray"}, "requiredBefore":{"$ref":"common.schema.json#/$defs/stringArray"},
-    "provider":{"type":"object","required":["capability","status"],"properties":{"capability":{"const":"task-provider"},"id":{"type":"string"},"status":{"enum":["unresolved","available","unavailable"]}},"additionalProperties":false},
+    "provider":{"type":"object","required":["capability","status"],"properties":{"capability":{"const":"task-provider"},"id":{"type":"string"},"status":{"enum":["not-required","unresolved","available","unavailable"]}},"additionalProperties":false},
     "duplicateSearch":{"type":"object","required":["required","status"],"properties":{"required":{"type":"boolean"},"status":{"enum":["pending","completed","skipped"]}},"additionalProperties":false},
-    "externalTracking":{"type":"object","required":["status"],"properties":{"status":{"enum":["unresolved","searching","awaiting-link","awaiting-creation","linked","unavailable"]},"reference":{"type":"string"}},"additionalProperties":false}
+    "externalTracking":{"type":"object","required":["status"],"properties":{"status":{"enum":["not-required","unresolved","searching","awaiting-link","awaiting-creation","linked","unavailable"]},"reference":{"type":"string"}},"additionalProperties":false}
   }, "additionalProperties":false
 }

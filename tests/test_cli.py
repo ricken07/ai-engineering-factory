@@ -27,6 +27,46 @@ def test_intake_and_run_commands(tmp_path: Path, capsys):
     assert main(["run", "/analyze DEMO-12", "--project", str(destination), "--factory", ".", "--agent", "codex"]) == 0
     assert "nextPhase: understand" in capsys.readouterr().out
 
+
+def test_run_adapter_contract_pins_intent_and_workflow(tmp_path: Path, capsys):
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    capsys.readouterr()
+    assert main([
+        "run", "Feature 1.1 — Fixer les trois contrats cassés",
+        "--project", str(destination), "--factory", ".",
+        "--agent", "claude-code", "--intent", "implement",
+        "--expect-workflow", "implement-task",
+    ]) == 0
+    output = capsys.readouterr().out
+    assert "runtimeReceipt: created" in output
+    assert "intent: implement" in output
+    assert "mutating: true" in output
+    assert "id: implement-task" in output
+    assert "taskLog:" in output
+
+
+def test_task_log_command(tmp_path: Path, capsys):
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    capsys.readouterr()
+    assert main(["run", "/analyze DEMO-42", "--project", str(destination), "--factory", "."]) == 0
+    capsys.readouterr()
+    assert main(["task", "log", "DEMO-42", "--project", str(destination), "--factory", ".", "--json"]) == 0
+    output = capsys.readouterr().out
+    assert '"event": "task.normalized"' in output
+    assert '"event": "workflow.started"' in output
+
+
+def test_task_inspect_accepts_explicit_factory_path(tmp_path: Path, capsys):
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    capsys.readouterr()
+    assert main(["run", "/analyze DEMO-42", "--project", str(destination), "--factory", "."]) == 0
+    capsys.readouterr()
+    assert main(["task", "inspect", "DEMO-42", "--project", str(destination), "--factory", ".", "--json"]) == 0
+    assert '"id": "DEMO-42"' in capsys.readouterr().out
+
 def test_engineering_context_command(capsys):
     assert main(["engineering-context","egw-api","review-change","--project","examples/emmany","--factory",".","--json"]) == 0
     output = capsys.readouterr().out

@@ -40,6 +40,10 @@
           },
           "mcpToolHints": {
             "$ref": "common.schema.json#/$defs/stringArray"
+          },
+          "operationMappings": {
+            "type": "object",
+            "additionalProperties": {"type": "string", "minLength": 1}
           }
         },
         "additionalProperties": false

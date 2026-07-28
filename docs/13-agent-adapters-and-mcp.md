@@ -5,11 +5,12 @@
 An adapter translates Factory contracts into one agent runtime. It does not own workflows, engineering methods, project knowledge, provider semantics or policy decisions.
 
 ```text
-Core             what must happen
-Project .ai/     project context and provider selection
-Integration      provider capabilities and operations
-Adapter          agent-native invocation, tools and gates
-MCP server       concrete external operation
+Core                    capability contracts and policy semantics
+Integration catalog     provider capabilities and technical MCP binding
+Organization            allowed/default providers and custom-MCP policy
+Project .ai/            capability activation and project context
+Adapter                 generated agent-native configuration and gates
+MCP server              concrete external operation
 ```
 
 ## Lifecycle
@@ -36,11 +37,54 @@ The default dry run shows every planned link. Installation refuses to overwrite 
 
 Codex uses `$implement TASK-123`; Claude Code uses `/implement TASK-123`. The adapter skill resolves the same `implement-task` workflow, creates or resumes the same task runtime state and enforces the same PolicyDecision.
 
+## Governance and sources of truth
+
+Provider knowledge must not enter `core/`. The Core knows abstractions such as
+`source-control`, `task-provider`, `knowledge-base` and
+`continuous-integration`; it never knows GitLab, GitHub, Jira, Confluence, an
+endpoint, a token or an agent-native configuration format.
+
+The effective integration configuration is resolved in this order:
+
+```text
+Core capability contract
+        ↓
+Factory integration catalog
+        ↓
+Organization governance
+        ↓
+Project capability binding
+        ↓
+Integration Resolver
+        ↓
+Claude/Codex generated configuration
+```
+
+Responsibilities are deliberately separated:
+
+| Level | Owns | Must not own |
+| --- | --- | --- |
+| Core | Capability contracts, policies and gates | Concrete providers or MCP details |
+| `integrations/` | Provider operations, transport requirements and authentication contract | Secret values or project business rules |
+| Organization | Provider allow-list, defaults, managed endpoints, permitted scopes and custom-MCP policy | Project selection or developer credentials |
+| Project | Capability-to-provider selection and optional authorized project extension | Tokens, headers, commands or duplicated provider definitions |
+| Adapter | Materialization into `.mcp.json`, Codex TOML or future native formats | Core workflow or provider policy |
+| Developer/enterprise runtime | Credentials and authenticated session | Versioned project knowledge |
+
+The source of truth is therefore the installed and versioned Factory catalog,
+composed with organization governance and project activation. `.mcp.json` and
+`.codex/config.toml` are generated adapter artifacts: they may be regenerated
+and must never become the place where provider policy is maintained manually.
+
 ## MCP resolution
 
-The Core requests an abstract capability such as `task-provider`. The project selects a provider:
+The Core requests an abstract capability such as `task-provider`. The project
+activates a provider already supplied and authorized by the organization:
 
 ```yaml
+taskTracking:
+  mode: external
+
 integrations:
   source-control:
     provider: github
@@ -50,10 +94,26 @@ integrations:
     provider: confluence
 ```
 
-The central catalog keeps capability contracts under `integrations/contracts/`. Each provider declares supported operations in `integration.yaml` and technical MCP requirements in `mcp.yaml`. The adapter resolves environment-specific endpoint configuration and exposes only operations that are both declared and authorized.
+This declaration is intentionally limited to logical bindings. The project
+must not add `url`, `transport`, `command`, `headers` or a credential value. For
+example, Gad Digital can centrally define GitLab once; `emi-ai` only binds
+`source-control` and `continuous-integration` to the `gitlab` catalog entry.
+
+When `taskTracking.mode` is `local`, the Runtime does not resolve
+`task-provider`; local Task/Execution artifacts satisfy the tracking policy.
+Provider resolution below applies only to explicit `external` mode or to another
+Skill that independently requires the capability.
+
+The central catalog keeps capability contracts under `integrations/contracts/`.
+Each provider declares supported operations in `integration.yaml` and technical
+MCP requirements in `mcp.yaml`. Organization governance filters that catalog
+before project resolution. The adapter resolves the resulting endpoint and
+authentication contract and exposes only operations that are both declared and
+authorized.
 
 ```text
 skill requires task-provider
+→ organization allows/configures jira
 → project selects jira
 → Jira integration declares get-task/search-task/...
 → Jira MCP binding resolves endpoint
@@ -75,7 +135,11 @@ aief integrations sync claude-code /workspace/project --factory /factory/1.7.0
 
 `sync` is a dry run unless `--execute` is supplied. Project scope targets `.codex/config.toml` for Codex and `.mcp.json` for Claude Code. User scope targets their user-native configuration. Codex updates only an AIEF-managed TOML block; Claude merges only `mcpServers`. Other native settings are preserved and conflicting unmanaged provider entries fail closed.
 
-Required endpoint variables are provider-specific: `GITHUB_MCP_URL`, `GITLAB_MCP_URL`, `JIRA_MCP_URL`, and `CONFLUENCE_MCP_URL`. Credentials remain in the environment or the agent/provider authentication store; never commit them to `.ai/`.
+Required endpoint variables are provider-specific: `GITHUB_MCP_URL`,
+`GITLAB_MCP_URL`, `JIRA_MCP_URL`, and `CONFLUENCE_MCP_URL`. In a managed
+organization these values can be injected centrally. Credentials remain in the
+OS keychain, secret manager, managed agent authentication store or process
+environment; never commit them to `.ai/`, `.mcp.json` or Codex TOML.
 
 ## Integration lock
 
@@ -88,6 +152,32 @@ Required endpoint variables are provider-specific: `GITHUB_MCP_URL`, `GITLAB_MCP
 - Keep experimental personal MCPs outside project declarations and locks.
 
 The project selects providers, never native agent files, commands, endpoints or secrets.
+
+## Project-specific MCPs
+
+A project-specific MCP is an exception, not an implicit escape hatch. Its
+admission follows this decision path:
+
+```text
+Project requests custom MCP
+→ organization policy allows custom providers?
+→ requested scope and transport are allowed?
+→ definition passes schema and security validation?
+→ required human approval is recorded?
+→ provider enters the resolved catalog
+→ adapter materializes native configuration
+```
+
+Fail closed when any decision is absent. A project-specific MCP must declare
+the same capability contracts as a centrally managed provider and remains
+subject to autonomy, external-action and human-gate policies. It cannot weaken
+a mandatory organization rule.
+
+The current executable contract resolves providers installed under
+`integrations/` and selected per capability in `.ai/project.yaml`. Direct
+project-local provider manifests are not accepted until the organization-policy
+contract and its validator are implemented; do not bypass this by manually
+editing generated native files.
 
 ## Gates and least privilege
 

@@ -1,0 +1,19 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: OrganizationCatalog
+metadata:
+  id: factory-default
+  name: Factory Default Engineering Catalog
+  version: 1.0.0
+extends: []
+practiceRefs:
+  - secret-management@1.0.0
+  - testing-baseline@1.0.0
+  - organization-code-review@1.0.0
+  - java-coding-conventions@1.0.0
+  - spring-conventions@1.0.0
+  - api-design@1.0.0
+  - hexagonal-architecture@1.0.0
+profileBindings:
+  generic: [organization-code-review@1.0.0]
+  java: [java-coding-conventions@1.0.0]
+  spring: [spring-conventions@1.0.0]

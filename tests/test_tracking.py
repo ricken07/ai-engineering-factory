@@ -21,7 +21,7 @@ def task(nature="change"):
 
 def service(tmp_path: Path, autonomy="L2"):
     project=tmp_path/"project"; initialize(ROOT/"templates/project",project)
-    data=yaml.safe_load((project/".ai/project.yaml").read_text()); data["integrations"]={"task-provider":{"provider":"jira"}}; data["autonomy"]["default"]=autonomy
+    data=yaml.safe_load((project/".ai/project.yaml").read_text()); data["integrations"]={"task-provider":{"provider":"jira"}}; data["taskTracking"]={"mode":"external"}; data["autonomy"]["default"]=autonomy
     (project/".ai/project.yaml").write_text(yaml.safe_dump(data,sort_keys=False))
     return RuntimeService(project,ROOT,ENV)
 
@@ -44,6 +44,46 @@ def test_tracking_policy_optional_recommended_and_required():
     assert decision.level == "required" and set(decision.reasons) == {"externally-track-high-risk","externally-track-cross-repository"}
 
 
+def test_local_tracking_satisfies_required_policy_without_provider(tmp_path):
+    project=tmp_path/"project"; initialize(ROOT/"templates/project",project)
+    runtime=RuntimeService(project,ROOT,{})
+    intake=runtime.intake("Implémente une évolution critique locale")
+    tracking=runtime.tracking.assess(
+        intake["task"]["metadata"]["id"],
+        {"risk":"critical","repositories":["main"],"changeTypes":["source-code"]},
+    )
+    assert tracking["decision"] == {"level":"required","mode":"local","satisfied":True}
+    assert tracking["provider"]["status"] == "not-required"
+    assert tracking["externalTracking"]["status"] == "not-required"
+    assert TaskRegistry(project).load(intake["task"]["metadata"]["id"])["tracking"]["mode"] == "local"
+
+
+def test_external_tracking_still_requires_provider_link(tmp_path):
+    runtime=service(tmp_path); identifier=local_task(runtime)
+    tracking=yaml.safe_load((runtime.project_root/".ai/runtime/tasks"/identifier/"tracking.yaml").read_text())
+    assert tracking["decision"]["mode"] == "external"
+    assert tracking["decision"]["satisfied"] is False
+
+
+def test_switch_to_local_tracking_resumes_external_tracking_block(tmp_path):
+    runtime=service(tmp_path); identifier=local_task(runtime)
+    execution=runtime.start("Corrige un autre problème local")
+    execution.data["task"]=identifier
+    execution.block({"type":"external-tracking-required","message":"external tracking required"})
+    project_data=yaml.safe_load((runtime.project_root/".ai/project.yaml").read_text())
+    project_data["taskTracking"]={"mode":"local"}
+    (runtime.project_root/".ai/project.yaml").write_text(yaml.safe_dump(project_data,sort_keys=False))
+    local_runtime=RuntimeService(runtime.project_root,ROOT,{})
+
+    # Directly exercise the transition without entering workspace preparation.
+    tracking=local_runtime.tracking.assess(identifier)
+    current=local_runtime.execution(execution.data["metadata"]["id"])
+    assert tracking["decision"]["satisfied"] is True
+    if current.data.get("blockingReason",{}).get("type") == "external-tracking-required":
+        current.resume("external-tracking-required")
+    assert current.data["status"] == "running"
+
+
 def test_provider_resolution_errors_are_explicit(tmp_path):
     project=tmp_path/"project"; initialize(ROOT/"templates/project",project); data=yaml.safe_load((project/".ai/project.yaml").read_text())
     with pytest.raises(ProviderResolutionError) as missing: resolve_task_provider(ROOT,project,data,["search-task"],environment={})
@@ -56,6 +96,36 @@ def test_provider_resolution_errors_are_explicit(tmp_path):
     assert endpoint.value.code == "MCP_NOT_CONFIGURED"
     with pytest.raises(ProviderResolutionError) as auth: resolve_task_provider(ROOT,project,data,["search-task"],environment={"JIRA_MCP_URL":"https://mcp"})
     assert auth.value.code == "AUTHENTICATION_REQUIRED"
+
+
+def test_gitlab_native_provider_exposes_only_verified_task_operations(tmp_path):
+    project=tmp_path/"project"; initialize(ROOT/"templates/project",project)
+    data=yaml.safe_load((project/".ai/project.yaml").read_text())
+    data["integrations"]={"task-provider":{"provider":"gitlab"}}
+    data["taskTracking"]={"mode":"external"}
+    resolution=resolve_task_provider(
+        ROOT, project, data, ["get-task","search-task","create-task","comment-task","link-task"],
+        agent="codex", environment={"GITLAB_MCP_URL":"https://gitlab.example/mcp"},
+    )
+    assert resolution["mcp"]["operationMappings"]["create-task"] == "create_issue"
+    with pytest.raises(ProviderResolutionError) as unsupported:
+        resolve_task_provider(ROOT,project,data,["update-task"],agent="codex",environment={"GITLAB_MCP_URL":"https://gitlab.example/mcp"})
+    assert unsupported.value.code == "CAPABILITY_UNSUPPORTED"
+
+
+def test_external_proposal_inherits_namespace_and_default_board_label(tmp_path):
+    runtime=service(tmp_path,"L3")
+    project_data=yaml.safe_load((runtime.project_root/".ai/project.yaml").read_text())
+    project_data["taskTracking"].update({"namespace":"group/product","defaultLabels":["workflow::backlog"]})
+    (runtime.project_root/".ai/project.yaml").write_text(yaml.safe_dump(project_data,sort_keys=False))
+    runtime=RuntimeService(runtime.project_root,ROOT,ENV)
+    identifier=local_task(runtime)
+    runtime.tracking.prepare_search(identifier); runtime.tracking.complete_search(identifier,[])
+    value=proposal(identifier) | {"target":{"container":"api"},"labels":["type::bug"]}
+    path=runtime.tracking.write_proposal(identifier,value)
+    stored=yaml.safe_load(path.read_text())
+    assert stored["target"] == {"container":"api","namespace":"group/product"}
+    assert stored["labels"] == ["type::bug","workflow::backlog"]
 
 
 def test_unavailable_provider_resolution_is_persisted_without_fallback(tmp_path):

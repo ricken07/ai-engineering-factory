@@ -24,3 +24,12 @@ executions/<execution-id>/
 ```
 
 Publish durable task summaries to the configured task/change system. Never promote runtime content directly into project knowledge without the `promote-knowledge` workflow.
+
+Each Task also owns an append-only `tasks/<task-id>/events.jsonl` journal. It
+records the observable execution trajectory: intent, workflow, phases,
+artifacts, policy decisions, gates, workspace operations and validation
+outcomes. It never stores private chain-of-thought. Inspect it with:
+
+```bash
+aief task log <task-id> --project . --factory "$GAD_AI_FACTORY_HOME"
+```

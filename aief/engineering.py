@@ -17,23 +17,83 @@ class PracticeConflict(EngineeringContextError):
     pass
 
 
-def load_practices(factory: Path) -> dict[str, dict[str, Any]]:
-    catalog: dict[str, dict[str, Any]] = {}
+def _load_all_practices(factory: Path) -> dict[str, dict[str, Any]]:
+    practices: dict[str, dict[str, Any]] = {}
     root = factory / "organization"
     for path in sorted(root.rglob("*.yaml")):
         practice = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(practice, dict) or practice.get("kind") != "Practice":
             continue
         identifier = practice["metadata"]["id"]
-        if identifier in catalog:
+        if identifier in practices:
             raise EngineeringContextError(f"duplicate organization practice: {identifier}")
         document = (path.parent / practice["document"]["path"]).resolve()
         if not document.is_relative_to(root.resolve()):
             raise EngineeringContextError(f"practice document escapes organization catalog: {identifier}")
         if not document.is_file():
             raise EngineeringContextError(f"practice document is missing: {identifier}: {document}")
-        catalog[identifier] = {**practice, "_manifest": path, "_document": document}
-    return catalog
+        practices[identifier] = {**practice, "_manifest": path, "_document": document}
+    return practices
+
+
+def _load_catalog_manifests(factory: Path) -> dict[str, dict[str, Any]]:
+    catalogs: dict[str, dict[str, Any]] = {}
+    root = factory / "organization" / "catalogs"
+    for path in sorted(root.glob("*.yaml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or data.get("kind") != "OrganizationCatalog":
+            continue
+        identifier = data["metadata"]["id"]
+        if identifier in catalogs:
+            raise EngineeringContextError(f"duplicate organization catalog: {identifier}")
+        catalogs[identifier] = {**data, "_manifest": path}
+    return catalogs
+
+
+def _resolve_catalogs(factory: Path, references: list[str]) -> list[dict[str, Any]]:
+    available = _load_catalog_manifests(factory)
+    resolved: list[dict[str, Any]] = []
+    visiting: set[str] = set()
+    completed: set[str] = set()
+
+    def visit(reference: str) -> None:
+        identifier, version = _parse_ref(reference)
+        if identifier not in available:
+            raise EngineeringContextError(f"unknown organization catalog: {identifier}")
+        catalog = available[identifier]
+        actual = catalog["metadata"]["version"]
+        if version and version != actual:
+            raise EngineeringContextError(f"organization catalog {identifier} requires version {version}, catalog provides {actual}")
+        if identifier in completed:
+            return
+        if identifier in visiting:
+            raise EngineeringContextError(f"organization catalog inheritance cycle: {identifier}")
+        visiting.add(identifier)
+        for parent in catalog.get("extends", []):
+            visit(parent)
+        visiting.remove(identifier)
+        completed.add(identifier)
+        resolved.append(catalog)
+
+    for reference in references:
+        visit(reference)
+    return resolved
+
+
+def load_practices(factory: Path, catalog_references: list[str] | None = None) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    references = catalog_references if catalog_references is not None else ["factory-default@1.0.0"]
+    catalogs = _resolve_catalogs(factory, references)
+    available = _load_all_practices(factory)
+    selected: dict[str, dict[str, Any]] = {}
+    for catalog in catalogs:
+        for reference in catalog.get("practiceRefs", []):
+            practice = _resolve_reference(available, reference)
+            selected[practice["metadata"]["id"]] = practice
+        for references_for_profile in catalog.get("profileBindings", {}).values():
+            for reference in references_for_profile:
+                practice = _resolve_reference(available, reference)
+                selected[practice["metadata"]["id"]] = practice
+    return selected, catalogs
 
 
 def _parse_ref(reference: str) -> tuple[str, str | None]:
@@ -81,12 +141,19 @@ def resolve_engineering_context(factory: Path, project_root: Path, project: dict
     if not skill_path.is_file(): raise EngineeringContextError(f"unknown Core Skill: {skill_id}")
     skill = yaml.safe_load(skill_path.read_text(encoding="utf-8"))
     categories = list(skill.get("engineeringContext", {}).get("requires", []))
-    catalog = load_practices(factory)
-    profile_refs = list(dict.fromkeys(reference for profile in resolved_profiles for reference in profile.get("practiceRefs", [])))
+    engineering = project.get("engineering", {})
+    catalog_refs = engineering.get("organizationCatalogs", ["factory-default@1.0.0"])
+    catalog, selected_catalogs = load_practices(factory, catalog_refs)
+    profile_refs = [reference for profile in resolved_profiles for reference in profile.get("practiceRefs", [])]
+    for selected_catalog in selected_catalogs:
+        bindings = selected_catalog.get("profileBindings", {})
+        for profile_id in profile_ids:
+            profile_refs.extend(bindings.get(profile_id, []))
+    profile_refs = list(dict.fromkeys(profile_refs))
     active: dict[str, dict[str, Any]] = {}
     resolutions: list[dict[str, Any]] = []
 
-    inherit_organization = project.get("engineering", {}).get("inheritOrganization", True)
+    inherit_organization = engineering.get("inheritOrganization", True)
     for identifier, practice in catalog.items():
         if practice["category"] not in categories or not _applies(practice, profile_set, skill_id):
             continue
@@ -157,17 +224,19 @@ def resolve_engineering_context(factory: Path, project_root: Path, project: dict
         if practice.get("_overrides"): item["overrides"] = practice["_overrides"]
         practices.append(item)
     task_context={key:task[key] for key in ("objective","scope","classification","constraints") if task and key in task}
+    catalog_resolutions=[{"id":item["metadata"]["id"],"version":item["metadata"]["version"],"source":str(item["_manifest"]),"extends":item.get("extends",[])} for item in selected_catalogs]
     identity={"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,
+              "organizationCatalogs":[{"id":item["id"],"version":item["version"]} for item in catalog_resolutions],
               "profiles":[{"id":item["id"],"version":item["version"],"extends":item["extends"]} for item in profile_resolutions],"categories":categories,
               "practices":[{"id":item["id"],"version":item["version"],"source":item["source"],"contentHash":item["contentHash"]} for item in practices],"taskContext":task_context}
     fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
     return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"EffectiveEngineeringContext","metadata":{"id":f"{project['metadata']['id']}-{repository_id}-{skill_id}"},"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,
-            **({"task":task["metadata"]["id"]} if task else {}),"profiles":profile_ids,"profileResolutions":profile_resolutions,"categories":categories,"practices":practices,"resolutions":resolutions,"taskContext":task_context,"fingerprint":fingerprint}
+            **({"task":task["metadata"]["id"]} if task else {}),"profiles":profile_ids,"profileResolutions":profile_resolutions,"organizationCatalogs":catalog_resolutions,"categories":categories,"practices":practices,"resolutions":resolutions,"taskContext":task_context,"fingerprint":fingerprint}
 
 
 def validate_engineering_configuration(factory: Path, project_root: Path, project: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    try: catalog = load_practices(factory)
+    try: catalog, _ = load_practices(factory, project.get("engineering", {}).get("organizationCatalogs", ["factory-default@1.0.0"]))
     except EngineeringContextError as exc: return [str(exc)]
     configurations = [("project", project.get("engineering", {}))]
     configurations.extend((f"repository {repository['id']}", repository.get("engineering", {})) for repository in project.get("repositories", []))

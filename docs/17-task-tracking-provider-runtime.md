@@ -2,12 +2,15 @@
 
 ## Purpose
 
-This increment turns a local Task into governed, provider-backed traceability without embedding Jira, GitLab, GitHub or MCP names in Core workflows.
+This increment provides governed Task traceability without embedding Jira,
+GitLab, GitHub or MCP names in Core workflows. Traceability can remain local or
+be backed by an external provider, according to explicit project configuration.
 
 ```text
 Local Task
   → deterministic tracking decision
-  → configured task-provider
+  → configured tracking mode
+  → local Runtime evidence OR configured task-provider
   → duplicate search operation
   → assessed candidates
   → human link selection OR external proposal
@@ -21,15 +24,60 @@ Local Task
 
 `core/policies/task-tracking-policy.yaml` is interpreted by the Runtime. Applicable rules are combined using `required > recommended > optional`; only reasons producing the effective level are recorded.
 
+## Local versus external tracking
+
+The tracking level and the tracking system are separate decisions:
+
+| Concern | Values | Meaning |
+| --- | --- | --- |
+| Tracking level | `optional`, `recommended`, `required` | Importance calculated by policy |
+| Tracking mode | `local`, `external` | System that satisfies the decision |
+
+A project must explicitly select its system of record:
+
+```yaml
+taskTracking:
+  mode: local
+```
+
+`local` means that the persisted Task, Execution, structured artifacts and
+`events.jsonl` under `.ai/runtime/` satisfy even a `required` tracking decision.
+No `task-provider` is resolved and the decision records
+`provider.status: not-required`.
+
+```yaml
+taskTracking:
+  mode: external
+
+integrations:
+  task-provider:
+    provider: jira
+```
+
+`external` means that a required decision remains unsatisfied until the local
+Task is linked to an external canonical reference. A missing provider blocks
+closed with `PROVIDER_NOT_CONFIGURED`. The Runtime never changes from external
+to local automatically.
+
+If `taskTracking` is absent, the Runtime defaults to `external` for backward
+compatibility and fail-closed behavior. New projects generated from the
+template declare `local` explicitly because the template starts without MCP.
+
 The decision is persisted as:
 
 ```text
 .ai/runtime/tasks/<task-id>/tracking.yaml
 ```
 
-High/critical risk and cross-repository impact require tracking before implementation. Meaningful functional/source changes recommend it. Informational work, documentation-only work and small low-risk refactoring remain optional.
+High/critical risk and cross-repository impact require tracking before
+implementation. In `local` mode this increases the required evidence but does
+not require a ticket. Meaningful functional/source changes recommend tracking.
+Informational work, documentation-only work and small low-risk refactoring
+remain optional.
 
-Completion of `analyze-impact` automatically re-evaluates risk observations, Task scope and tracking. Before an `implementation` phase, unresolved required tracking changes the Execution to:
+Completion of `analyze-impact` automatically re-evaluates risk observations,
+Task scope and tracking. In `external` mode only, unresolved required tracking
+changes the Execution to:
 
 ```yaml
 status: blocked
@@ -39,6 +87,9 @@ blockingReason:
 ```
 
 ## Provider resolution
+
+Provider resolution is not entered in `local` mode. Calling it explicitly
+returns `PROVIDER_NOT_REQUIRED`.
 
 The Runtime resolves only the project binding:
 

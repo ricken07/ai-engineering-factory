@@ -1,0 +1,65 @@
+# AIEF project rules. Rules govern commands requested outside the Codex sandbox.
+# The most restrictive matching decision wins.
+
+prefix_rule(
+    pattern = ["aief", ["validate", "doctor", "inspect"]],
+    decision = "allow",
+    justification = "Factory diagnostics are deterministic and non-destructive",
+    match = ["aief validate .", "aief doctor .", "aief inspect ."],
+)
+
+prefix_rule(
+    pattern = ["aief", "execution", ["inspect", "next", "engineering-context"]],
+    decision = "allow",
+    justification = "These operations inspect or resolve persisted Factory execution state",
+    match = ["aief execution next exec-123 --project .", "aief execution inspect exec-123"],
+)
+
+prefix_rule(
+    pattern = ["aief", "execution", "profile-validation"],
+    decision = "prompt",
+    justification = "Validation may execute stack-specific build commands outside the workspace sandbox",
+    match = ["aief execution profile-validation exec-123 --execute --project ."],
+)
+
+prefix_rule(
+    pattern = ["aief", "execution", ["approve", "approve-policy"]],
+    decision = "prompt",
+    justification = "A Factory human gate must remain an explicit human decision",
+    match = ["aief execution approve exec-123", "aief execution approve-policy exec-123 before-implementation"],
+)
+
+prefix_rule(
+    pattern = ["aief", "task", ["create-external", "link", "operation-approval"]],
+    decision = "prompt",
+    justification = "External task mutations require explicit authorization",
+    match = ["aief task create-external local-123 --approve", "aief task link local-123 TASK-42 --approve"],
+)
+
+prefix_rule(
+    pattern = ["aief", "workspace", ["prepare", "rollback"]],
+    decision = "prompt",
+    justification = "Workspace preparation and rollback change Git branches or worktrees",
+    match = ["aief workspace prepare exec-123 --execute", "aief workspace rollback exec-123 --execute"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", ["--force", "--force-with-lease"]],
+    decision = "forbidden",
+    justification = "Force-push is prohibited; create a new commit and use a normal push",
+    match = ["git push --force", "git push --force-with-lease origin feature/task"],
+)
+
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Hard reset can destroy developer changes; use Factory workspace rollback",
+    match = ["git reset --hard", "git reset --hard HEAD~1"],
+)
+
+prefix_rule(
+    pattern = ["git", "clean", ["-f", "-fd", "-fdx"]],
+    decision = "forbidden",
+    justification = "Git clean can delete untracked developer files; inspect the workspace instead",
+    match = ["git clean -fd", "git clean -fdx"],
+)

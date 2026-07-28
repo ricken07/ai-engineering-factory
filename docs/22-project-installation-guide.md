@@ -6,23 +6,121 @@ Après installation, poursuivre avec
 [`23-first-steps.md`](23-first-steps.md) pour le parcours quotidien depuis Claude
 Code ou Codex.
 
-Les exemples utilisent la version `1.12.0`. Remplacez les valeurs entre `<...>` avant exécution.
+Les exemples utilisent la version `1.13.0`. Remplacez les valeurs entre `<...>` avant exécution.
+
+## 0.1 Rendre la Factory visible au processus agent
+
+Le projet référence le nom d’une variable, pas un chemin propre à une machine :
+
+```yaml
+factory:
+  version: 1.13.0
+  homeEnv: GAD_AI_FACTORY_HOME
+```
+
+Le poste développeur fournit sa valeur :
+
+```bash
+export GAD_AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
+```
+
+Exemple local :
+
+```bash
+export GAD_AI_FACTORY_HOME="/Users/example/.gad/ai-engineering-factory/1.13.0"
+```
+
+### `.zshrc` ne suffit pas dans tous les modes de lancement
+
+`.zshrc` est chargé par un shell Zsh interactif. La variable peut être absente
+si Claude Code ou Codex est lancé :
+
+- depuis un IDE ou une application graphique ;
+- depuis un shell non interactif ;
+- avant l’ajout de l’export ;
+- depuis une session qui n’a pas rechargé sa configuration.
+
+Pour les nouveaux shells login Zsh, déclarer également la variable dans
+`~/.zprofile`, ou utiliser le mécanisme d’environnement géré par
+l’organisation :
+
+```bash
+export GAD_AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
+```
+
+Ouvrir ensuite un nouveau terminal, ou recharger explicitement :
+
+```bash
+source "$HOME/.zshrc"
+printenv GAD_AI_FACTORY_HOME
+test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
+```
+
+Lancer l’agent depuis ce même terminal garantit l’héritage :
+
+```bash
+cd "<PROJECT_ROOT>"
+env | grep '^GAD_AI_FACTORY_HOME='
+claude
+# ou : codex
+```
+
+### Configuration locale Claude Code
+
+Lorsqu’un agent est lancé depuis un IDE ou qu’un chemin est spécifique au
+poste, Claude Code peut recevoir la variable via le fichier local non versionné
+`.claude/settings.local.json` :
+
+```json
+{
+  "env": {
+    "GAD_AI_FACTORY_HOME": "<ABSOLUTE_FACTORY_INSTALLATION>"
+  }
+}
+```
+
+Si ce fichier contient déjà des permissions, fusionner la clé `env` sans
+écraser `permissions`. Ne pas placer ce chemin local dans
+`.claude/settings.json`, qui est partagé et commité. Ne jamais stocker de secret
+dans ces fichiers.
+
+### Contrôle depuis la session agent
+
+Avant le premier workflow, faire exécuter uniquement :
+
+```bash
+printenv GAD_AI_FACTORY_HOME
+test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
+```
+
+Une sortie vide est un échec de précondition. L’adapter doit s’arrêter et
+indiquer comment configurer l’environnement. Il ne doit jamais chercher une
+installation arbitraire, ni copier, générer ou lier `factory.yaml` dans le
+workspace projet.
 
 ## 1. Résultat attendu
 
 ```text
 Poste développeur
-├── ~/.gad/ai-engineering-factory/1.12.0/  # Factory centrale, en lecture seule
+├── ~/.gad/ai-engineering-factory/1.13.0/  # Factory centrale, en lecture seule
 ├── ~/.agents/skills/                      # Entrées Codex vers la Factory
 └── ~/.claude/skills/                      # Entrées Claude Code vers la Factory
 
 Workspace projet
 ├── .ai/                                   # Configuration et connaissance du projet
+├── .claude/settings.json                  # Permissions Claude partagées
+├── .codex/config.toml                     # Sandbox/approbations Codex
+├── .codex/rules/factory.rules             # Règles de commandes Codex
 ├── AGENTS.md                              # Bootstrap commun/Codex, concis
 └── CLAUDE.md                              # Pont Claude vers AGENTS.md
 ```
 
 Le Core, les workflows et les skills ne sont jamais copiés dans le projet.
+
+Les permissions sont des garde-fous natifs complémentaires. Elles ne remplacent
+ni `PolicyDecision`, ni les niveaux d’autonomie, ni les human gates. Le template
+prêt à reviewer et les adaptations par stack sont documentés dans
+[`25-agent-permissions.md`](25-agent-permissions.md).
 
 ### Quand l’installation est-elle réellement effective ?
 
@@ -126,7 +224,7 @@ Définir les paramètres de l’installation :
 export AIEF_REPOSITORY_URL="<FACTORY_GIT_URL>"
 
 # Version immuable demandée par les projets.
-export AIEF_VERSION="1.12.0"
+export AIEF_VERSION="1.13.0"
 
 # Racine organisationnelle locale. Ce dossier n’appartient à aucun projet métier.
 export AIEF_INSTALL_ROOT="$HOME/.gad/ai-engineering-factory"
@@ -290,7 +388,7 @@ metadata:
   name: My Project                       # Nom destiné aux humains.
 
 factory:
-  version: 1.12.0                        # Version centrale exigée par le projet.
+  version: 1.13.0                        # Version centrale exigée par le projet.
   homeEnv: GAD_AI_FACTORY_HOME           # Variable qui localise son installation.
 
 workspace:
@@ -340,6 +438,9 @@ runtime:
 
 integrations: {}                         # Démarrage sans MCP ni provider externe.
 
+taskTracking:
+  mode: local                            # .ai/runtime suffit ; aucun task-provider requis.
+
 autonomy:
   default: L2                            # Lecture, modifications locales et tests.
   maximum: L2                            # Interdit commit/push/MR automatique au pilote.
@@ -348,6 +449,8 @@ policyRefs: []                           # Policies projet additionnelles si né
 
 engineering:
   inheritOrganization: true              # Hérite standards/pratiques organisationnels.
+  organizationCatalogs:                  # Catalogues choisis par ce projet.
+    - factory-default@1.0.0
   practices: {}                          # Activations/surcharges explicites du projet.
 ```
 
@@ -356,8 +459,28 @@ Principes de configuration :
 - déclarer chaque repository Git réellement piloté ;
 - ne pas déclarer un dossier uniquement documentaire comme repository exécutable ;
 - utiliser les profiles existants dans `profiles/` ;
+- sélectionner explicitement les catalogues organisationnels applicables ;
 - commencer à `L2`, puis relever l’autonomie après retour d’expérience ;
+- choisir explicitement `taskTracking.mode: local` sans gestionnaire de tâches,
+  ou `external` lorsqu’un `task-provider` doit devenir la référence canonique ;
 - ne placer aucun secret, endpoint ou token dans ce fichier.
+
+Exemples de sélection :
+
+```yaml
+# Socle fourni par la Factory.
+organizationCatalogs: [factory-default@1.0.0]
+
+# Gad Digital, qui étend actuellement le socle Factory.
+organizationCatalogs: [gad-digital@1.0.0]
+
+# Projet autonome : aucune convention d’organisation implicite.
+organizationCatalogs: []
+```
+
+Une autre organisation ajoute son propre `OrganizationCatalog` sans modifier
+le Core ni les Profiles. Voir
+[`24-organization-knowledge-catalog.md`](24-organization-knowledge-catalog.md).
 
 ## 8. Configurer la topologie
 
@@ -457,6 +580,60 @@ aief integrations doctor "$PROJECT_ROOT" --factory "$AIEF_HOME"
 
 Le lock vide ne configure aucun MCP. Il prouve que l’absence d’intégration est intentionnelle.
 
+### Choisir la traçabilité sans gestionnaire de tâches
+
+Une installation sans MCP doit aussi déclarer explicitement que la
+traçabilité locale satisfait les policies :
+
+```yaml
+integrations: {}
+taskTracking:
+  mode: local
+```
+
+Le niveau calculé (`optional`, `recommended`, `required`) reste inchangé. Pour
+une tâche critique, `required` impose toujours la Task, les artifacts, les
+décisions, les validations et le journal Runtime ; il n'impose simplement pas
+de ticket externe.
+
+Ne pas utiliser `mode: external` sans `integrations.task-provider`, sauf si le
+blocage `PROVIDER_NOT_CONFIGURED` est volontaire pendant l'onboarding.
+
+| Configuration | Résultat d'un tracking `required` |
+| --- | --- |
+| `mode: local`, aucun provider | satisfait par `.ai/runtime` |
+| `mode: external`, provider configuré et lié | satisfait par la référence externe |
+| `mode: external`, provider absent | Execution bloquée |
+| propriété absente | comportement conservateur `external` |
+
+### Execution déjà bloquée par le suivi externe
+
+Après une modification reviewée de `external` vers `local`, ne jamais éditer
+`tracking.yaml` ou `execution.yaml`. Relancer simplement la résolution :
+
+```bash
+aief execution next <execution-id> \
+  --project "/absolute/project" \
+  --factory "/absolute/factory" \
+  --json
+```
+
+Le Runtime recalcule `tracking.yaml`, marque la décision locale comme
+`satisfied: true`, retire `external-tracking-required`, puis applique le
+prochain contrôle. Si le projet utilise `workspaceSafety.mode: worktree`, le
+nouveau blocage attendu peut être `workspace-preparation-required` :
+
+```bash
+aief workspace prepare <execution-id> \
+  --project "/absolute/project" \
+  --factory "/absolute/factory" \
+  --execute \
+  --json
+```
+
+Ce second blocage est indépendant du task manager : il protège les changements
+Git locaux du développeur.
+
 ### Contrôle Go/No-Go avant de lancer un agent
 
 Exécuter ces contrôles depuis une nouvelle session de terminal :
@@ -473,6 +650,9 @@ test -d "$GAD_AI_FACTORY_HOME/core"
 test -f "$PROJECT_ROOT/.ai/project.yaml"
 test -f "$PROJECT_ROOT/AGENTS.md"
 test -f "$PROJECT_ROOT/CLAUDE.md"
+test -f "$PROJECT_ROOT/.claude/settings.json"
+test -f "$PROJECT_ROOT/.codex/config.toml"
+test -f "$PROJECT_ROOT/.codex/rules/factory.rules"
 
 # 4. Adapter Claude Code, si Claude sera utilisé.
 test -f "$HOME/.claude/skills/implement/SKILL.md"
@@ -577,13 +757,33 @@ claude
 
 Pour Codex, remplacer `~/.claude/skills/implement` par
 `~/.agents/skills/implement`, installer l’adapter `codex`, puis relancer
-`codex`.
+`codex`. Dans Codex, l'invocation correcte est `$implement`; `/implement`
+retourne normalement `Unrecognized command` parce que `/` désigne les commandes
+intégrées du client. Le parcours complet et le dépannage Codex sont documentés
+dans [`27-codex-usage.md`](27-codex-usage.md).
 
 ## 13. Activer ultérieurement un provider MCP
 
-Le projet choisit une capability et un provider, pas un transport ni un token :
+Le provider doit d'abord exister dans le catalogue central de la Factory et être
+autorisé par la gouvernance de l'organisation. Le projet ne configure pas le
+MCP : il active uniquement une association logique entre capability et
+provider.
+
+```text
+Factory integrations/   définition technique et opérations
+Organization            providers autorisés et valeurs par défaut
+Project                 activation des capabilities
+Adapter                 génération Claude/Codex
+Developer runtime       authentification locale
+```
+
+Le projet choisit donc une capability et un provider, jamais un transport, une
+URL, une commande, un header ou un token :
 
 ```yaml
+taskTracking:
+  mode: external       # Seulement si Jira/GitLab/GitHub doit porter les Tasks requises.
+
 integrations:
   task-provider:
     provider: jira
@@ -592,6 +792,20 @@ integrations:
   knowledge-base:
     provider: confluence
 ```
+
+Configuration interdite dans `.ai/project.yaml` :
+
+```yaml
+integrations:
+  gitlab:
+    url: https://gitlab.example/mcp  # interdit
+    transport: http                  # interdit
+    token: glpat-secret              # strictement interdit
+```
+
+Un projet peut conserver `taskTracking.mode: local` tout en activant
+`source-control` ou `knowledge-base`. La présence d'un MCP n'impose pas le mode
+external ; seul le choix du système canonique de Task le détermine.
 
 Puis :
 
@@ -605,15 +819,33 @@ aief integrations doctor "$PROJECT_ROOT" --factory "$AIEF_HOME"
 # Prévisualise la configuration native Codex ; aucune écriture sans --execute.
 aief integrations sync codex "$PROJECT_ROOT" --factory "$AIEF_HOME"
 
-# Applique après revue explicite du plan.
-aief integrations sync codex "$PROJECT_ROOT" --factory "$AIEF_HOME" --scope project --execute
+# Applique après revue explicite du plan. Pour un provider organisationnel
+# partagé, préférer le scope user afin d'éviter une configuration par projet.
+aief integrations sync codex "$PROJECT_ROOT" --factory "$AIEF_HOME" --scope user --execute
 
 # Même procédure pour Claude Code.
 aief integrations sync claude-code "$PROJECT_ROOT" --factory "$AIEF_HOME"
-aief integrations sync claude-code "$PROJECT_ROOT" --factory "$AIEF_HOME" --scope project --execute
+aief integrations sync claude-code "$PROJECT_ROOT" --factory "$AIEF_HOME" --scope user --execute
 ```
 
-Les endpoints et credentials restent dans l’environnement, le keychain, un secret manager ou une configuration d’entreprise. Ils ne sont jamais commités dans `.ai/`, `.mcp.json` ou `.codex/config.toml`.
+`sync` matérialise la configuration native ; il ne déplace pas la source de
+vérité dans le client. Pour un MCP spécifique au projet et explicitement
+autorisé, le scope `project` peut être utilisé après validation de la policy
+organisationnelle.
+
+Les endpoints gérés et credentials restent dans une configuration d'entreprise,
+le keychain, un secret manager, le magasin d'authentification de l'agent ou
+l'environnement. Ils ne sont jamais commités dans `.ai/`, `.mcp.json` ou
+`.codex/config.toml`.
+
+### MCP propre au projet
+
+Un projet ne peut pas déclarer arbitrairement un serveur personnalisé. La
+gouvernance organisationnelle doit autoriser les MCP custom, leurs transports,
+leurs scopes et, si nécessaire, imposer une approbation humaine. Tant que ce
+contrat n'est pas pris en charge par le Runtime, ajouter manuellement un serveur
+dans `.mcp.json` ou `.codex/config.toml` ne constitue pas une intégration
+Factory valide.
 
 ## 14. Mise à niveau de la Factory
 
@@ -635,6 +867,9 @@ Ne remplacez pas silencieusement le contenu d’un dossier de version existant.
 - [ ] `GAD_AI_FACTORY_HOME` pointe vers cette version.
 - [ ] `aief --help` fonctionne sans environnement Python manuel.
 - [ ] Les adapters ont été prévisualisés puis installés explicitement.
+- [ ] Les permissions natives Claude/Codex ont été revues et commitées.
+- [ ] Les validations propres aux Profiles ont des préfixes précis, sans autorisation shell globale.
+- [ ] Les gates, écritures externes et publications Git restent interactifs.
 - [ ] `.ai/project.yaml` décrit tous les repositories pilotés.
 - [ ] Les profiles correspondent aux technologies réellement détectées.
 - [ ] `.ai/repository-map.yaml` décrit les dépendances inter-repositories.
@@ -644,4 +879,6 @@ Ne remplacez pas silencieusement le contenu d’un dossier de version existant.
 - [ ] `aief validate` et `aief doctor` réussissent.
 - [ ] `aief integrations doctor` réussit, y compris sans provider.
 - [ ] Le premier test est une analyse non mutante.
+- [ ] Le reçu Runtime contient `execution`, `workflow`, `nextPhase` et `taskLog`.
+- [ ] `aief task log <task-id>` montre `task.normalized` et `workflow.started`.
 - [ ] Les modifications locales préexistantes ne sont ni écrasées ni incorporées.

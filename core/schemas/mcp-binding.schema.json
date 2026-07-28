@@ -10,7 +10,10 @@
     "provider":{"type":"string"},
     "capabilities":{"$ref":"common.schema.json#/$defs/stringArray"},
     "transport":{"type":"object","required":["type"],"properties":{"type":{"enum":["stdio","http"]},"command":{"type":"string"},"args":{"$ref":"common.schema.json#/$defs/stringArray"},"url":{"type":"string"},"urlEnvironment":{"type":"string"},"environment":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false},
+    "authentication":{"$ref":"#/$defs/authentication"},
+    "adapterOverrides":{"type":"object","additionalProperties":{"$ref":"#/$defs/adapterOverride"}},
     "toolHints":{"$ref":"common.schema.json#/$defs/stringArray"}
   },
+  "$defs":{"authentication":{"type":"object","required":["type"],"properties":{"type":{"enum":["oauth","bearer"]},"tokenEnvironment":{"type":"string","minLength":1}},"allOf":[{"if":{"properties":{"type":{"const":"bearer"}}},"then":{"required":["tokenEnvironment"]}}],"additionalProperties":false},"transport":{"type":"object","required":["type"],"properties":{"type":{"enum":["stdio","http"]},"command":{"type":"string"},"args":{"$ref":"common.schema.json#/$defs/stringArray"},"url":{"type":"string"},"urlEnvironment":{"type":"string"},"environment":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false},"adapterOverride":{"type":"object","properties":{"transport":{"$ref":"#/$defs/transport"},"authentication":{"$ref":"#/$defs/authentication"}},"additionalProperties":false}},
   "additionalProperties":false
 }
