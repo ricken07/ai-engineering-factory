@@ -471,8 +471,8 @@ Exemples de sélection :
 # Socle fourni par la Factory.
 organizationCatalogs: [factory-default@1.0.0]
 
-# Gad Digital, qui étend actuellement le socle Factory.
-organizationCatalogs: [gad-digital@1.0.0]
+# Exemple d'organisation qui étend le socle Factory.
+organizationCatalogs: [example-organization@1.0.0]
 
 # Projet autonome : aucune convention d’organisation implicite.
 organizationCatalogs: []

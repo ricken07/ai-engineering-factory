@@ -1,8 +1,8 @@
 apiVersion: factory.gaddigital.io/v1alpha1
 kind: Factory
 metadata:
-  id: gad-ai-engineering-factory
-  name: Gad Digital AI Engineering Factory
+  id: ai-engineering-factory
+  name: AI Engineering Factory
   version: 1.13.0
 core:
   schemas: core/schemas

@@ -2,7 +2,14 @@
 
 ## Purpose
 
-The Factory exists to make AI-assisted software engineering repeatable, governable and portable across projects and coding agents.
+The Factory exists to make AI-assisted software engineering repeatable,
+governable and portable across projects, organizations and coding agents.
+
+Its intended progression is:
+
+```text
+Augmented developer → Augmented team → Augmented delivery → Augmented engineering organization
+```
 
 ## P01 — Agent agnostic
 

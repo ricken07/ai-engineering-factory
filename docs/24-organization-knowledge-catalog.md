@@ -17,6 +17,13 @@ Repository documentaire organisationnel
   → Claude Code ou Codex
 ```
 
+Les fichiers sous `organization/catalogs/` et `organization/practices/` sont
+des extensions optionnelles. Ils ne constituent pas une organisation implicite
+de la Factory. Pour créer un catalogue propre à une organisation, partir du
+modèle [`templates/organization/catalog.yaml`](../templates/organization/catalog.yaml)
+et du manifeste `Practice` présenté plus bas, puis le sélectionner
+explicitement dans le projet.
+
 Le Core reste agnostique : il définit seulement le contrat `Practice` et les
 catégories de contexte consommées par les Skills.
 
@@ -226,8 +233,8 @@ engineering:
 ```
 
 Dans ce cas, seules les pratiques locales explicites et les documents de
-contexte projet sont transmis aux Skills. Aucune règle Gad Digital ou d’une
-autre organisation n’est chargée implicitement.
+contexte projet sont transmis aux Skills. Aucun catalogue organisationnel
+n’est chargé implicitement.
 
 ## Ajouter une convention propre au projet
 

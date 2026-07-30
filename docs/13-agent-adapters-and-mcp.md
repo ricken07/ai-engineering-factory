@@ -96,8 +96,9 @@ integrations:
 
 This declaration is intentionally limited to logical bindings. The project
 must not add `url`, `transport`, `command`, `headers` or a credential value. For
-example, Gad Digital can centrally define GitLab once; `emi-ai` only binds
+example, an organization can centrally define GitLab once; a project only binds
 `source-control` and `continuous-integration` to the `gitlab` catalog entry.
+Organization-specific catalogs in this repository are examples, not defaults.
 
 When `taskTracking.mode` is `local`, the Runtime does not resolve
 `task-provider`; local Task/Execution artifacts satisfy the tracking policy.

@@ -1,0 +1,11 @@
+# Copy this file to organization/catalogs/<organization-id>.yaml and adapt it.
+# This template is intentionally provider-, stack- and organization-neutral.
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: OrganizationCatalog
+metadata:
+  id: example-organization
+  name: Example Organization Engineering Catalog
+  version: 1.0.0
+extends: [factory-default@1.0.0]
+practiceRefs: []
+profileBindings: {}

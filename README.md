@@ -3,16 +3,25 @@
 **Version:** 1.13.0
 **Status:** Stable
 
-AI Engineering Factory is an organization-level framework for industrializing AI-assisted software engineering with coding agents while keeping engineering rules, project context, traceability and approval gates under human control.
+AI Engineering Factory is an agent-agnostic framework for industrializing
+AI-assisted software engineering while keeping engineering rules, project
+context, traceability and approval gates under human control.
+
+Its intended progression is:
+
+```text
+Augmented developer → Augmented team → Augmented delivery → Augmented engineering organization
+```
 
 Version 1.11 resolves a minimal, task-aware and fingerprinted engineering context for every repository and Skill. See [Effective Engineering Context](docs/21-effective-engineering-context.md).
 
-Version 1.12 integrates the version-pinned Gad Digital guidelines catalog as
-governed organization Practices, with profile inheritance and explicit
-repository-role activation. See [Organization knowledge catalog](docs/24-organization-knowledge-catalog.md).
+Version 1.12 introduced version-pinned organization catalogs as governed
+Practices, with profile inheritance and explicit repository-role activation.
+The repository includes one organization-specific catalog as an example; it is
+not a Factory default.
 
 Version 1.13 makes organization knowledge project-selectable. Technical
-Profiles no longer impose one organization’s conventions; versioned
+Profiles no longer impose any organization’s conventions; versioned
 `OrganizationCatalog` contracts provide inheritance and Profile bindings.
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
@@ -27,6 +36,11 @@ ai-engineering-factory/
 ├── examples/      # reference examples
 └── docs/          # architecture and operating model
 ```
+
+Organization knowledge is optional and explicitly selected by each project.
+The shipped organization-specific catalog and examples illustrate the model;
+they are not normative defaults. Start a new catalog from
+`templates/organization/` and keep its practices versioned independently.
 
 ## Design statement
 
