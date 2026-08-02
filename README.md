@@ -73,23 +73,24 @@ Read in this order:
 1. `docs/01-principles.md`
 2. `docs/02-conceptual-model.md`
 3. `docs/03-architecture.md`
-4. `docs/04-runtime-model.md`
-5. `docs/05-policy-resolution.md`
-6. `docs/06-context-and-memory.md`
-7. `docs/07-extension-model.md`
-8. `docs/08-project-adoption.md`
-9. `docs/13-agent-adapters-and-mcp.md`
-10. `docs/14-universal-runtime.md`
-11. `docs/15-profile-runtime.md`
-12. `docs/16-organization-engineering-context.md`
-13. `docs/17-task-tracking-provider-runtime.md`
-14. `docs/22-project-installation-guide.md`
-15. `docs/23-first-steps.md`
-16. `docs/24-organization-knowledge-catalog.md`
-17. `docs/28-gitlab-issues-and-board.md`
-17. `docs/25-agent-permissions.md`
-18. `docs/26-task-execution-log.md`
-19. `docs/27-codex-usage.md`
+4. `docs/00-factory-reference-architecture.md`
+5. `docs/04-runtime-model.md`
+6. `docs/05-policy-resolution.md`
+7. `docs/06-context-and-memory.md`
+8. `docs/07-extension-model.md`
+9. `docs/08-project-adoption.md`
+10. `docs/13-agent-adapters-and-mcp.md`
+11. `docs/14-universal-runtime.md`
+12. `docs/15-profile-runtime.md`
+13. `docs/16-organization-engineering-context.md`
+14. `docs/17-task-tracking-provider-runtime.md`
+15. `docs/22-project-installation-guide.md`
+16. `docs/23-first-steps.md`
+17. `docs/24-organization-knowledge-catalog.md`
+18. `docs/25-agent-permissions.md`
+19. `docs/26-task-execution-log.md`
+20. `docs/27-codex-usage.md`
+21. `docs/28-gitlab-issues-and-board.md`
 
 ## Executable Runtime
 
