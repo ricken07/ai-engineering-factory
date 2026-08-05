@@ -55,6 +55,10 @@ Complete:
 
 Initialize `.ai/memory/` without speculative project facts. Keep `.ai/runtime/` ignored by Git and configure retention in `.ai/project.yaml`. Knowledge learned during work must pass through `promote-knowledge`; never copy task or session notes directly into durable project files.
 
+The durable part of `.ai/` is committed with the project. This includes `.ai/project.yaml`, the repository map, approved context, decisions, validated memory and the integration lock. `.ai/runtime/` and local credentials remain ignored.
+
+If a merge conflicts in durable `.ai/` content, resolve it explicitly with project owners, then run the project validation and integration checks before continuing. A Runtime conflict should not normally occur because `.ai/runtime/` is local and ignored.
+
 ## 7. Bootstrap agents
 
 `AGENTS.md` and `CLAUDE.md` must remain thin bootstraps. They point to the Factory and project context; they must not duplicate the full Factory rules.

@@ -23,6 +23,12 @@ silently accepting the last value.
 
 The Runtime never resets, cleans, stashes, overwrites, commits, or incorporates pre-existing developer changes. A dirty repository is blocked in `require-clean` mode and isolated in `worktree` mode.
 
+## Project metadata and merge conflicts
+
+`.ai/project.yaml` and the other durable `.ai/` files are shared project metadata. They are versioned and reviewed like source code. A conflict in them must be resolved before the workflow continues, especially when it changes repositories, base branches, providers, workspace safety or autonomy.
+
+`.ai/runtime/` is generated local state and must remain ignored, so it should not be merged. After resolving durable metadata, validate the project and inspect the configured workspace again; never repair a conflict by editing Runtime artifacts manually.
+
 ## Project configuration
 
 ```yaml

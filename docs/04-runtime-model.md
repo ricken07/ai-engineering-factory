@@ -61,6 +61,12 @@ The project pins a Factory version. Multiple projects may use different Factory 
 
 Generated task and execution state is stored under `.ai/runtime/tasks/` and `.ai/runtime/executions/`. It is gitignored by default and retained according to project configuration. Durable traceability belongs in task systems, commits, change requests, approved context, decision records and validated project memory.
 
+## What a project commits
+
+The project configuration, repository map, approved context, decisions, validated memory and integration lock belong in Git. In particular, `.ai/project.yaml` is part of the project contract and must be versioned.
+
+`.ai/runtime/` remains local and must stay ignored. It contains generated Tasks, Executions, leases and phase artifacts; it is not a replacement for durable project documentation or the external change record.
+
 Runtime state is agent-neutral. An adapter identity may be recorded for audit, but resuming an execution must not require the original agent or its conversation history.
 
 Knowledge learned during execution remains task-local until the `promote-knowledge` workflow proposes a `MemoryCandidate`, obtains explicit approval and records a content-bound `KnowledgePromotion`.

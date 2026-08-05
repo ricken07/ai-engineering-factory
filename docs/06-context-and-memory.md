@@ -56,6 +56,12 @@ Context documents describe accepted project, architecture, domain and convention
 
 Runtime is gitignored by default. A project may publish task summaries and evidence to its task or change provider. Retention is configured by the project and cleanup must never remove the only durable copy of required evidence.
 
+## Versioning and merge conflicts
+
+Version the durable project truth: `.ai/project.yaml`, the repository map, approved context, decisions, validated memory and the integration lock. Keep `.ai/runtime/` ignored because it is generated, local execution state.
+
+When durable `.ai/` files conflict during a merge, resolve them as project code with human review. Preserve both sides until the intended project truth is decided; do not silently choose the local or remote version. Revalidate the resulting configuration and record significant policy, repository or provider changes as a decision.
+
 ## Progressive loading
 
 Always load project configuration, repository map, active task, selected workflow and applicable policies. Then load only relevant context, decisions, memory entries, repository documents and profiles. Do not load all project memory defensively.

@@ -83,6 +83,44 @@ flowchart TB
 Le projet ne copie pas le Core. Il sélectionne une version de Factory et
 fournit uniquement son contexte et ses bindings.
 
+### Lecture du flux
+
+Cette architecture sépare les responsabilités :
+
+```text
+Processus commun        → Core
+Spécificités techniques → Profiles
+Configuration projet    → .ai/project.yaml
+Agent utilisé           → Adapter
+Système externe         → Provider/MCP
+État d'exécution        → .ai/runtime/
+```
+
+Le développeur formule une demande, par exemple `$implement Feature 2.1`.
+L'agent de code (Codex, Claude Code ou un autre agent) la transmet à son
+adapter. L'adapter traduit les capacités de l'agent vers le protocole commun,
+puis le Runtime orchestre la tâche : normalisation, phases, policies,
+validations, gates et traçabilité.
+
+Le Core contient les règles réutilisables : schémas, policies, workflows et
+skills. Les profiles ajoutent les règles propres à une technologie comme
+Java, Maven ou Flutter. Le projet fournit son contexte local avec
+`.ai/project.yaml`, `.ai/repository-map.yaml`, les décisions, la mémoire et
+les repositories sources. Le dossier `.ai/runtime/` conserve l'état généré de
+l'exécution et reste local.
+
+Les systèmes externes comme GitLab, GitHub, Jira ou Confluence sont appelés
+uniquement lorsqu'une capability le demande. Le Runtime utilise un contrat
+abstrait, par exemple `source-control → submit-change` ou
+`task-provider → search-task`, puis l'adapter invoque le MCP du provider réel :
+
+```text
+Runtime → Integration → MCP → GitLab/GitHub/Jira/Confluence
+```
+
+Le workflow reste ainsi identique quel que soit l'agent, la technologie ou le
+provider sélectionné par le projet.
+
 ## 4. Contenu du Core
 
 ```text
@@ -198,6 +236,17 @@ sequenceDiagram
 
 Le Runtime conserve l'état dans `.ai/runtime/`. Une nouvelle session ou un
 autre agent relit cet état et ne dépend pas de l'historique conversationnel.
+
+Le projet versionne sa vérité durable, notamment `.ai/project.yaml`, la carte
+des repositories, le contexte approuvé, les décisions, la mémoire validée et
+le verrou d'intégration. `.ai/runtime/` reste ignoré car il contient un état
+d'exécution local et généré.
+
+Lorsqu'un merge produit un conflit dans les fichiers durables `.ai/`, la
+résolution est revue comme une modification de code : conserver les deux
+versions jusqu'à la décision, vérifier les repositories, providers, branches
+et politiques résultants, puis relancer la validation du projet. Un conflit
+dans `.ai/runtime/` ne doit normalement pas se produire puisqu'il est ignoré.
 
 ## 7. Runtime déterministe et raisonnement agentique
 
