@@ -20,6 +20,7 @@ from .policy import evaluate_runtime_policy
 from .validation import assert_schema
 from .task_log import TaskEventLog
 from .yamlio import load_yaml
+from .evidence import git_sha, submission_evidence_gaps
 from datetime import datetime, timezone
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
@@ -119,6 +120,10 @@ class RuntimeService:
         if completed_skill in {"analyze-impact","create-plan"} and output.get("status") == "completed":
             phase_observations = observations or output.get("details", {}).get("impact", output.get("details", {}))
             self.reassess_policy(execution,phase_observations,completed_skill)
+        if completed_skill == "submit-change" and output.get("status") == "completed":
+            gaps = submission_evidence_gaps(execution.root)
+            if gaps:
+                raise ValueError("submission evidence is incomplete: " + "; ".join(gaps))
         execution.advance(output)
         TaskEventLog(self.project_root, execution.data["task"]).append(
             "phase.completed", execution=execution_id,
@@ -413,18 +418,25 @@ class RuntimeService:
         plan = self.profile_validation_plan(execution_id)
         contexts = {identifier:self.engineering_context(execution_id, identifier) for identifier in dict.fromkeys(item["repository"] for item in plan)}
         results: list[dict[str, Any]] = []
+        snapshots: dict[str, str] = {}
         for item in plan:
             command = {key:value for key,value in item.items() if key not in {"repository","cwd"}}
             kwargs = {"runner":runner} if runner is not None else {}
             result = execute_plan([command], Path(item["cwd"]), execute=True, **kwargs)[0]
             results.append({"repository":item["repository"],"cwd":item["cwd"],**result})
+            try:
+                snapshots[item["repository"]] = git_sha(Path(item["cwd"]))
+            except RuntimeError:
+                # Unit-test and generated project fixtures may not be Git roots;
+                # real workspace validation remains commit-bound by workspace safety.
+                snapshots[item["repository"]] = "unavailable"
         failures = [result for result in results if result["exitCode"] != 0]
         report = {
             "summary": f"Executed {len(results)} profile validation command(s) across {len(set(item['repository'] for item in results))} repository(ies).",
             "status": "failed" if failures else "completed",
             "evidence": [f"{item['repository']}:{item['profile']}:{item['operation']}:exit-{item['exitCode']}" for item in results],
             "unknowns": [],
-            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results},
+            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results,"validationPlan":plan,"commits":snapshots,"evidenceMatrix":[]},
         }
         if failures:
             execution.fail_phase(report)
@@ -438,6 +450,31 @@ class RuntimeService:
             data={"evidence":report["evidence"]},
         )
         return report
+
+    def replay_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        validation_path = execution.root / "validation.yaml"
+        if not validation_path.is_file():
+            raise FileNotFoundError("validation.yaml is required before replay")
+        original = load_yaml(validation_path)
+        plan = original.get("details", {}).get("validationPlan", [])
+        commits = original.get("details", {}).get("commits", {})
+        if not plan:
+            raise ValueError("validation plan is missing from validation.yaml")
+        results: list[dict[str, Any]] = []
+        for item in plan:
+            cwd = Path(item["cwd"])
+            expected = commits.get(item["repository"])
+            actual = git_sha(cwd) if expected != "unavailable" else expected
+            if expected and expected != "unavailable" and actual != expected:
+                raise RuntimeError(f"repository {item['repository']} changed since validation: expected {expected}, got {actual}")
+            command = {key:value for key,value in item.items() if key not in {"repository","cwd"}}
+            kwargs = {"runner":runner} if runner is not None else {}
+            result = execute_plan([command], cwd, execute=True, **kwargs)[0]
+            results.append({"repository":item["repository"],"cwd":str(cwd),**result})
+        replay = {"summary":f"Replayed {len(results)} validation command(s) on the recorded commits.","status":"completed" if all(item["exitCode"] == 0 for item in results) else "failed","evidence":[f"{item['repository']}:{item['operation']}:exit-{item['exitCode']}" for item in results],"unknowns":[],"details":{"skill":"replay-validation","sourceValidation":"validation.yaml","results":results,"commits":commits}}
+        (execution.root / "validation-replay.yaml").write_text(yaml.safe_dump(replay,sort_keys=False,allow_unicode=True),encoding="utf-8")
+        return replay
 
     def task_events(self, task_id: str) -> list[dict[str, Any]]:
         TaskRegistry(self.project_root).load(task_id)

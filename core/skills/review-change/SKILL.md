@@ -13,6 +13,11 @@ Review the actual diff against task intent, plan, standards, risk, and validatio
 
 Check correctness, scope, architecture, security, regressions, tests, and unresolved issues; rank findings by severity and cite evidence.
 
+The review must be independent of the implementation conclusion. Record
+`details.independent: true`, `details.decision: approved` only when the diff,
+acceptance criteria and validation evidence were checked, and keep unresolved
+blocking findings in `details.blockingFindings`.
+
 ## Guardrails
 
 - Read `skill.yaml` and obey its mode, rules, standards, policies, and capability requirements.

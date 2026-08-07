@@ -121,6 +121,15 @@ Runtime → Integration → MCP → GitLab/GitHub/Jira/Confluence
 Le workflow reste ainsi identique quel que soit l'agent, la technologie ou le
 provider sélectionné par le projet.
 
+La soumission est également contrôlée par une chaîne de preuves : critères
+d'acceptation, validations persistées, matrice de couverture et review
+indépendante. Une soumission incomplète est refusée par le Runtime. Les
+validations peuvent être rejouées depuis le plan enregistré afin de vérifier
+qu'elles correspondent toujours au même commit.
+
+La procédure détaillée est décrite dans [29 — Chaîne de preuves et replay des
+validations](29-evidence-chain-and-replay.md).
+
 ## 4. Contenu du Core
 
 ```text

@@ -13,6 +13,11 @@ Run relevant profile and project validations and preserve complete evidence.
 
 Build a validation plan from impacted scope; execute authorized checks; record commands, results, failures, omissions, and whether failures are new or pre-existing.
 
+For a mutating workflow, include `details.validationPlan`, `details.commits`,
+`details.results` and an `details.evidenceMatrix`. Each acceptance criterion
+must have a matrix item with `status: verified` and at least one evidence id.
+The persisted plan is replayed by the Runtime before submission when required.
+
 ## Guardrails
 
 - Read `skill.yaml` and obey its mode, rules, standards, policies, and capability requirements.

@@ -91,6 +91,7 @@ Read in this order:
 19. `docs/26-task-execution-log.md`
 20. `docs/27-codex-usage.md`
 21. `docs/28-gitlab-issues-and-board.md`
+22. `docs/29-evidence-chain-and-replay.md`
 
 ## Executable Runtime
 

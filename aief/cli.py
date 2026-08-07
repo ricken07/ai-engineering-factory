@@ -49,6 +49,7 @@ def parser() -> argparse.ArgumentParser:
     approve_policy=execution_sub.add_parser("approve-policy"); approve_policy.add_argument("id"); approve_policy.add_argument("gate"); approve_policy.add_argument("--owner"); approve_policy.add_argument("--project",default="."); approve_policy.add_argument("--factory",default="."); approve_policy.add_argument("--json",action="store_true")
     lease=execution_sub.add_parser("lease"); lease.add_argument("action",choices=["acquire","renew","release","status"]); lease.add_argument("id"); lease.add_argument("--owner"); lease.add_argument("--ttl",type=int,default=300); lease.add_argument("--project",default="."); lease.add_argument("--factory",default="."); lease.add_argument("--json",action="store_true")
     profile_validation=execution_sub.add_parser("profile-validation"); profile_validation.add_argument("id"); profile_validation.add_argument("--project",default="."); profile_validation.add_argument("--factory",default="."); profile_validation.add_argument("--execute",action="store_true"); profile_validation.add_argument("--json",action="store_true")
+    replay_validation=execution_sub.add_parser("replay-validation"); replay_validation.add_argument("id"); replay_validation.add_argument("--project",default="."); replay_validation.add_argument("--factory",default="."); replay_validation.add_argument("--json",action="store_true")
     engineering_context=execution_sub.add_parser("engineering-context"); engineering_context.add_argument("id"); engineering_context.add_argument("--repository",required=True); engineering_context.add_argument("--project",default="."); engineering_context.add_argument("--factory",default="."); engineering_context.add_argument("--json",action="store_true")
     engineering=sub.add_parser("engineering-context"); engineering.add_argument("repository"); engineering.add_argument("skill"); engineering.add_argument("--task"); engineering.add_argument("--project",default="."); engineering.add_argument("--factory",default="."); engineering.add_argument("--json",action="store_true")
     workspace=sub.add_parser("workspace"); workspace_sub=workspace.add_subparsers(dest="workspace_command",required=True)
@@ -107,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="profile-validation":
             data=service.run_profile_validation(args.id) if args.execute else {"mode":"plan","commands":service.profile_validation_plan(args.id)}
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+        if args.execution_command=="replay-validation":
+            data=service.replay_validation(args.id)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="complete-phase":
             output=load_yaml(Path(args.output))

@@ -13,6 +13,12 @@ Plan or perform an authorized provider-neutral change submission.
 
 Recheck gates and capability immediately before side effects; create one change request per repository when required; link related requests and report exact external results.
 
+The Runtime refuses a completed submission unless `planning.yaml`,
+`validation.yaml` and `review.yaml` form a complete evidence chain: every
+acceptance criterion is verified, every required validation passed, and an
+independent review is approved. Validation commands can be replayed from the
+persisted plan with `aief execution replay-validation <execution-id>`.
+
 ## Guardrails
 
 - Read `skill.yaml` and obey its mode, rules, standards, policies, and capability requirements.
