@@ -32,6 +32,8 @@ KIND_SCHEMAS = {
     "WorkspaceSnapshot": "workspace-snapshot.schema.json",
     "ExecutionLease": "execution-lease.schema.json",
     "RuntimeOperation": "runtime-operation.schema.json",
+    "BacklogImportConfig": "backlog-import-config.schema.json",
+    "BacklogImportPlan": "backlog-import-plan.schema.json",
 }
 
 

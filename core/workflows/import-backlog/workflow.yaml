@@ -1,0 +1,21 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Workflow
+metadata:
+  id: import-backlog
+  name: Import Backlog
+  version: 0.1.0
+inputs:
+- backlog-import-plan
+phases:
+- id: draft-candidates
+  skill: draft-backlog-candidates
+- id: assess-duplicates
+  skill: assess-backlog-duplicates
+outputs:
+- backlog-candidates
+- backlog-duplicate-assessment
+policyRefs:
+- recovery-policy
+- external-action-policy
+- context-policy
+- traceability-policy

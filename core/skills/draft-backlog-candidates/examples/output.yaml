@@ -1,0 +1,32 @@
+summary: Drafted 2 backlog candidates (1 epic, 1 task) from 1 source file.
+status: completed
+evidence:
+  - "specifications/payment-callbacks.md: epic and task extracted from the acceptance-criteria section"
+unknowns: []
+candidates:
+  - apiVersion: factory.gaddigital.io/v1alpha1
+    kind: ExternalTaskProposal
+    metadata: {id: cand-payment-callbacks-epic}
+    sourceImport: import-specifications-1a2b3c4d
+    type: epic
+    title: Reconcile payment callback statuses
+    description: Group the work needed to make callback status mapping consistent across providers.
+    acceptanceCriteria:
+      - All callback statuses map to a documented internal status
+    repositories: []
+    risk: medium
+    labels: [payments]
+  - apiVersion: factory.gaddigital.io/v1alpha1
+    kind: ExternalTaskProposal
+    metadata: {id: cand-payment-callbacks-task-1}
+    sourceImport: import-specifications-1a2b3c4d
+    type: task
+    parent: cand-payment-callbacks-epic
+    title: Map FAILED callback status to internal FAILED
+    description: Failed provider callbacks are currently left PENDING instead of FAILED.
+    acceptanceCriteria:
+      - A FAILED callback results in an internal FAILED status
+    repositories: []
+    risk: medium
+    labels: [payments]
+openQuestions: []

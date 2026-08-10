@@ -1,6 +1,6 @@
 # AI Engineering Factory
 
-**Version:** 1.13.0
+**Version:** 1.14.0
 **Status:** Stable
 
 AI Engineering Factory is an agent-agnostic framework for industrializing
@@ -23,6 +23,11 @@ not a Factory default.
 Version 1.13 makes organization knowledge project-selectable. Technical
 Profiles no longer impose any organization’s conventions; versioned
 `OrganizationCatalog` contracts provide inheritance and Profile bindings.
+
+Version 1.14 adds a Backlog Import Runtime: a documentation corpus can be
+turned into many external tickets through a previewable, organization-rules-driven,
+autonomy-gated `aief backlog import|preview|apply`, reusing the Task Tracking
+Runtime's `ExternalTaskProposal`/`ExternalOperation` contracts.
 
 The Factory is intentionally split into an **agnostic Core** and optional extensions:
 
@@ -92,6 +97,7 @@ Read in this order:
 20. `docs/27-codex-usage.md`
 21. `docs/28-gitlab-issues-and-board.md`
 22. `docs/29-evidence-chain-and-replay.md`
+23. `docs/30-backlog-import-runtime.md`
 
 ## Executable Runtime
 

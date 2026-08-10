@@ -1,0 +1,23 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/backlog-import-plan.schema.json",
+  "type":"object", "required":["apiVersion","kind","metadata","source","provider","config","status","candidates"],
+  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"BacklogImportPlan"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "source":{"type":"string","minLength":1},
+    "provider":{"type":"string","minLength":1},
+    "config":{"$ref":"backlog-import-config.schema.json"},
+    "status":{"enum":["discovering","drafted","duplicate-assessed","applying","applied","failed"]},
+    "openQuestions":{"$ref":"common.schema.json#/$defs/stringArray"},
+    "sourceFiles":{"$ref":"common.schema.json#/$defs/stringArray"},
+    "candidates":{"type":"array","items":{"type":"object","required":["candidateId","proposal","decision"],
+      "properties":{
+        "candidateId":{"type":"string","minLength":1},
+        "proposal":{"$ref":"external-task-proposal.schema.json"},
+        "duplicateMatches":{"type":"array","items":{"type":"object","required":["reference","title","confidence","recommendation"],"properties":{"reference":{"type":"string"},"title":{"type":"string"},"confidence":{"enum":["high","medium","low"]},"rationale":{"$ref":"common.schema.json#/$defs/stringArray"},"recommendation":{"enum":["link-existing","review","ignore"]}},"additionalProperties":false}},
+        "decision":{"enum":["create","link-existing","skip"]},
+        "operationId":{"type":"string"},
+        "externalReference":{"type":"string"}
+      },
+      "additionalProperties":false}}
+  },
+  "additionalProperties":false
+}

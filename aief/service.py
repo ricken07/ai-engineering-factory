@@ -12,6 +12,7 @@ from .intake import INTENT_WORKFLOWS, TaskRegistry, create_request, normalize_ta
 from .project import find_project, load_project
 from .runtime import Execution
 from .tracking import TaskTrackingManager, evaluate_tracking
+from .backlog import BacklogImportManager
 from .capabilities import execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 from .workspace import WorkspaceManager
@@ -42,6 +43,7 @@ class RuntimeService:
         if installed != requested:
             raise RuntimeError(f"project requires Factory {requested}, but {installed} was provided")
         self.tracking = TaskTrackingManager(self.project_root,self.factory,self.project,environment)
+        self.backlog = BacklogImportManager(self.project_root,self.factory,self.project,environment)
 
     def intake(self, text: str, agent: str | None = None, intent: str | None = None,
                expected_workflow: str | None = None) -> dict[str, Any]:
@@ -497,3 +499,6 @@ class RuntimeService:
         operation=self.tracking.execute(task_id,operation_id,executor)
         if operation["status"] == "completed" and operation["operation"] in {"create-task","link-task"}: self.resume_tracking_executions(task_id)
         return operation
+
+    def execute_backlog_operation(self, import_id: str, operation_id: str, executor: Callable[[dict[str, Any]],dict[str, Any]]) -> dict[str, Any]:
+        return self.backlog.execute(import_id,operation_id,executor)

@@ -40,6 +40,15 @@ def parser() -> argparse.ArgumentParser:
     link=task_sub.add_parser("link"); link.add_argument("id"); link.add_argument("reference"); link.add_argument("--approve",action="store_true"); link.add_argument("--project",default="."); link.add_argument("--factory",default="."); link.add_argument("--json",action="store_true")
     approval=task_sub.add_parser("operation-approval"); approval.add_argument("id"); approval.add_argument("operation"); approval.add_argument("decision",choices=["approve","reject"]); approval.add_argument("--project",default="."); approval.add_argument("--factory",default="."); approval.add_argument("--json",action="store_true")
     complete_operation=task_sub.add_parser("complete-operation"); complete_operation.add_argument("id"); complete_operation.add_argument("operation"); complete_operation.add_argument("--result",required=True); complete_operation.add_argument("--project",default="."); complete_operation.add_argument("--factory",default="."); complete_operation.add_argument("--json",action="store_true")
+    backlog=sub.add_parser("backlog"); backlog_sub=backlog.add_subparsers(dest="backlog_command",required=True)
+    backlog_import=backlog_sub.add_parser("import"); backlog_import.add_argument("--source",required=True); backlog_import.add_argument("--provider",required=True); backlog_import.add_argument("--config"); backlog_import.add_argument("--project",default="."); backlog_import.add_argument("--factory",default="."); backlog_import.add_argument("--json",action="store_true")
+    backlog_inspect=backlog_sub.add_parser("inspect"); backlog_inspect.add_argument("id"); backlog_inspect.add_argument("--project",default="."); backlog_inspect.add_argument("--factory",default="."); backlog_inspect.add_argument("--json",action="store_true")
+    backlog_draft=backlog_sub.add_parser("complete-draft"); backlog_draft.add_argument("id"); backlog_draft.add_argument("--result",required=True); backlog_draft.add_argument("--project",default="."); backlog_draft.add_argument("--factory",default="."); backlog_draft.add_argument("--json",action="store_true")
+    backlog_dup=backlog_sub.add_parser("complete-duplicate-search"); backlog_dup.add_argument("id"); backlog_dup.add_argument("--result",required=True); backlog_dup.add_argument("--project",default="."); backlog_dup.add_argument("--factory",default="."); backlog_dup.add_argument("--json",action="store_true")
+    backlog_preview=backlog_sub.add_parser("preview"); backlog_preview.add_argument("id"); backlog_preview.add_argument("--project",default="."); backlog_preview.add_argument("--factory",default="."); backlog_preview.add_argument("--json",action="store_true")
+    backlog_apply=backlog_sub.add_parser("apply"); backlog_apply.add_argument("id"); backlog_apply.add_argument("--approve",action="store_true"); backlog_apply.add_argument("--project",default="."); backlog_apply.add_argument("--factory",default="."); backlog_apply.add_argument("--json",action="store_true")
+    backlog_approval=backlog_sub.add_parser("operation-approval"); backlog_approval.add_argument("id"); backlog_approval.add_argument("operation"); backlog_approval.add_argument("decision",choices=["approve","reject"]); backlog_approval.add_argument("--project",default="."); backlog_approval.add_argument("--factory",default="."); backlog_approval.add_argument("--json",action="store_true")
+    backlog_complete_op=backlog_sub.add_parser("complete-operation"); backlog_complete_op.add_argument("id"); backlog_complete_op.add_argument("operation"); backlog_complete_op.add_argument("--result",required=True); backlog_complete_op.add_argument("--project",default="."); backlog_complete_op.add_argument("--factory",default="."); backlog_complete_op.add_argument("--json",action="store_true")
     execution=sub.add_parser("execution"); execution_sub=execution.add_subparsers(dest="execution_command",required=True)
     for name in ("inspect","next","handoff"):
         command=execution_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
@@ -100,6 +109,26 @@ def main(argv: list[str] | None = None) -> int:
         elif args.task_command=="complete-operation":
             result=load_yaml(Path(args.result)); data=service.execute_tracking_operation(args.id,args.operation,lambda operation:result)
         else: data=TaskRegistry(project_root).load(args.id)
+        print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+    if args.command == "backlog":
+        project_root=find_project(Path(args.project))
+        service=RuntimeService(project_root,Path(getattr(args,"factory",".")))
+        if args.backlog_command=="import": data=service.backlog.start(args.source,args.provider,args.config)
+        elif args.backlog_command=="inspect": data=service.backlog._read(args.id,"plan.yaml")
+        elif args.backlog_command=="complete-draft":
+            result=load_yaml(Path(args.result))
+            candidates=result.get("candidates",[]) if isinstance(result,dict) else result
+            open_questions=result.get("openQuestions",[]) if isinstance(result,dict) else []
+            data=service.backlog.complete_draft(args.id,candidates,open_questions)
+        elif args.backlog_command=="complete-duplicate-search":
+            result=load_yaml(Path(args.result)); matches=result.get("matches",result) if isinstance(result,dict) else result
+            data=service.backlog.complete_duplicate_search(args.id,matches)
+        elif args.backlog_command=="preview": data=service.backlog.preview(args.id)
+        elif args.backlog_command=="apply": data=service.backlog.apply(args.id,args.approve)
+        elif args.backlog_command=="operation-approval": data=service.backlog.approve(args.id,args.operation,args.decision=="approve")
+        elif args.backlog_command=="complete-operation":
+            result=load_yaml(Path(args.result)); data=service.execute_backlog_operation(args.id,args.operation,lambda operation:result)
+        else: raise ValueError(f"unknown backlog command: {args.backlog_command}")
         print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "execution":
         service=RuntimeService(Path(args.project),Path(args.factory)); execution=service.execution(args.id)

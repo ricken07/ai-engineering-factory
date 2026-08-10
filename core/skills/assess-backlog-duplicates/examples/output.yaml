@@ -1,0 +1,13 @@
+summary: Assessed 2 candidates; 1 plausible duplicate found.
+status: completed
+evidence:
+  - "task-provider search for 'Reconcile payment callback statuses' returned 1 plausible match"
+unknowns: []
+matches:
+  cand-payment-callbacks-epic:
+    - reference: EMM-441
+      title: Incorrect MTN callback status mapping
+      confidence: high
+      rationale: [same component, same behavior]
+      recommendation: link-existing
+  cand-payment-callbacks-task-1: []

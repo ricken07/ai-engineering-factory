@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/skills/assess-backlog-duplicates/output.schema.json",
+  "type": "object",
+  "required": ["summary", "status", "evidence", "unknowns", "matches"],
+  "properties": {
+    "summary": {"type": "string", "minLength": 1},
+    "status": {"enum": ["completed", "blocked", "failed"]},
+    "evidence": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "unknowns": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "matches": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["reference", "title", "confidence", "recommendation"],
+          "properties": {
+            "reference": {"type": "string"},
+            "title": {"type": "string"},
+            "confidence": {"enum": ["high", "medium", "low"]},
+            "rationale": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+            "recommendation": {"enum": ["link-existing", "review", "ignore"]}
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

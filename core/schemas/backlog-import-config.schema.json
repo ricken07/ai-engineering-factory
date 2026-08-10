@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/backlog-import-config.schema.json",
+  "type":"object", "required":["apiVersion","kind","metadata"],
+  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"BacklogImportConfig"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "granularity":{"enum":["epic","feature","task","bug"],"default":"task"},
+    "hierarchyLevels":{"$ref":"common.schema.json#/$defs/stringArray","default":["epic","feature","task","bug"]},
+    "groupBy":{"enum":["folder","domain","feature","none"],"default":"none"},
+    "labelingRules":{"type":"object","properties":{"defaultLabels":{"$ref":"common.schema.json#/$defs/stringArray"},"byType":{"type":"object","additionalProperties":{"$ref":"common.schema.json#/$defs/stringArray"}}},"additionalProperties":false},
+    "duplicatePolicy":{"enum":["always-review","auto-link-high-confidence"],"default":"always-review"},
+    "dependencyInference":{"enum":["none","explicit-only"],"default":"explicit-only"},
+    "allowedSourceExtensions":{"$ref":"common.schema.json#/$defs/stringArray","default":[".md",".yaml",".yml",".feature"]},
+    "target":{"type":"object","required":["container"],"properties":{"namespace":{"type":"string"},"container":{"type":"string","minLength":1}},"additionalProperties":false}
+  },
+  "additionalProperties":false
+}

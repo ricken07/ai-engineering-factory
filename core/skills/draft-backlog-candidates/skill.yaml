@@ -1,0 +1,26 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: draft-backlog-candidates
+  name: Draft Backlog Candidates
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - backlog-import-plan
+  outputs:
+  - backlog-candidates
+  - open-questions
+  requiresCapabilities: []
+standardRefs:
+- recovery
+- task-understanding
+policyRefs:
+- recovery-policy
+- context-policy
+- traceability-policy
+rules:
+- Read only the source files the import plan lists; do not infer content that is not written down.
+- Apply the supplied organization-rules configuration for granularity, hierarchy and labels; do not invent rules it does not define.
+- Give every candidate a stable, unique id and reference it verbatim from any parent or dependsOn field.
+- Ask one precise open question instead of guessing when granularity, hierarchy or grouping is ambiguous.

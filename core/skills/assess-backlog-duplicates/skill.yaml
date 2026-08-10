@@ -1,0 +1,25 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Skill
+metadata:
+  id: assess-backlog-duplicates
+  name: Assess Backlog Duplicates
+  version: 0.1.0
+mode: read-only
+contract:
+  inputs:
+  - backlog-candidates
+  outputs:
+  - backlog-duplicate-assessment
+  requiresCapabilities:
+  - task-provider
+standardRefs:
+- recovery
+- review
+policyRefs:
+- recovery-policy
+- external-action-policy
+- traceability-policy
+rules:
+- Search the configured task-provider with the Runtime-prepared query for every candidate; do not skip a candidate.
+- Separate evidence-backed matches from speculative ones; state the rationale for every recommendation.
+- Never recommend link-existing without a concrete matched reference.

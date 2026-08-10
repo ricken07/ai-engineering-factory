@@ -188,6 +188,10 @@ Every retry carries this key to the provider adapter. A completed operation retu
 
 This release links identity and canonical reference. Existing abstract operations support later updates for important blocks, change-request links, summaries and completion. It intentionally does not implement full bidirectional issue replication.
 
+## Backlog import
+
+Turning a documentation corpus into external tickets — many `ExternalTaskProposal` candidates at once, with organization-rules-driven hierarchy, duplicate search per candidate and a previewable, autonomy-gated `apply` — is a separate deterministic runtime built on the same `ExternalTaskProposal`/`ExternalOperation` contracts described above. See `docs/30-backlog-import-runtime.md`.
+
 ## Main task commands
 
 ```bash

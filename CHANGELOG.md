@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.14.0 — Backlog Import Runtime
+
+- Extended `ExternalTaskProposal` into a neutral backlog candidate model: `type`, `parent`, `dependsOn`, `sourceImport`, with `sourceTask` now optional.
+- Added `BacklogImportConfig` and `BacklogImportPlan` contracts for organization-rules-driven, previewable backlog import.
+- Added the `import-backlog` Core Workflow and its `draft-backlog-candidates`/`assess-backlog-duplicates` Skills.
+- Added `BacklogImportManager`, mirroring Task Tracking's idempotent `ExternalOperation` lifecycle scoped per import candidate instead of per Task.
+- Topologically ordered `apply` so parent candidates are created before children, deferring a child whose parent has not yet resolved to a reference.
+- Applied the existing `< L3 autonomy → approval required` gate to every prepared create/link operation; no bulk approval that skips duplicate search or the gate.
+- Added deterministic CLI primitives: `aief backlog import|complete-draft|complete-duplicate-search|preview|apply|operation-approval|complete-operation|inspect`.
+- Added `docs/30-backlog-import-runtime.md` describing the shipped runtime.
+
 ## 1.11.0 — Effective Engineering Context Resolver
 
 - Completed the inheritance chain `Organization → Profiles → Project → Repository → Task`.
