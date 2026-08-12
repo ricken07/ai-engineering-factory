@@ -30,6 +30,7 @@ def parser() -> argparse.ArgumentParser:
     run=sub.add_parser("run"); run.add_argument("request"); run.add_argument("--project",default="."); run.add_argument("--factory",default="."); run.add_argument("--agent",choices=["codex","claude-code"]); run.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); run.add_argument("--expect-workflow")
     task=sub.add_parser("task"); task_sub=task.add_subparsers(dest="task_command",required=True); task_inspect=task_sub.add_parser("inspect"); task_inspect.add_argument("id"); task_inspect.add_argument("--project",default="."); task_inspect.add_argument("--factory",default="."); task_inspect.add_argument("--json",action="store_true")
     task_log=task_sub.add_parser("log"); task_log.add_argument("id"); task_log.add_argument("--project",default="."); task_log.add_argument("--factory",default="."); task_log.add_argument("--json",action="store_true")
+    task_list=task_sub.add_parser("list"); task_list.add_argument("--ready",action="store_true"); task_list.add_argument("--project",default="."); task_list.add_argument("--factory",default="."); task_list.add_argument("--json",action="store_true")
     task_assess=task_sub.add_parser("assess-tracking"); task_assess.add_argument("id"); task_assess.add_argument("--impact",required=True); task_assess.add_argument("--project",default="."); task_assess.add_argument("--factory",default="."); task_assess.add_argument("--json",action="store_true")
     for name in ("tracking","resolve-provider","search-external"):
         command=task_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
@@ -91,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         project_root=find_project(Path(args.project))
         service=RuntimeService(project_root,Path(getattr(args,"factory",".")))
         if args.task_command=="log": data=service.task_events(args.id)
+        elif args.task_command=="list": data=service.task_backlog(args.ready)
         elif args.task_command=="assess-tracking":
             impact=load_yaml(Path(args.impact))
             if not isinstance(impact,dict): raise ValueError("impact must be an object")

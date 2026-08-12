@@ -86,6 +86,16 @@ Create only the normalized task:
 aief intake "Corrige le bug EGW-327" --project . --factory /opt/factory/1.7.0 --json
 ```
 
+List the registered tasks in dependency order, or only the ones nothing prevents starting:
+
+```bash
+aief task list --project . --factory /opt/factory/1.7.0
+aief task list --ready --project . --factory /opt/factory/1.7.0
+```
+
+Order is derived from `dependsOn`, never declared in a side file. See
+`docs/31-task-ordering-and-readiness.md`.
+
 Create an execution from a command shortcut:
 
 ```bash

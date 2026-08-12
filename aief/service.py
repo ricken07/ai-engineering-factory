@@ -20,6 +20,7 @@ from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy
 from .validation import assert_schema
 from .task_log import TaskEventLog
+from .readiness import build_backlog
 from .yamlio import load_yaml
 from .evidence import git_sha, submission_evidence_gaps
 from datetime import datetime, timezone
@@ -481,6 +482,13 @@ class RuntimeService:
     def task_events(self, task_id: str) -> list[dict[str, Any]]:
         TaskRegistry(self.project_root).load(task_id)
         return TaskEventLog(self.project_root, task_id).read()
+
+    def task_backlog(self, ready_only: bool = False) -> dict[str, Any]:
+        """Dependency-ordered readiness view derived from Task and Execution state."""
+        project_id = self.project.get("metadata", {}).get("id", "local-project")
+        backlog = build_backlog(self.project_root, project_id, ready_only)
+        assert_schema(self.factory, "task-backlog.schema.json", backlog)
+        return backlog
 
     def reassess_tracking(self, task_id: str, impact: dict[str, Any]) -> dict[str, Any]:
         tracking=self.tracking.assess(task_id,impact)
