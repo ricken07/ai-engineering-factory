@@ -6,7 +6,7 @@ Après installation, poursuivre avec
 [`23-first-steps.md`](23-first-steps.md) pour le parcours quotidien depuis Claude
 Code ou Codex.
 
-Les exemples utilisent la version `1.14.0`. Remplacez les valeurs entre `<...>` avant exécution.
+Les exemples utilisent la version `1.15.0`. Remplacez les valeurs entre `<...>` avant exécution.
 
 ## 0.1 Rendre la Factory visible au processus agent
 
@@ -14,7 +14,7 @@ Le projet référence le nom d’une variable, pas un chemin propre à une machi
 
 ```yaml
 factory:
-  version: 1.14.0
+  version: 1.15.0
   homeEnv: GAD_AI_FACTORY_HOME
 ```
 
@@ -27,7 +27,7 @@ export GAD_AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
 Exemple local :
 
 ```bash
-export GAD_AI_FACTORY_HOME="/Users/example/.gad/ai-engineering-factory/1.14.0"
+export GAD_AI_FACTORY_HOME="/Users/example/.gad/ai-engineering-factory/1.15.0"
 ```
 
 ### `.zshrc` ne suffit pas dans tous les modes de lancement
@@ -102,7 +102,7 @@ workspace projet.
 
 ```text
 Poste développeur
-├── ~/.gad/ai-engineering-factory/1.14.0/  # Factory centrale, en lecture seule
+├── ~/.gad/ai-engineering-factory/1.15.0/  # Factory centrale, en lecture seule
 ├── ~/.agents/skills/                      # Entrées Codex vers la Factory
 └── ~/.claude/skills/                      # Entrées Claude Code vers la Factory
 
@@ -224,7 +224,7 @@ Définir les paramètres de l’installation :
 export AIEF_REPOSITORY_URL="<FACTORY_GIT_URL>"
 
 # Version immuable demandée par les projets.
-export AIEF_VERSION="1.14.0"
+export AIEF_VERSION="1.15.0"
 
 # Racine organisationnelle locale. Ce dossier n’appartient à aucun projet métier.
 export AIEF_INSTALL_ROOT="$HOME/.gad/ai-engineering-factory"
@@ -388,7 +388,7 @@ metadata:
   name: My Project                       # Nom destiné aux humains.
 
 factory:
-  version: 1.14.0                        # Version centrale exigée par le projet.
+  version: 1.15.0                        # Version centrale exigée par le projet.
   homeEnv: GAD_AI_FACTORY_HOME           # Variable qui localise son installation.
 
 workspace:

@@ -127,6 +127,12 @@ class TaskRegistry:
         path.write_text(yaml.safe_dump(task, sort_keys=False, allow_unicode=True), encoding="utf-8")
         return path
 
+    def list(self) -> list[dict[str, Any]]:
+        """Every registered Task, ordered by directory name for determinism."""
+        if not self.root.is_dir():
+            return []
+        return [load_yaml(path) for path in sorted(self.root.glob("*/task.yaml"))]
+
     def load(self, task_id: str) -> dict[str, Any]:
         from .knowledge import safe_task_id
 

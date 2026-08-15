@@ -51,6 +51,7 @@
 - `core/schemas/skill.schema.json`
 - `core/schemas/standard.schema.json`
 - `core/schemas/task.schema.json`
+- `core/schemas/task-backlog.schema.json`
 - `core/schemas/task-tracking-decision.schema.json`
 - `core/schemas/integration-resolution.schema.json`
 - `core/schemas/external-task-search.schema.json`
@@ -238,3 +239,6 @@
 - `tests/test_workspace.py`
 - `tests/test_concurrency.py`
 - `tests/test_dynamic_policy.py`
+- `aief/readiness.py`
+- `docs/31-task-ordering-and-readiness.md`
+- `tests/test_readiness.py`

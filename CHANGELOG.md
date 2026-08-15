@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.15.0 — Task Ordering & Derived Readiness
+
+- Added `parent` and `dependsOn` to `Task`, so a declared dependency survives in the Runtime state model instead of only in the external tracker.
+- Kept the two relations distinct: `parent` is hierarchy and never blocks, `dependsOn` is precedence and both orders and blocks.
+- Derived every Task state from its most recent Execution rather than storing a second, driftable status.
+- Derived readiness (`ready`, `blocked`, `active`, `done`) from state and unsatisfied dependencies; a failed or cancelled Execution leaves the Task retryable.
+- Blocked on unknown `dependsOn` references instead of silently dropping them, and rejected dependency cycles the same way `backlog apply` does.
+- Exposed `readiness: blocked` alongside `state: running` so an ordering violation is visible rather than hidden.
+- Added the `TaskBacklog` contract and `aief task list [--ready]`, a dependency-ordered projection computed at read time and never persisted.
+- Introduced no scheduler, daemon, database or distributed lock, per `docs/19-idempotence-execution-leases.md`.
+- Added `docs/31-task-ordering-and-readiness.md`.
+- Fixed `VERSION`, which still reported `1.11.0` while `pyproject.toml` and `factory.yaml` reported `1.14.0`.
+- Removed leftover Task and Execution state from `templates/project/.ai/runtime/`, which `aief init` was copying into every new project despite the template's own `.gitignore` excluding it.
+
 ## 1.14.0 — Backlog Import Runtime
 
 - Extended `ExternalTaskProposal` into a neutral backlog candidate model: `type`, `parent`, `dependsOn`, `sourceImport`, with `sourceTask` now optional.

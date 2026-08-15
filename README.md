@@ -1,6 +1,6 @@
 # AI Engineering Factory
 
-**Version:** 1.14.0
+**Version:** 1.15.0
 **Status:** Stable
 
 AI Engineering Factory is an agent-agnostic framework for industrializing
@@ -112,7 +112,13 @@ Dans l'interface Codex, l'entrée native correspondante est `$implement
 EGW-142`. `/implement` est réservé à l'adapter Claude Code. Voir
 [`docs/27-codex-usage.md`](docs/27-codex-usage.md).
 
-See `docs/14-universal-runtime.md` for task intake, execution, gates, handoff and complete examples.
+Tasks carry their own precedence (`dependsOn`) and the Runtime derives which ones are actionable:
+
+```bash
+aief task list --ready --project . --factory /path/to/factory/1.15.0
+```
+
+See `docs/14-universal-runtime.md` for task intake, execution, gates, handoff and complete examples, and `docs/31-task-ordering-and-readiness.md` for ordering and readiness.
 
 ## Project adoption
 

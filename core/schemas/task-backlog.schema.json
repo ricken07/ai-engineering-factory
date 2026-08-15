@@ -1,0 +1,21 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/task-backlog.schema.json",
+  "type":"object", "required":["apiVersion","kind","metadata","project","filter","tasks"],
+  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"TaskBacklog"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "project":{"type":"string"},
+    "generatedAt":{"type":"string","format":"date-time"},
+    "filter":{"enum":["all","ready"]},
+    "tasks":{"type":"array","items":{"type":"object","required":["task","position","state","readiness"],
+      "properties":{"task":{"type":"string"},"position":{"type":"integer","minimum":1},
+        "state":{"$ref":"common.schema.json#/$defs/executionStatus"},
+        "readiness":{"enum":["ready","blocked","active","done"]},
+        "summary":{"type":"string"},"workflow":{"type":"string"},"intent":{"type":"string"},
+        "parent":{"type":"string"},
+        "dependsOn":{"$ref":"common.schema.json#/$defs/stringArray"},
+        "blockedBy":{"$ref":"common.schema.json#/$defs/stringArray"},
+        "unknownDependsOn":{"$ref":"common.schema.json#/$defs/stringArray"},
+        "executions":{"$ref":"common.schema.json#/$defs/stringArray"}},
+      "additionalProperties":false}}
+  },
+  "additionalProperties":false
+}

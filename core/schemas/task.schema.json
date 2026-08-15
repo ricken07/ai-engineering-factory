@@ -44,6 +44,12 @@
       "type": "string",
       "enum": ["informational", "change", "validation", "review"]
     },
+    "parent": {
+      "type": "string"
+    },
+    "dependsOn": {
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
     "intent": {
       "type": "object",
       "required": ["type", "confidence"],
