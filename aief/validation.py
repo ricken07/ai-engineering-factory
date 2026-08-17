@@ -35,6 +35,7 @@ KIND_SCHEMAS = {
     "RuntimeOperation": "runtime-operation.schema.json",
     "BacklogImportConfig": "backlog-import-config.schema.json",
     "BacklogImportPlan": "backlog-import-plan.schema.json",
+    "EngineeringOutcome": "engineering-outcome.schema.json",
 }
 
 

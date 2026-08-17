@@ -54,8 +54,8 @@ def test_task_log_command(tmp_path: Path, capsys):
     capsys.readouterr()
     assert main(["task", "log", "DEMO-42", "--project", str(destination), "--factory", ".", "--json"]) == 0
     output = capsys.readouterr().out
-    assert '"event": "task.normalized"' in output
-    assert '"event": "workflow.started"' in output
+    assert '"type": "task.normalized"' in output
+    assert '"type": "workflow.started"' in output
 
 
 def test_task_inspect_accepts_explicit_factory_path(tmp_path: Path, capsys):

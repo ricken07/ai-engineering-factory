@@ -18,6 +18,16 @@ class PracticeConflict(EngineeringContextError):
 
 
 def _load_all_practices(factory: Path) -> dict[str, dict[str, Any]]:
+    """Parse every organization Practice manifest and validate its own structure
+    (unique id, document path confined to the organization catalog).
+
+    Deliberately does NOT require the target document to exist on disk: a
+    Practice belonging to a catalog no project currently references (for
+    example one backed by an external, not-yet-initialized catalog source)
+    must never block resolution for projects that never select it. Document
+    presence is instead enforced lazily in `_resolve_reference`, which only
+    runs for practices actually selected by the catalogs a project resolves.
+    """
     practices: dict[str, dict[str, Any]] = {}
     root = factory / "organization"
     for path in sorted(root.rglob("*.yaml")):
@@ -30,8 +40,6 @@ def _load_all_practices(factory: Path) -> dict[str, dict[str, Any]]:
         document = (path.parent / practice["document"]["path"]).resolve()
         if not document.is_relative_to(root.resolve()):
             raise EngineeringContextError(f"practice document escapes organization catalog: {identifier}")
-        if not document.is_file():
-            raise EngineeringContextError(f"practice document is missing: {identifier}: {document}")
         practices[identifier] = {**practice, "_manifest": path, "_document": document}
     return practices
 
@@ -109,6 +117,9 @@ def _resolve_reference(catalog: dict[str, dict[str, Any]], reference: str) -> di
     actual = practice["metadata"]["version"]
     if version and version != actual:
         raise EngineeringContextError(f"practice {identifier} requires version {version}, catalog provides {actual}")
+    document = practice["_document"]
+    if not document.is_file():
+        raise EngineeringContextError(f"practice document is missing: {identifier}: {document}")
     return practice
 
 

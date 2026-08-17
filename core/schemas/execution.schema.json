@@ -144,6 +144,9 @@
       "properties":{"type":{"type":"string"},"message":{"type":"string"},"task":{"type":"string"},"requiredBefore":{"type":"string"}},
       "additionalProperties":false
     },
+    "cancelledReason": {
+      "type": "string"
+    },
     "traceability": {
       "type": "object",
       "additionalProperties": {

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factory.gaddigital.io/schemas/engineering-outcome.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "scenario", "agent", "dimensions"],
+  "properties": {
+    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "kind": {"const": "EngineeringOutcome"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "scenario": {"type": "string"},
+    "agent": {"type": "string"},
+    "dimensions": {
+      "type": "object",
+      "required": ["correctness", "scopeRespect", "testQuality", "reviewFindings", "rework", "policyViolations"],
+      "properties": {
+        "correctness": {"$ref": "#/$defs/dimension"},
+        "scopeRespect": {"$ref": "#/$defs/dimension"},
+        "testQuality": {"$ref": "#/$defs/dimension"},
+        "reviewFindings": {"$ref": "#/$defs/dimension"},
+        "rework": {"$ref": "#/$defs/dimension"},
+        "policyViolations": {"$ref": "#/$defs/dimension"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "dimension": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["not_evaluated", "pass", "fail", "partial"]},
+        "evidence": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -42,13 +42,15 @@ def test_task_log_traces_workflow_and_structured_phase_decisions(tmp_path: Path)
     service.complete_phase(execution_id, output)
     events = service.task_events("DEMO-42")
 
-    assert [item["event"] for item in events] == [
-        "task.normalized", "workflow.started", "phase.prepared", "phase.completed"
+    assert [item["event"]["type"] for item in events] == [
+        "request.created", "intent.resolved", "task.normalized", "workflow.started",
+        "phase.started", "phase.completed",
     ]
-    assert events[1]["execution"] == execution_id
-    assert events[1]["data"]["workflow"]["id"] == "analyze-task"
-    assert events[-1]["data"]["artifact"] == "understand.yaml"
-    assert events[-1]["summary"] == output["summary"]
+    assert events[3]["execution"]["id"] == execution_id
+    assert events[3]["payload"]["workflow"]["id"] == "analyze-task"
+    assert events[-1]["payload"]["artifact"] == "understand.yaml"
+    assert events[-1]["payload"]["summary"] == output["summary"]
+    assert all(item["task"]["id"] == "DEMO-42" for item in events)
     assert (project / ".ai/runtime/tasks/DEMO-42/events.jsonl").is_file()
 
 

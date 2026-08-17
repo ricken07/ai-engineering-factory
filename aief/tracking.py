@@ -9,6 +9,7 @@ import yaml
 from .intake import TaskRegistry
 from .knowledge import safe_task_id
 from .provider_runtime import ProviderResolutionError, resolve_task_provider
+from .task_log import TaskEventLog
 from .validation import assert_schema
 from .yamlio import load_yaml
 
@@ -61,10 +62,18 @@ def evaluate_tracking(task: dict[str, Any], impact: dict[str, Any] | None = None
 
 
 class TaskTrackingManager:
-    def __init__(self, project_root: Path, factory: Path, project: dict[str, Any], environment: dict[str, str] | None = None):
+    def __init__(self, project_root: Path, factory: Path, project: dict[str, Any], environment: dict[str, str] | None = None, factory_version: str | None = None):
         self.project_root, self.factory, self.project, self.environment = project_root, factory, project, environment
+        self.factory_version = factory_version
         self.registry = TaskRegistry(project_root)
         policy=load_yaml(factory/"core"/"policies"/"task-tracking-policy.yaml"); self.rules=policy["rules"]
+
+    def _events(self, task_id: str) -> TaskEventLog:
+        return TaskEventLog(
+            self.project_root, task_id,
+            project_id=self.project.get("metadata", {}).get("id"),
+            factory_version=self.factory_version,
+        )
 
     def _root(self, task_id: str) -> Path:
         root = self.project_root/".ai"/"runtime"/"tasks"/safe_task_id(task_id); root.mkdir(parents=True,exist_ok=True); return root
@@ -106,9 +115,17 @@ class TaskTrackingManager:
             try:
                 tracking=self._read(task_id,"tracking.yaml"); tracking["provider"]={"capability":"task-provider","id":provider,"status":"unavailable"}; tracking["externalTracking"]["status"]="unavailable"; self._write(task_id,"tracking.yaml",tracking)
             except FileNotFoundError: pass
+            self._events(task_id).append(
+                "integration.failed",
+                payload={"agent": agent, "capability": "task-provider", "provider": provider, "code": exc.code},
+            )
             raise
         self._write(task_id,"provider-resolution.yaml",resolution)
         tracking=self._read(task_id,"tracking.yaml"); tracking["provider"]={"capability":"task-provider","id":resolution["provider"]["id"],"status":"available"}; self._write(task_id,"tracking.yaml",tracking)
+        self._events(task_id).append(
+            "integration.resolved",
+            payload={"agent": agent, "capability": "task-provider", "provider": resolution["provider"]["id"]},
+        )
         return resolution
 
     def _operation(self, task_id: str, operation: str, input_data: dict[str, Any], approval_required: bool, suffix: str = "") -> dict[str, Any]:
@@ -119,7 +136,13 @@ class TaskTrackingManager:
         status="waiting-approval" if approval_required else "pending"
         data={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"ExternalOperation","metadata":{"id":operation_id},"task":task_id,"provider":provider,"capability":"task-provider","operation":operation,"status":status,"approval":{"required":approval_required,"status":"pending" if approval_required else "not-required"},"input":{**input_data,"operationId":operation_id}}
         assert_schema(self.factory,"external-operation.schema.json",data)
-        self._write(task_id,relative,data); return data
+        self._write(task_id,relative,data)
+        if approval_required:
+            self._events(task_id).append(
+                "gate.requested",
+                payload={"gate": operation_id, "operation": operation, "provider": provider, "status": "pending"},
+            )
+        return data
 
     def prepare_search(self, task_id: str) -> dict[str, Any]:
         task=self.registry.load(task_id)
@@ -178,7 +201,12 @@ class TaskTrackingManager:
         if operation["status"] != "waiting-approval": raise RuntimeError("operation is not waiting for approval")
         operation["approval"]["status"]="approved" if approved else "rejected"; operation["status"]="pending" if approved else "failed"
         if not approved: operation["error"]={"code":"HUMAN_GATE_REJECTED","message":"external action was rejected"}
-        self._write(task_id,f"operations/{operation_id}.yaml",operation); return operation
+        self._write(task_id,f"operations/{operation_id}.yaml",operation)
+        self._events(task_id).append(
+            "gate.approved" if approved else "gate.rejected",
+            payload={"gate": operation_id, "operation": operation["operation"], "status": expected},
+        )
+        return operation
 
     def execute(self, task_id: str, operation_id: str, executor: Callable[[dict[str, Any]],dict[str, Any]]) -> dict[str, Any]:
         operation=self._read(task_id,f"operations/{operation_id}.yaml")

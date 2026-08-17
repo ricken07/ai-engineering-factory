@@ -64,6 +64,17 @@ class Execution:
         self._persist_output(phase, output)
         phase["status"] = "failed"; self.data["status"] = "failed"; self.save()
         return "failed"
+    def cancel(self, reason: str) -> str:
+        """Terminal transition to the `cancelled` status already recognized
+        throughout the Runtime (readiness, service phase guards) but, until
+        now, never reachable. Deliberately minimal: no retry semantics, no
+        additional gating — completing the existing state machine rather
+        than building a second one. Mirrors `block()`: only the Execution
+        status is finalized, the active phase record is left untouched."""
+        if self.data["status"] in {"completed", "failed", "cancelled"}:
+            raise RuntimeError(f"terminal execution cannot be cancelled: {self.data['status']}")
+        self.data["status"] = "cancelled"; self.data["cancelledReason"] = reason; self.save()
+        return "cancelled"
     def block(self, reason: dict[str, str]) -> str:
         if self.data["status"] in {"completed","failed","cancelled"}: raise RuntimeError(f"terminal execution cannot be blocked: {self.data['status']}")
         self.data["status"]="blocked"; self.data["blockingReason"]=reason; self.save(); return "blocked"

@@ -7,29 +7,21 @@ Chaque demande normalisée possède un journal append-only local :
 ```
 
 Le journal décrit le parcours observable de la demande indépendamment de la
-conversation Claude/Codex :
+conversation Claude/Codex. Le contrat complet de l'enveloppe d'événement, la
+liste des types et les garanties de sécurité (redaction, opt-in) sont décrits
+dans [`32-runtime-observability.md`](32-runtime-observability.md) ; ce document
+se concentre sur la consultation opérationnelle du journal d'une Task.
 
-```text
-task.normalized
-workflow.started
-phase.prepared
-phase.completed
-policy.reclassified
-gate.approved
-workspace.inspect / prepare / verify / rollback
-validation.completed / failed
-```
-
-Chaque événement contient un timestamp UTC, la Task, l’Execution, l’agent, la
-phase, le statut et des données structurées minimales. Les décisions sont
-tracées par leur résultat, leurs raisons déclarées et l’artifact produit. Le
-journal ne contient ni raisonnement privé, ni secret, ni transcription complète
-de conversation.
+Chaque événement porte un `event.id`/`event.type`/`event.timestamp`, l'id de
+`project`, de `task`, et de `execution` quand une Execution existe déjà. Les
+décisions sont tracées par leur résultat, leurs raisons déclarées et
+l'artifact produit, dans `payload`. Le journal ne contient ni raisonnement
+privé, ni secret, ni transcription complète de conversation.
 
 Exemple :
 
 ```json
-{"event":"policy.reclassified","task":"EGW-142","execution":"exec-142","status":"decided","data":{"risk":"high","authorizedAutonomy":"L2","requiredGates":["before-implementation"]}}
+{"event":{"id":"event-abc123","type":"policy.reclassified","timestamp":"2026-09-02T10:00:00Z"},"factory":{"version":"1.15.0"},"project":{"id":"emmany"},"task":{"id":"EGW-142"},"execution":{"id":"exec-142"},"payload":{"status":"decided","risk":"high","authorizedAutonomy":"L2","requiredGates":["before-implementation"]}}
 ```
 
 Consultation :
@@ -49,15 +41,17 @@ remplace pas GitLab, GitHub ou Jira comme système de delivery.
 Une exécution conforme doit commencer au minimum par :
 
 ```text
+request.created
+intent.resolved
 task.normalized
 workflow.started
-phase.prepared (understand)
+phase.started (understand)
 ```
 
 Puis chaque phase doit produire une trajectoire observable :
 
 ```text
-phase.prepared
+phase.started
 phase.completed
 ```
 

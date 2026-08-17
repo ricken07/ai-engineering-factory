@@ -43,8 +43,17 @@ class RuntimeService:
         requested = self.project.get("factory", {}).get("version")
         if installed != requested:
             raise RuntimeError(f"project requires Factory {requested}, but {installed} was provided")
-        self.tracking = TaskTrackingManager(self.project_root,self.factory,self.project,environment)
+        self.factory_version = installed
+        self.tracking = TaskTrackingManager(self.project_root,self.factory,self.project,environment,factory_version=installed)
         self.backlog = BacklogImportManager(self.project_root,self.factory,self.project,environment)
+
+    def _events(self, task_id: str) -> TaskEventLog:
+        project = getattr(self, "project", {}) or {}
+        return TaskEventLog(
+            self.project_root, task_id,
+            project_id=project.get("metadata", {}).get("id"),
+            factory_version=getattr(self, "factory_version", None),
+        )
 
     def intake(self, text: str, agent: str | None = None, intent: str | None = None,
                expected_workflow: str | None = None) -> dict[str, Any]:
@@ -64,12 +73,20 @@ class RuntimeService:
         intake_root = task_path.parent
         (intake_root / "request.yaml").write_text(yaml.safe_dump(request, sort_keys=False, allow_unicode=True), encoding="utf-8")
         (intake_root / "intent.yaml").write_text(yaml.safe_dump(intent, sort_keys=False, allow_unicode=True), encoding="utf-8")
-        TaskEventLog(self.project_root, task["metadata"]["id"]).append(
-            "task.normalized", agent=agent, status="created",
-            summary=task["objective"]["summary"],
-            data={"intent":intent["intent"], "workflow":intent["workflow"],
-                  "mutating":intent["mutating"], "source":intent["source"]},
-        )
+        # The Task id (possibly an extracted external reference) is only known
+        # once normalize_task runs, so the three intake events are logged
+        # together, in their real logical order, under that final Task id.
+        events = self._events(task["metadata"]["id"])
+        events.append("request.created", payload={"agent": agent, "status": "created", "request": request["metadata"]["id"]})
+        events.append("intent.resolved", payload={
+            "agent": agent, "status": "resolved", "intent": intent["intent"],
+            "workflow": intent["workflow"], "mutating": intent["mutating"], "confidence": intent["confidence"],
+        })
+        events.append("task.normalized", payload={
+            "agent": agent, "status": "created", "summary": task["objective"]["summary"],
+            "intent":intent["intent"], "workflow":intent["workflow"],
+            "mutating":intent["mutating"], "source":intent["source"],
+        })
         return {"request": request, "intent": intent, "task": task, "path": str(task_path)}
 
     def start(self, text: str, agent: str | None = None, intent: str | None = None,
@@ -77,10 +94,10 @@ class RuntimeService:
         intake = self.intake(text, agent, intent, expected_workflow)
         workflow = compile_workflow(self.factory, intake["task"]["workflow"])
         execution = Execution.create(self.project_root, workflow, intake["task"]["metadata"]["id"], agent)
-        TaskEventLog(self.project_root, execution.data["task"]).append(
+        self._events(execution.data["task"]).append(
             "workflow.started", execution=execution.data["metadata"]["id"],
-            agent=agent, phase=execution.next_phase()["id"], status=execution.data["status"],
-            data={"workflow":execution.data["workflow"]},
+            payload={"agent": agent, "phase": execution.next_phase()["id"], "status": execution.data["status"],
+                     "workflow":execution.data["workflow"]},
         )
         return execution
 
@@ -128,13 +145,20 @@ class RuntimeService:
             if gaps:
                 raise ValueError("submission evidence is incomplete: " + "; ".join(gaps))
         execution.advance(output)
-        TaskEventLog(self.project_root, execution.data["task"]).append(
+        events = self._events(execution.data["task"])
+        events.append(
             "phase.completed", execution=execution_id,
-            agent=execution.data.get("agent", {}).get("adapter"), phase=phase["id"],
-            status=output.get("status", "completed"), summary=output.get("summary"),
-            data={"skill":completed_skill, "artifact":f"{phase['id']}.yaml",
-                  "evidence":output.get("evidence", [])},
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase":phase["id"],
+                     "status": output.get("status", "completed"), "summary":output.get("summary"),
+                     "skill":completed_skill, "artifact":f"{phase['id']}.yaml",
+                     "evidence":output.get("evidence", [])},
         )
+        if execution.data["status"] == "completed":
+            events.append(
+                "execution.completed", execution=execution_id,
+                payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                         "workflow": execution.data["workflow"]},
+            )
         if completed_skill == "analyze-impact" and output.get("status") == "completed":
             observations={key:observations[key] for key in ("risk","repositories","changeTypes","domains") if key in observations}
             observations["risk"]=execution.data.get("risk",observations.get("risk","unknown"))
@@ -176,6 +200,10 @@ class RuntimeService:
         if inherited_domains: merged["domains"]=list(dict.fromkeys([*merged.get("domains",[]),*inherited_domains]))
         decision=evaluate_runtime_policy(self.factory,self.project,task,merged)
         history=sorted(execution.root.glob("policy-decision-*.yaml")); revision=len(history)+1
+        previous_risk=execution.data.get("risk"); previous_autonomy=execution.data.get("autonomy",{}).get("authorized")
+        reclassified = history and (previous_risk != decision["effectiveRisk"] or previous_autonomy != decision["authorizedAutonomy"])
+        existing_gates={item["id"] for item in execution.data.get("policyGates",[])}
+        newly_required=[identifier for identifier in decision["requiredGates"] if identifier not in existing_gates]
         artifact={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"PolicyDecision",
                   "metadata":{"id":f"policy-{execution.data['metadata']['id']}-{revision:03d}"},"task":execution.data["task"],
                   "risk":{"effective":decision["effectiveRisk"],"reasons":decision["reasons"]},
@@ -195,16 +223,22 @@ class RuntimeService:
         task.setdefault("scope",{})["repositories"]=decision["observations"]["repositories"]
         task["autonomy"]={"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]}
         TaskRegistry(self.project_root).save(task); execution.save()
-        TaskEventLog(self.project_root, execution.data["task"]).append(
-            "policy.reclassified", execution=execution.data["metadata"]["id"],
-            agent=execution.data.get("agent", {}).get("adapter"),
-            phase=execution.next_phase()["id"] if execution.next_phase() else None,
-            status="decided", summary=f"Risk {decision['effectiveRisk']}, autonomy {decision['authorizedAutonomy']}",
-            data={"trigger":trigger, "risk":decision["effectiveRisk"],
-                  "authorizedAutonomy":decision["authorizedAutonomy"],
-                  "requiredGates":decision["requiredGates"], "reasons":decision["reasons"],
-                  "artifact":name},
+        events = self._events(execution.data["task"])
+        events.append(
+            "policy.reclassified" if reclassified else "policy.evaluated", execution=execution.data["metadata"]["id"],
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "phase": execution.next_phase()["id"] if execution.next_phase() else None,
+                     "status":"decided", "summary":f"Risk {decision['effectiveRisk']}, autonomy {decision['authorizedAutonomy']}",
+                     "trigger":trigger, "risk":decision["effectiveRisk"],
+                     "authorizedAutonomy":decision["authorizedAutonomy"],
+                     "requiredGates":decision["requiredGates"], "reasons":decision["reasons"],
+                     "artifact":name},
         )
+        for identifier in newly_required:
+            events.append(
+                "gate.requested", execution=execution.data["metadata"]["id"],
+                payload={"gate": identifier, "trigger": trigger, "status": "pending"},
+            )
         return artifact
 
     def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None) -> Execution:
@@ -215,11 +249,19 @@ class RuntimeService:
             return self.execution(execution_id)
         phase=execution.next_phase(); execution.advance(approved=True)
         if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",owner or "human")
-        TaskEventLog(self.project_root, execution.data["task"]).append(
-            "gate.approved", execution=execution_id, agent=execution.data.get("agent", {}).get("adapter"),
-            phase=phase["id"] if phase else None, status="approved",
-            data={"approvedBy":owner or "human", "gate":"phase-gate"},
+        events = self._events(execution.data["task"])
+        events.append(
+            "gate.approved", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "phase": phase["id"] if phase else None, "status":"approved",
+                     "approvedBy":owner or "human", "gate":"phase-gate"},
         )
+        if execution.data["status"] == "completed":
+            events.append(
+                "execution.completed", execution=execution_id,
+                payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                         "workflow": execution.data["workflow"]},
+            )
         return execution
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
@@ -233,10 +275,11 @@ class RuntimeService:
         if gate["status"] == "approved": return execution
         self._approve_policy_gate(execution,gate_id,owner or "human")
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
-        TaskEventLog(self.project_root, execution.data["task"]).append(
-            "gate.approved", execution=execution_id, agent=execution.data.get("agent", {}).get("adapter"),
-            phase=execution.next_phase()["id"] if execution.next_phase() else None,
-            status="approved", data={"approvedBy":owner or "human", "gate":gate_id},
+        self._events(execution.data["task"]).append(
+            "gate.approved", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "phase": execution.next_phase()["id"] if execution.next_phase() else None,
+                     "status":"approved", "approvedBy":owner or "human", "gate":gate_id},
         )
         return execution
 
@@ -248,6 +291,15 @@ class RuntimeService:
         if action=="renew": return manager.renew(owner,ttl_seconds)
         if action=="release": return manager.release(owner)
         raise ValueError(f"unknown lease action: {action}")
+
+    def cancel_execution(self, execution_id: str, reason: str, owner: str | None = None) -> Execution:
+        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+        execution.cancel(reason)
+        self._events(execution.data["task"]).append(
+            "execution.cancelled", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": reason},
+        )
+        return execution
 
     def handoff_execution(self, execution_id: str, owner: str | None = None) -> Path:
         execution=self.execution(execution_id); manager=ExecutionLease(execution.root)
@@ -355,6 +407,11 @@ class RuntimeService:
             repository_ids = self._impacted_repository_ids(execution, task)
             if not repository_ids:
                 execution.block({"type":"workspace-safety-unresolved","message":"impacted repositories are required before implementation"})
+                self._events(execution.data["task"]).append(
+                    "workspace.blocked", execution=execution_id,
+                    payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase": phase["id"],
+                             "reason": "workspace-safety-unresolved"},
+                )
                 return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"]}
             manager = WorkspaceManager(self.project_root, self.project, execution.root)
             try:
@@ -367,6 +424,10 @@ class RuntimeService:
                 reason = "unrelated-local-changes" if workspace["decision"]["status"] == "blocked" else "workspace-preparation-required"
                 if execution.data["status"] != "blocked":
                     execution.block({"type":reason,"message":"workspace safety must be resolved before implementation"})
+                self._events(execution.data["task"]).append(
+                    "workspace.blocked", execution=execution_id,
+                    payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase": phase["id"], "reason": reason},
+                )
                 return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"],"workspace":workspace}
         repository_ids = self._impacted_repository_ids(execution, task)
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
@@ -375,12 +436,12 @@ class RuntimeService:
         contexts = []
         if definition.get("engineeringContext"):
             contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
-        TaskEventLog(self.project_root, execution.data["task"]).append(
-            "phase.prepared", execution=execution_id,
-            agent=execution.data.get("agent", {}).get("adapter"), phase=phase["id"],
-            status=execution.data["status"], data={"skill":phase["skill"],
-                                                   "skillContract":skill_contract,
-                                                   "engineeringContexts":[item["metadata"]["id"] for item in contexts]},
+        self._events(execution.data["task"]).append(
+            "phase.started", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase":phase["id"],
+                     "status":execution.data["status"], "skill":phase["skill"],
+                     "skillContract":skill_contract,
+                     "engineeringContexts":[item["metadata"]["id"] for item in contexts]},
         )
         return {"execution":execution_id,"status":execution.data["status"],"phase":phase,
                 "skillContract":skill_contract,"engineeringContexts":contexts}
@@ -399,14 +460,15 @@ class RuntimeService:
         elif action == "status": result = manager.load()
         elif action == "rollback": result = manager.rollback(execute)
         else: raise ValueError(f"unknown workspace action: {action}")
-        if result.get("decision", {}).get("status") == "ready" or result.get("status") == "ready":
+        status = result.get("status") or result.get("decision", {}).get("status")
+        if status == "ready":
             if execution.data.get("blockingReason", {}).get("type") in {"workspace-preparation-required", "unrelated-local-changes", "workspace-safety-unresolved"}:
                 execution.resume(execution.data["blockingReason"]["type"])
-        TaskEventLog(self.project_root, execution.data["task"]).append(
-            f"workspace.{action}", execution=execution_id,
-            agent=execution.data.get("agent", {}).get("adapter"),
-            phase=execution.next_phase()["id"] if execution.next_phase() else None,
-            status=result.get("status") or result.get("decision", {}).get("status"),
+        self._events(execution.data["task"]).append(
+            "workspace.prepared" if status == "ready" else "workspace.blocked", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "phase": execution.next_phase()["id"] if execution.next_phase() else None,
+                     "action": action, "status": status},
         )
         return result
 
@@ -441,17 +503,24 @@ class RuntimeService:
             "unknowns": [],
             "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results,"validationPlan":plan,"commits":snapshots,"evidenceMatrix":[]},
         }
+        events = self._events(execution.data["task"])
+        agent = execution.data.get("agent", {}).get("adapter")
         if failures:
             execution.fail_phase(report)
-            event = "validation.failed"
+            # phase.failed/execution.failed already carry this transition (payload.phase
+            # distinguishes "validation"); a dedicated validation.failed event would only
+            # duplicate the same fact under a second name.
+            events.append(
+                "phase.failed", execution=execution_id,
+                payload={"agent": agent, "phase":"validation", "status":report["status"],
+                         "summary":report["summary"], "evidence":report["evidence"]},
+            )
+            events.append(
+                "execution.failed", execution=execution_id,
+                payload={"agent": agent, "phase":"validation", "summary":report["summary"]},
+            )
         else:
-            self.complete_phase(execution_id, report)
-            event = "validation.completed"
-        TaskEventLog(self.project_root, execution.data["task"]).append(
-            event, execution=execution_id, agent=execution.data.get("agent", {}).get("adapter"),
-            phase="validation", status=report["status"], summary=report["summary"],
-            data={"evidence":report["evidence"]},
-        )
+            self.complete_phase(execution_id, report)  # emits phase.completed (and execution.completed if terminal)
         return report
 
     def replay_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:

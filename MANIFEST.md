@@ -242,3 +242,11 @@
 - `aief/readiness.py`
 - `docs/31-task-ordering-and-readiness.md`
 - `tests/test_readiness.py`
+- `core/schemas/runtime-event.schema.json`
+- `docs/32-runtime-observability.md`
+- `tests/test_observability.py`
+- `aief/scenarios.py`
+- `core/schemas/engineering-outcome.schema.json`
+- `docs/33-evaluation-harness.md`
+- `tests/test_scenarios.py`
+- `docs/34-release-readiness.md`
