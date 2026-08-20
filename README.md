@@ -1,141 +1,345 @@
+<!-- Documentation: English -->
+
 # AI Engineering Factory
 
-**Version:** 1.15.0
-**Status:** Stable
+![Status](https://img.shields.io/badge/status-alpha-orange) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
-AI Engineering Factory is an agent-agnostic framework for industrializing
-AI-assisted software engineering while keeping engineering rules, project
-context, traceability and approval gates under human control.
+AI Engineering Factory (AIEF) is an agent-independent engineering layer for turning individual coding-agent usage into governed, contextualized, traceable and reproducible software engineering workflows.
 
-Its intended progression is:
+**AIEF does not replace Claude Code or Codex. It defines the engineering system in which they operate.**
+
+> The developer expresses intent; the Factory carries the engineering process.
+
+## Project status: Alpha
+
+AIEF is usable for pilots today, but its contracts (`apiVersion: factory.gaddigital.io/v1alpha1`) are explicit precisely because they may still evolve before a stable `v1`. Concretely, as of version `1.15.0`:
+
+- 195 automated tests, 192 passing. The 3 known failures are diagnosed and documented in [`docs/34-release-readiness.md`](docs/34-release-readiness.md); none of them is a Core Runtime regression.
+- Several organization policies (`change-policy`, `context-policy`, `external-action-policy`, `traceability-policy`, `recovery-policy`, `memory-policy`) are schema-defined but not yet enforced by any code path — see the same report.
+- Evaluating the quality of code an agent produces (correctness, scope, tests, review, rework) is an intentionally unmeasured contract today, not a working feature.
+- This repository does not yet carry a real open-source license (see [License](#license)).
+
+Read [`docs/34-release-readiness.md`](docs/34-release-readiness.md) for the full, evidence-based readiness assessment before relying on AIEF for anything beyond a pilot.
+
+## Why AIEF?
+
+Coding agents keep getting better, but their use today is largely individual:
 
 ```text
-Augmented developer → Augmented team → Augmented delivery → Augmented engineering organization
+Developer
+    ↓
+Agent
+    ↓
+ad-hoc context
+ad-hoc prompts
+ad-hoc workflows
+ad-hoc validation
 ```
 
-Version 1.11 resolves a minimal, task-aware and fingerprinted engineering context for every repository and Skill. See [Effective Engineering Context](docs/21-effective-engineering-context.md).
+Left to itself, this pattern produces practices that differ by developer, context that lives only in a chat session, autonomy that is not actually bounded, and changes that are hard to reproduce or trace back to a decision.
 
-Version 1.12 introduced version-pinned organization catalogs as governed
-Practices, with profile inheritance and explicit repository-role activation.
-The repository includes one organization-specific catalog as an example; it is
-not a Factory default.
+AIEF inserts a deterministic layer between the developer's intent and the agent's semantic work:
 
-Version 1.13 makes organization knowledge project-selectable. Technical
-Profiles no longer impose any organization’s conventions; versioned
-`OrganizationCatalog` contracts provide inheritance and Profile bindings.
+```text
+                   Organization
+                       │
+              Standards / Practices
+                       │
+                       ▼
+Developer Intent → AIEF Runtime
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+       Context      Policies     Workflows
+          │            │            │
+          └────────────┼────────────┘
+                       ▼
+                Claude / Codex
+                       │
+                       ▼
+                    Project
+```
 
-Version 1.14 adds a Backlog Import Runtime: a documentation corpus can be
-turned into many external tickets through a previewable, organization-rules-driven,
-autonomy-gated `aief backlog import|preview|apply`, reusing the Task Tracking
-Runtime's `ExternalTaskProposal`/`ExternalOperation` contracts.
+Everything that can be deterministic — state, schemas, policy resolution, workflow order, gates, tracking, workspace safety — is. Everything that requires understanding — reading code, reasoning about a change, writing and reviewing it — stays with the agent.
 
-The Factory is intentionally split into an **agnostic Core** and optional extensions:
+## What AIEF is / What AIEF is not
+
+| AIEF is | AIEF is not |
+| --- | --- |
+| An engineering framework | A coding agent |
+| An agent-independent Runtime | A new LLM |
+| A governance and traceability layer | An autonomous engineering replacement |
+| A context/workflow/policy system | An IDE |
+| A shared contract Claude Code and Codex both execute | A fork or reimplementation of either agent |
+
+## Core principles
+
+- **Agent agnostic** — the Core has no Claude- or Codex-specific instruction anywhere.
+- **Technology-agnostic Core** — no dependency on Java, Spring, Node, or any other stack in `core/`.
+- **Project-owned context** — architecture, domain and conventions live in the project, not in a chat session.
+- **Organization-owned engineering practices** — conventions are declared once and inherited, not copy-pasted per project.
+- **Progressive context loading** — a Skill only receives the practice categories it declares needing.
+- **Risk-based autonomy** — the higher the risk, the lower the autonomy the agent is authorized to use.
+- **Human accountability** — protected actions require an explicit gate; the goal is maximum delegation compatible with accepted risk, not maximum autonomy.
+- **Traceability by design** — every meaningful transition is attributable to a Task and an Execution.
+
+## How it works
+
+```mermaid
+flowchart TD
+    A[Developer request] --> B[Agent Adapter]
+    B --> C[AIEF Runtime]
+    C --> D[Task]
+    D --> E[Workflow]
+    E --> F[Skills]
+    F --> G[Policies / Effective Engineering Context]
+    G --> H[Claude Code or Codex]
+    H --> I[Validation / Traceability]
+```
+
+Explicit commands and natural language enter the same Runtime and are normalized identically — commands are shortcuts, not a separate path.
+
+## Quick start
+
+This is a synthesis. The full, commented procedure — including permission review and MCP activation — is [`docs/22-project-installation-guide.md`](docs/22-project-installation-guide.md).
+
+**1. Clone the Factory** (the example organization catalog is a git submodule):
+
+```bash
+git clone --recurse-submodules <FACTORY_GIT_URL> ~/.gad/ai-engineering-factory/1.15.0
+```
+
+**2. Install the CLI**, ideally as an isolated tool with [uv](https://github.com/astral-sh/uv):
+
+```bash
+uv tool install ~/.gad/ai-engineering-factory/1.15.0
+aief --help
+```
+
+A plain `pip install -e .` from the clone also works; `pyproject.toml` declares a standard `aief` console script.
+
+**3. Point agents at this installation**:
+
+```bash
+export GAD_AI_FACTORY_HOME="$HOME/.gad/ai-engineering-factory/1.15.0"
+```
+
+**4. Install at least one adapter** (dry-run first, then execute):
+
+```bash
+aief setup-adapter claude-code --factory "$GAD_AI_FACTORY_HOME"
+aief setup-adapter claude-code --factory "$GAD_AI_FACTORY_HOME" --execute
+```
+
+**5. Initialize a project** from the shipped template:
+
+```bash
+cp -R "$GAD_AI_FACTORY_HOME/templates/project/.ai" "$PROJECT_ROOT/.ai"
+cp "$GAD_AI_FACTORY_HOME/templates/project/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
+cp "$GAD_AI_FACTORY_HOME/templates/project/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
+```
+
+Edit `.ai/project.yaml`: repositories, profiles, autonomy, and which (if any) `organizationCatalogs` to inherit.
+
+**6. Validate**:
+
+```bash
+aief validate "$PROJECT_ROOT" --factory "$GAD_AI_FACTORY_HOME"
+aief doctor "$PROJECT_ROOT"
+```
+
+**7. Run a first, non-mutating request** from the agent, after restarting it so the installed skill is discovered:
+
+```text
+/analyze Analyze the current architecture without modifying any code.
+```
+
+A conformant run prints a Runtime receipt (`execution`, `workflow`, `nextPhase`, `taskLog`) — see [First workflow](#first-workflow).
+
+## First workflow
+
+```text
+Claude Code
+/analyze Analyze the current architecture without modifying any code.
+```
+
+```text
+Codex
+$analyze Analyze the current architecture without modifying any code.
+```
+
+Or, in either agent, the same request in natural language:
+
+```text
+Analyze the current architecture without modifying any code.
+```
+
+Commands are shortcuts; natural-language requests enter the same Runtime. Both converge on the same `analyze-task` workflow, the same Task, the same Execution, and the same Runtime-emitted event log (`.ai/runtime/tasks/<task-id>/events.jsonl`).
+
+## Architecture
+
+```text
+core/           stack-, provider- and agent-agnostic Runtime, schemas, policies, workflows, Skills
+profiles/       reusable technology/practice knowledge (Java, Spring, Node, ...)
+organization/   versioned organization standards and practices, selected per project
+integrations/   capability contracts mapped to providers (GitHub, GitLab, Jira, Confluence)
+adapters/       thin translations of Factory semantics for Claude Code and Codex
+templates/      the `.ai/` scaffold a project copies to adopt the Factory
+examples/       reference projects (mono-repo and poly-repo)
+aief/           the Python package implementing RuntimeService and the CLI
+docs/           the architecture and operating model, numbered and cross-linked
+tests/          the automated suite (195 tests)
+```
+
+- `core/` must never depend on a stack, a provider, or an agent.
+- `profiles/`, `organization/`, `integrations/` and `adapters/` extend the Core; none of them may fork it.
+- Project-specific truth (`context/`, `project.yaml`) lives in the project's own `.ai/` directory, never inside the Factory installation.
+
+See [`docs/03-architecture.md`](docs/03-architecture.md) and [`docs/00-factory-reference-architecture.md`](docs/00-factory-reference-architecture.md).
+
+## Runtime model
+
+```text
+Request
+→ IntentResolution
+→ Task
+→ Workflow
+→ Execution
+→ Artifacts
+→ Gates
+→ Handoff
+```
+
+**Deterministic** (owned by `aief`, tested independently of any LLM call): Execution state, schema validation, policy resolution, workflow phase order, gates, tracking decisions, workspace safety.
+
+**Agentic** (owned by Claude Code / Codex): understanding a task, analyzing code, implementing a change, semantic review.
+
+An [Evaluation Harness](docs/33-evaluation-harness.md) verifies this separation mechanically: 12 deterministic scenarios prove Runtime conformance without any LLM call, and a second pass proves Claude Code and Codex reach an identical Runtime trajectory (same Task, same Workflow, same PolicyDecision, same Effective Engineering Context, same gates) for the same request.
+
+## Engineering knowledge
+
+```text
+Organization
+→ Profile
+→ Project
+→ Repository
+→ Task
+→ Effective Engineering Context
+```
+
+An organization declares coding conventions, architecture practices, testing and security practices once, at three enforcement levels — `mandatory` (never disabled), `default` (inherited, may be overridden where allowed), `optional` (opt-in). A project selects zero, one, or several `OrganizationCatalog`s; a Skill only receives the practice categories it declares needing. Every resolved practice carries a content hash and provenance (organization, project, repository or task), and the resulting context has a stable fingerprint so two agents — or one agent resuming — can verify they are working from the same knowledge. See [`docs/21-effective-engineering-context.md`](docs/21-effective-engineering-context.md) and [`docs/16-organization-engineering-context.md`](docs/16-organization-engineering-context.md).
+
+Resolving several organization catalogs together is unit-tested, but the one real multi-catalog example shipped in this repository depends on a private submodule (see [Known limitations](docs/34-release-readiness.md#5-compatibility)) — treat multi-catalog inheritance as verified in isolation, not yet demonstrated end to end in this repository.
+
+## Supported agents
+
+| Agent | Status | Native entry point |
+| --- | --- | --- |
+| Claude Code | Supported | `/implement` (and `/analyze`, `/fix`, `/refactor`, `/test`, `/review`, `/document`) |
+| Codex | Supported | `$implement` (same set with `$`) |
+
+Both adapters map the same 8 Core Workflows and 14 Core Skills to the same files; the only difference is invocation syntax. No other agent is currently integrated.
+
+### Planned / community adapters
+
+None today. A new adapter is expected to stay thin (see [`adapters/README.md`](adapters/README.md)) and reuse `aief run` / `aief execution next` rather than reimplementing intent resolution, policy, or state.
+
+## Profiles
+
+```text
+generic   spring   maven
+java      react    node
+flutter
+```
+
+A Profile supplies technology-specific knowledge (conventions, build/test commands as `shell=False` argv arrays) and may extend another Profile (for example `spring` extends `generic`). Profiles never introduce a technology dependency into `core/`. See [`docs/15-profile-runtime.md`](docs/15-profile-runtime.md).
+
+## Integrations
+
+```text
+Core capability
+→ Project provider selection
+→ Factory integration manifest
+→ Agent adapter (MCP configuration)
+→ MCP / tool
+```
+
+| Capability | Shipped providers |
+| --- | --- |
+| `source-control` | GitHub, GitLab |
+| `task-provider` | GitHub, GitLab, Jira |
+| `knowledge-base` | Confluence |
+| `continuous-integration` | GitHub, GitLab |
+
+A project selects a capability and a provider — never a transport, URL, or token — in `.ai/project.yaml`. Integration manifests are declarative capability contracts; the actual call to a provider's API is made by the agent through its configured MCP server, never by AIEF itself. **Secrets are never stored in `.ai/project.yaml`** — `integration-lock.yaml` records resolved provider versions and content hashes, never endpoints or credentials.
+
+## Repository structure
 
 ```text
 ai-engineering-factory/
-├── core/          # stack-, provider- and agent-agnostic
-├── profiles/      # reusable technology/practice knowledge
-├── integrations/  # mappings to GitLab, GitHub, Jira, Confluence, ...
-├── adapters/      # mappings to Claude Code, Codex, ...
-├── templates/     # project adoption template
-├── examples/      # reference examples
-└── docs/          # architecture and operating model
+├── aief/            RuntimeService, CLI, and every deterministic module
+├── core/             schemas, policies, standards, workflows, Skills
+├── profiles/         technology/practice knowledge
+├── organization/     versioned organization standards
+├── integrations/     capability → provider contracts
+├── adapters/         Claude Code and Codex adapters
+├── templates/        project and organization scaffolds
+├── examples/         reference mono-repo/poly-repo project
+├── docs/             architecture and operating model (00–34)
+└── tests/            automated suite
 ```
 
-Organization knowledge is optional and explicitly selected by each project.
-The shipped organization-specific catalog and examples illustrate the model;
-they are not normative defaults. Start a new catalog from
-`templates/organization/` and keep its practices versioned independently.
+## Documentation
 
-## Design statement
+| Topic | Document |
+| --- | --- |
+| Principles | [`docs/01-principles.md`](docs/01-principles.md) |
+| Architecture | [`docs/03-architecture.md`](docs/03-architecture.md) |
+| Runtime model | [`docs/04-runtime-model.md`](docs/04-runtime-model.md) |
+| Installation | [`docs/22-project-installation-guide.md`](docs/22-project-installation-guide.md) |
+| First steps | [`docs/23-first-steps.md`](docs/23-first-steps.md) |
+| Organization knowledge | [`docs/16-organization-engineering-context.md`](docs/16-organization-engineering-context.md), [`docs/24-organization-knowledge-catalog.md`](docs/24-organization-knowledge-catalog.md) |
+| Agent permissions | [`docs/25-agent-permissions.md`](docs/25-agent-permissions.md) |
+| Codex usage | [`docs/27-codex-usage.md`](docs/27-codex-usage.md) |
+| Agent adapters and MCP | [`docs/13-agent-adapters-and-mcp.md`](docs/13-agent-adapters-and-mcp.md) |
+| Runtime observability | [`docs/32-runtime-observability.md`](docs/32-runtime-observability.md) |
+| Evaluation harness | [`docs/33-evaluation-harness.md`](docs/33-evaluation-harness.md) |
+| Release readiness | [`docs/34-release-readiness.md`](docs/34-release-readiness.md) |
 
-The Factory standardizes **how engineering work is performed**, not the implementation technology of a project.
+The full, numbered index (00–34) lives in [`docs/`](docs/); each document cross-links the ones it depends on.
 
-- The **Factory** defines standards, policies, workflows and skill contracts.
-- A **Project** defines its architecture, repositories, domain context, conventions and enabled extensions.
-- A **Task** defines the unit of work.
-- A **Workflow** defines the controlled process applied to the task.
-- An **Agent Adapter** translates Factory semantics to a specific coding agent.
-- **Integrations** provide capabilities such as source control, task management and knowledge access.
+## Security model
 
-## Core invariants
+- **Human gates** block protected transitions (implementation, submission) until an explicit approval is recorded against the Execution.
+- **Risk-based autonomy** caps what an agent may do automatically; the most restrictive applicable rule always wins.
+- **Workspace safety** blocks mutation on a dirty repository, a wrong base branch, or unresolved poly-repo drift, and refuses `git` force-push, hard reset, clean, or branch deletion outright.
+- **Secrets** are never stored in `.ai/project.yaml` or in generated adapter configuration; only capability→provider selections are.
+- **MCP configuration** grants connectivity, not authorization — policy and gates are checked again before every external side effect.
 
-1. The Core must not depend on Java, Spring, Flutter, React, Node or any other stack.
-2. The Core must not depend on GitLab, GitHub, Jira, Confluence or any provider.
-3. Core workflows must not contain Claude Code or Codex-specific instructions.
-4. Project context belongs to the project, not to an agent session.
-5. Durable decisions must not live only in chat history.
-6. Autonomy is bounded by risk and policy resolution.
-7. The most restrictive applicable permission wins.
-8. Every meaningful change must be traceable to a task and execution.
-9. Context is loaded progressively.
-10. Protected/critical actions require explicit gates.
+**Gap:** this repository does not yet have a `SECURITY.md`. Until one exists, report a suspected vulnerability directly to the maintainers rather than through a public issue.
 
-## Start here
+## Contributing
 
-Read in this order:
+Contributions are welcome.
 
-1. `docs/01-principles.md`
-2. `docs/02-conceptual-model.md`
-3. `docs/03-architecture.md`
-4. `docs/00-factory-reference-architecture.md`
-5. `docs/04-runtime-model.md`
-6. `docs/05-policy-resolution.md`
-7. `docs/06-context-and-memory.md`
-8. `docs/07-extension-model.md`
-9. `docs/08-project-adoption.md`
-10. `docs/13-agent-adapters-and-mcp.md`
-11. `docs/14-universal-runtime.md`
-12. `docs/15-profile-runtime.md`
-13. `docs/16-organization-engineering-context.md`
-14. `docs/17-task-tracking-provider-runtime.md`
-15. `docs/22-project-installation-guide.md`
-16. `docs/23-first-steps.md`
-17. `docs/24-organization-knowledge-catalog.md`
-18. `docs/25-agent-permissions.md`
-19. `docs/26-task-execution-log.md`
-20. `docs/27-codex-usage.md`
-21. `docs/28-gitlab-issues-and-board.md`
-22. `docs/29-evidence-chain-and-replay.md`
-23. `docs/30-backlog-import-runtime.md`
+**Gap:** this repository does not yet have a `CONTRIBUTING.md` or a `CODE_OF_CONDUCT.md`. Until they exist, open an issue to discuss a change before submitting a pull request, and expect the review to check the non-negotiable invariants above (Core stays agent/stack/provider-agnostic, no duplicated abstractions, deterministic where determinism is possible).
 
-## Executable Runtime
+## Roadmap
 
-The `aief` CLI provides the shared deterministic path used by agent adapters. Explicit commands and natural language are normalized identically:
+**Available today** — see [`docs/34-release-readiness.md`](docs/34-release-readiness.md) for the full, evidence-based list: deterministic Runtime (intake, workflow, gates, tracking, workspace safety), Effective Engineering Context resolution, Claude Code / Codex parity verified by the Evaluation Harness, local structured event log with optional OpenTelemetry export.
 
-```bash
-aief run "Implémente EGW-142" --agent codex --intent implement --expect-workflow implement-task --project . --factory /path/to/factory/1.13.0
-aief run "Corrige le bug EGW-327" --agent claude-code --project . --factory /path/to/factory/1.7.0
-```
+**In progress**: enforcement of the remaining organization policies (`change-policy`, `context-policy`, `external-action-policy`, `traceability-policy`, `recovery-policy`, `memory-policy`), organization-catalog deprecation and content-addressed locking.
 
-Dans l'interface Codex, l'entrée native correspondante est `$implement
-EGW-142`. `/implement` est réservé à l'adapter Claude Code. Voir
-[`docs/27-codex-usage.md`](docs/27-codex-usage.md).
+**Exploration**: Level 3 Engineering Outcome measurement (correctness, scope respect, test quality, review findings, rework, policy violations) — the contract exists ([`core/schemas/engineering-outcome.schema.json`](core/schemas/engineering-outcome.schema.json)); no measurement is implemented.
 
-Tasks carry their own precedence (`dependsOn`) and the Runtime derives which ones are actionable:
+None of the above is available today beyond what is explicitly listed as such.
 
-```bash
-aief task list --ready --project . --factory /path/to/factory/1.15.0
-```
+## License
 
-See `docs/14-universal-runtime.md` for task intake, execution, gates, handoff and complete examples, and `docs/31-task-ordering-and-readiness.md` for ordering and readiness.
-
-## Project adoption
-
-A project does **not** clone the Factory into its repositories. The Factory is installed once on the developer workstation, for example:
+This repository does not currently carry a public open-source license. `LICENSE` is an internal placeholder pending an organization-approved license choice.
 
 ```text
-~/.gad/ai-engineering-factory/0.1.0/
+OPEN_SOURCE_BLOCKER: LICENSE missing
 ```
 
-The project clones only `templates/project/`, then adapts `.ai/project.yaml`, `.ai/repository-map.yaml` and its context.
-
-See `examples/emmany/` for a poly-repository example.
-
-For a complete, commented installation procedure covering clone, CLI, adapters,
-project configuration, validation and optional MCP activation, see
-`docs/22-project-installation-guide.md`.
-
-## Stability
-
-`v1alpha1` means the contracts are explicit and usable for pilots, but may still evolve before a stable `v1` contract.
+Do not treat this repository as licensed for reuse, and do not publish it externally, until this is resolved. See [`OPEN_SOURCE_READINESS.md`](OPEN_SOURCE_READINESS.md).
