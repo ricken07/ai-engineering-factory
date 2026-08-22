@@ -1,0 +1,11 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: OrganizationCatalog
+metadata:
+  id: sample-organization
+  name: Sample Organization Engineering Catalog
+  version: 1.0.0
+extends:
+  - factory-default@1.0.0
+practiceRefs:
+  - sample-organization-guidelines@1.0.0
+profileBindings: {}

@@ -2,7 +2,7 @@
 
 # AI Engineering Factory
 
-![Status](https://img.shields.io/badge/status-alpha-orange) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-alpha-orange) ![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 AI Engineering Factory (AIEF) is an agent-independent engineering layer for turning individual coding-agent usage into governed, contextualized, traceable and reproducible software engineering workflows.
 
@@ -14,10 +14,9 @@ AI Engineering Factory (AIEF) is an agent-independent engineering layer for turn
 
 AIEF is usable for pilots today, but its contracts (`apiVersion: factory.gaddigital.io/v1alpha1`) are explicit precisely because they may still evolve before a stable `v1`. Concretely, as of version `1.15.0`:
 
-- 195 automated tests, 192 passing. The 3 known failures are diagnosed and documented in [`docs/34-release-readiness.md`](docs/34-release-readiness.md); none of them is a Core Runtime regression.
+- 195 automated tests, 194 passing. The one known failure is diagnosed in [`docs/34-release-readiness.md`](docs/34-release-readiness.md) and is a stale test fixture unrelated to the Core Runtime.
 - Several organization policies (`change-policy`, `context-policy`, `external-action-policy`, `traceability-policy`, `recovery-policy`, `memory-policy`) are schema-defined but not yet enforced by any code path — see the same report.
 - Evaluating the quality of code an agent produces (correctness, scope, tests, review, rework) is an intentionally unmeasured contract today, not a working feature.
-- This repository does not yet carry a real open-source license (see [License](#license)).
 
 Read [`docs/34-release-readiness.md`](docs/34-release-readiness.md) for the full, evidence-based readiness assessment before relying on AIEF for anything beyond a pilot.
 
@@ -103,10 +102,10 @@ Explicit commands and natural language enter the same Runtime and are normalized
 
 This is a synthesis. The full, commented procedure — including permission review and MCP activation — is [`docs/22-project-installation-guide.md`](docs/22-project-installation-guide.md).
 
-**1. Clone the Factory** (the example organization catalog is a git submodule):
+**1. Clone the Factory:**
 
 ```bash
-git clone --recurse-submodules <FACTORY_GIT_URL> ~/.gad/ai-engineering-factory/1.15.0
+git clone <FACTORY_GIT_URL> ~/.gad/ai-engineering-factory/1.15.0
 ```
 
 **2. Install the CLI**, ideally as an isolated tool with [uv](https://github.com/astral-sh/uv):
@@ -229,7 +228,35 @@ Organization
 
 An organization declares coding conventions, architecture practices, testing and security practices once, at three enforcement levels — `mandatory` (never disabled), `default` (inherited, may be overridden where allowed), `optional` (opt-in). A project selects zero, one, or several `OrganizationCatalog`s; a Skill only receives the practice categories it declares needing. Every resolved practice carries a content hash and provenance (organization, project, repository or task), and the resulting context has a stable fingerprint so two agents — or one agent resuming — can verify they are working from the same knowledge. See [`docs/21-effective-engineering-context.md`](docs/21-effective-engineering-context.md) and [`docs/16-organization-engineering-context.md`](docs/16-organization-engineering-context.md).
 
-Resolving several organization catalogs together is unit-tested, but the one real multi-catalog example shipped in this repository depends on a private submodule (see [Known limitations](docs/34-release-readiness.md#5-compatibility)) — treat multi-catalog inheritance as verified in isolation, not yet demonstrated end to end in this repository.
+An organization catalog is a small, versioned manifest — not exhaustive here, see [`organization/catalogs/sample-organization.yaml`](organization/catalogs/sample-organization.yaml) for the full shipped example:
+
+```yaml
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: OrganizationCatalog
+metadata:
+  id: sample-organization
+  version: 1.0.0
+extends:
+  - factory-default@1.0.0        # compose on top of the Factory-provided baseline
+practiceRefs:
+  - sample-organization-guidelines@1.0.0
+```
+
+`practiceRefs` points to individual `Practice` manifests — each a small YAML file (id, category, enforcement, which Profiles/Skills it applies to) paired with the actual Markdown document an agent reads. A catalog groups as many of these as the organization needs; a non-exhaustive sense of what that tends to look like, from the practices shipped in `organization/practices/`:
+
+| Category | Example content |
+| --- | --- |
+| `convention` | Language/framework coding conventions (e.g. Java, Spring) |
+| `architecture` | Architecture practices (e.g. API design, hexagonal architecture) |
+| `review` | Code review expectations |
+| `security` | Security standards (e.g. secret management) |
+| `testing` | Testing baseline and expectations |
+| `documentation` | Documentation practices |
+| `observability` | Observability practices |
+
+None of these categories is mandatory to populate — a catalog can be as small as the `sample-organization` example above (one practice) or extend `factory-default` with only the categories an organization actually wants to standardize.
+
+The Factory itself is agnostic of any organization: `core/` never references a specific company, and a project may select zero organization catalogs at all. The two catalogs shipped in `organization/catalogs/` (`factory-default`, `sample-organization`) are illustrative only — composing them together is exercised end to end by the test suite, demonstrating that a project may combine more than one catalog without any external or private dependency. `templates/organization/catalog.yaml` is the starting point for a company's own, separately-maintained catalog.
 
 ## Supported agents
 
@@ -336,10 +363,4 @@ None of the above is available today beyond what is explicitly listed as such.
 
 ## License
 
-This repository does not currently carry a public open-source license. `LICENSE` is an internal placeholder pending an organization-approved license choice.
-
-```text
-OPEN_SOURCE_BLOCKER: LICENSE missing
-```
-
-Do not treat this repository as licensed for reuse, and do not publish it externally, until this is resolved. See [`OPEN_SOURCE_READINESS.md`](OPEN_SOURCE_READINESS.md).
+MIT — see [`LICENSE`](LICENSE).

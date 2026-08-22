@@ -50,7 +50,7 @@ integrations:
 
 taskTracking:
   mode: external
-  namespace: Gad-Digital-IT/products/emi-ai
+  namespace: example-organization/emmany
   referenceFormat: container-iid
   workflowStates:
     - workflow::backlog
@@ -71,13 +71,13 @@ les adapters.
 Une référence `#42` est ambiguë dans un workspace polyrepo. Utiliser :
 
 ```text
-Gad-Digital-IT/products/emi-ai/app#42
+example-organization/emmany/egw-api#42
 ```
 
 ou l'URL complète :
 
 ```text
-https://gitlab.com/Gad-Digital-IT/products/emi-ai/app/-/issues/42
+https://gitlab.com/example-organization/emmany/egw-api/-/issues/42
 ```
 
 Le Runtime conserve la référence complète comme identité canonique.
@@ -93,7 +93,7 @@ sourceTask: local-...
 title: Corriger le contrat Homework
 description: ...
 acceptanceCriteria: [...]
-repositories: [emi-ai-api, emi-ai-app]
+repositories: [egw-api, egw-app]
 risk: high
 target:
   container: app

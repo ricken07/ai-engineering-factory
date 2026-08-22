@@ -1,0 +1,14 @@
+apiVersion: factory.gaddigital.io/v1alpha1
+kind: Practice
+metadata:
+  id: sample-organization-guidelines
+  name: Sample Organization Guidelines
+  version: 1.0.0
+category: architecture
+enforcement: optional
+appliesTo:
+  skills: [create-plan, implement-change, review-change]
+document:
+  path: sample-organization-guidelines.md
+override:
+  allowed: true

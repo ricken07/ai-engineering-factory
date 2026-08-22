@@ -38,15 +38,13 @@ def test_organization_catalog_selection_changes_effective_practices():
     data=project()
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
     identifiers=practice_ids(context)
-    assert "gad-java-development-guidelines" not in identifiers
-    assert "gad-api-guidelines" not in identifiers
-    assert "gad-app-architecture" not in identifiers
+    assert "sample-organization-guidelines" not in identifiers
 
-    data["engineering"]["organizationCatalogs"]=["gad-digital@1.0.0"]
-    data["repositories"][0]["engineering"]={"practices":{"gad-api-guidelines@1.0.0":{"mode":"enable"}}}
+    data["engineering"]["organizationCatalogs"]=["sample-organization@1.0.0"]
+    data["repositories"][0]["engineering"]={"practices":{"sample-organization-guidelines@1.0.0":{"mode":"enable"}}}
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
-    assert {"gad-api-guidelines","gad-java-development-guidelines"} <= practice_ids(context)
-    assert [item["id"] for item in context["organizationCatalogs"]] == ["factory-default","gad-digital"]
+    assert "sample-organization-guidelines" in practice_ids(context)
+    assert [item["id"] for item in context["organizationCatalogs"]] == ["factory-default","sample-organization"]
 
 
 def test_project_can_use_only_local_knowledge_without_organization_catalog():

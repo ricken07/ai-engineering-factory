@@ -14,13 +14,13 @@ def test_explicit_and_natural_requests_share_the_same_workflow():
 
 
 def test_gitlab_issue_url_and_qualified_reference_are_preserved():
-    url="https://gitlab.com/Gad-Digital-IT/products/emi-ai/app/-/issues/42"
+    url="https://gitlab.com/example-organization/emmany/egw-api/-/issues/42"
     url_resolution=resolve_intent(create_request(f"/implement {url}"))
     url_task=normalize_task(create_request(f"/implement {url}"),url_resolution)
     assert url_resolution["taskReference"] == url
     assert url_task["source"] == {"type":"issue","reference":url,"provider":"gitlab"}
 
-    qualified="Gad-Digital-IT/products/emi-ai/app#42"
+    qualified="example-organization/emmany/egw-api#42"
     qualified_task=normalize_task(create_request(f"Corrige {qualified}"),resolve_intent(create_request(f"Corrige {qualified}")))
     assert qualified_task["source"]["reference"] == qualified
     assert qualified_task["source"]["provider"] == "gitlab"

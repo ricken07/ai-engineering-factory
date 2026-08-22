@@ -6,15 +6,18 @@ d'évaluation à 3 niveaux. Toute affirmation ci-dessous est adossée à une
 commande réellement exécutée dans cette session (`pytest`, ou un appel direct
 au harness) — pas à une relecture de code seule.
 
-**État de la suite au moment de cet audit : 192 tests passent, 3 échouent.**
-Les 3 échecs sont connus, diagnostiqués, et non liés au code Runtime :
-- `test_organization_catalog_selection_changes_effective_practices` et
-  `test_package_is_valid` — bloqués par le sous-module git privé
-  `organization/catalogs/gad-guidelines` (`gitlab.com/Gad-Digital-IT/shared/guidelines.git`),
-  injoignable dans cet environnement (tentative de `git submodule update
-  --init` restée bloquée sur la résolution réseau).
-- `test_gitlab_native_provider_exposes_only_verified_task_operations` —
-  fixture de test Codex/GitLab obsolète, sans rapport avec le Runtime.
+**Mise à jour post-audit open source** : le catalogue d'organisation
+`gad-digital` et son sous-module privé `gad-guidelines` ont été retirés du
+repository (contenu spécifique à une organisation, remplacé par le catalogue
+générique `sample-organization`, entièrement auto-suffisant). Les deux
+échecs qui en dépendaient sont résolus ; le tableau et les listes ci-dessous
+sont mis à jour en conséquence. Voir
+[`OPEN_SOURCE_READINESS.md`](../OPEN_SOURCE_READINESS.md).
+
+**État de la suite au moment de cet audit : 194 tests passent, 1 échoue.**
+`test_gitlab_native_provider_exposes_only_verified_task_operations` —
+fixture de test Codex/GitLab obsolète, sans rapport avec le Runtime ni avec
+la résolution de contexte d'ingénierie.
 
 Une simplification a été appliquée pendant cet audit : les événements
 `validation.completed`/`validation.failed` dupliquaient exactement
@@ -112,13 +115,10 @@ vérifiable par AIEF (Level 3).
 | Java/Spring | `examples/emmany` repository `egw-api` (profils `java`+`spring`+`maven`) ; `test_java_spring_profiles_receive_relevant_practices_and_flutter_is_isolated` |
 | Autre profil (Flutter) | même test — Flutter isolé, aucune pratique Java ne fuite |
 | Aucune organization practice | `test_project_can_use_only_local_knowledge_without_organization_catalog` (`organizationCatalogs: []`) |
-| Plusieurs organization catalogs | **Non prouvé de bout en bout aujourd'hui.** Le mécanisme d'héritage (`extends`, détection de cycle, sélection de version) est unitairement vérifié sur des catalogues synthétiques (`test_missing_document_in_unreferenced_catalog_does_not_break_a_referenced_sibling`), mais le seul exemple réel à deux catalogues du repo (`gad-digital extends factory-default`) est bloqué par le sous-module externe injoignable — voir §Known limitations. |
+| Plusieurs organization catalogs | Prouvé de bout en bout : `sample-organization extends factory-default@1.0.0`, entièrement auto-suffisant (aucun sous-module) — `test_organization_catalog_selection_changes_effective_practices`. |
 
 ## 6. Known limitations
 
-- Résolution de plusieurs catalogues d'organisation avec du contenu réel :
-  non démontrée en bout en bout dans cet environnement (dépendance externe
-  injoignable, cf. ci-dessus).
 - Level 3 (Engineering Outcome) est un contrat de schéma sans aucune
   mesure : `correctness`, `scopeRespect`, `testQuality`, `reviewFindings`,
   `rework`, `policyViolations` sont tous `not_evaluated`. AIEF ne sait pas
@@ -143,13 +143,6 @@ vérifiable par AIEF (Level 3).
 
 ## 7. Operational risks
 
-- **Dépendance externe non résiliente** : un sous-module git privé
-  manquant a cassé, avant le correctif de cette série, la résolution de
-  contexte pour *tout* projet, y compris ceux sans rapport avec ce
-  catalogue. Le correctif isole ce risque au niveau projet, mais la
-  dépendance externe elle-même (accès réseau/écritures à un repo privé)
-  reste un point de fragilité pour tout clone frais ou CI sans les
-  identifiants adéquats.
 - **Profils sans commande de validation réelle** : `generic`, `node`,
   `java` (et par héritage `spring`, `react`, `flutter`) expédient des
   `commands: {}` vides — seul `maven` a de vraies commandes build/test. La
@@ -177,10 +170,11 @@ vérifiable par AIEF (Level 3).
 
 ## READY FOR REAL PROJECT PILOT
 
-- Le Runtime pour un **projet mono-organisation, mono-catalogue**
-  (`factory-default` seul ou aucun catalogue), en **monorepo ou polyrepo**,
-  sur les profils **Java/Spring/Maven/Flutter/generic** — 192 tests
-  passants, preuves Level 1 et Level 2 exécutées et citées ci-dessus.
+- Le Runtime pour un **projet mono-catalogue ou multi-catalogues**
+  (`factory-default` seul, aucun catalogue, ou composé avec
+  `sample-organization`), en **monorepo ou polyrepo**, sur les profils
+  **Java/Spring/Maven/Flutter/generic** — 194 tests passants, preuves
+  Level 1 et Level 2 exécutées et citées ci-dessus.
 - L'exécution symétrique **Claude Code / Codex** sur la même Task, avec la
   même trajectoire Runtime observable et vérifiable après coup
   (`aief task log`).
@@ -192,9 +186,6 @@ vérifiable par AIEF (Level 3).
 
 ## NOT YET READY
 
-- Une organisation avec **plusieurs catalogues d'organisation réels en
-  production** (l'héritage inter-catalogues n'est pas prouvé de bout en
-  bout dans cet environnement — dépendance externe à résoudre d'abord).
 - Toute décision qui s'appuierait sur les politiques
   `change/context/external-action/traceability/recovery/memory` comme
   étant *appliquées* : elles sont aujourd'hui documentaires uniquement.
