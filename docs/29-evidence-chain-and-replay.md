@@ -1,37 +1,37 @@
-# 29 — Chaîne de preuves et replay des validations
+# 29 — Evidence Chain and Validation Replay
 
-## Objectif
+## Goal
 
-Une auto-évaluation de l’agent ne suffit pas pour déclarer une modification
-conforme. La Factory exige une chaîne de preuves structurée, persistée et
-rejouable avant la soumission.
+Agent self-evaluation is not enough to declare a modification conforming. The
+Factory requires a structured, persisted and replayable evidence chain before
+submission.
 
 ```text
-Besoin
-  → critères d'acceptation
+Need
+  → acceptance criteria
   → plan
-  → implémentation
-  → validations
-  → matrice de preuves
-  → review indépendante
-  → soumission autorisée
+  → implementation
+  → validation
+  → evidence matrix
+  → independent review
+  → submission authorized
 ```
 
-## Critères d’acceptation
+## Acceptance Criteria
 
-Le plan doit exposer les critères dans `planning.yaml` :
+The plan must expose criteria in `planning.yaml`:
 
 ```yaml
 details:
   acceptanceCriteria:
     - id: AC-001
-      statement: "Le contrat API reste compatible."
+      statement: "API contract remains compatible."
     - id: AC-002
-      statement: "La lecture respecte l'utilisateur authentifié."
+      statement: "Reading respects the authenticated user."
 ```
 
-Chaque critère doit être couvert dans `validation.yaml` par un élément de
-`details.evidenceMatrix` :
+Each criterion must be covered in `validation.yaml` by an item in
+`details.evidenceMatrix`:
 
 ```yaml
 details:
@@ -41,25 +41,25 @@ details:
       evidence: [EV-001]
 ```
 
-Un critère sans preuve, ou avec un statut différent de `verified`, bloque la
-soumission.
+A criterion without proof, or with status other than `verified`, blocks
+submission.
 
-## Preuves de validation
+## Validation Evidence
 
-`validate-change` conserve notamment :
+`validate-change` preserves notably:
 
-- `details.validationPlan` : commandes exactes et repositories concernés ;
-- `details.results` : code retour, sortie et erreur de chaque commande ;
-- `details.commits` : commit Git testé par repository ;
-- `details.evidenceMatrix` : couverture des critères.
+- `details.validationPlan`: exact commands and repositories involved;
+- `details.results`: return code, output and error of each command;
+- `details.commits`: Git commit tested per repository;
+- `details.evidenceMatrix`: coverage of criteria.
 
-Une validation réussie doit donc être rattachée au code réellement testé,
-et non seulement à une affirmation de l’agent.
+A successful validation must therefore be tied to the code actually tested,
+not merely an agent assertion.
 
-## Review indépendante
+## Independent Review
 
-La review doit être produite indépendamment de l’implémentation. Elle doit
-contenir :
+The review must be produced independently of implementation. It must
+contain:
 
 ```yaml
 details:
@@ -70,12 +70,12 @@ details:
   blockingFindings: []
 ```
 
-Le Runtime refuse la soumission si les sessions sont identiques, si la review
-n’est pas approuvée ou si des findings bloquants restent ouverts.
+The Runtime refuses submission if sessions are identical, if review is
+not approved, or if blocking findings remain open.
 
 ## Replay
 
-Les validations peuvent être rejouées avec :
+Validations can be replayed with:
 
 ```bash
 aief execution replay-validation <execution-id> \
@@ -83,30 +83,29 @@ aief execution replay-validation <execution-id> \
   --factory "<FACTORY_HOME>"
 ```
 
-Le Runtime relit le plan enregistré, vérifie que chaque repository est
-toujours sur le commit testé, puis réexécute les commandes sans modifier le
-code. Le résultat est conservé dans :
+The Runtime rereads the recorded plan, verifies each repository is
+still on the tested commit, then reruns commands without code modification.
+The result is saved in:
 
 ```text
 .ai/runtime/executions/<execution-id>/validation-replay.yaml
 ```
 
-Si le repository a changé depuis la validation initiale, le replay échoue et
-une nouvelle validation est nécessaire.
+If the repository changed since initial validation, replay fails and
+a new validation is needed.
 
-## Gate de soumission
+## Submission Gate
 
-`submit-change` exige les éléments suivants :
+`submit-change` requires the following:
 
 ```text
-planning.yaml présent
-validation.yaml présent et réussi
-matrice de preuves complète
-review indépendante approuvée
-aucun finding bloquant
-gates de policy satisfaites
+planning.yaml present
+validation.yaml present and successful
+complete evidence matrix
+independent review approved
+no blocking findings
+policy gates satisfied
 ```
 
-Cette vérification intervient avant tout commit, MR/PR ou merge. Le choix du
-mode de livraison et les gates d’autorisation restent séparés de la preuve
-technique.
+This check occurs before any commit, MR/PR or merge. Delivery mode choice
+and authorization gates remain separate from technical proof.

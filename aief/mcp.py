@@ -3,6 +3,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 import json, os, yaml
+from .config import get_api_version
 
 def provider_for(value: Any) -> str:
     if isinstance(value,str): return value
@@ -49,7 +50,8 @@ def integration_lock(factory: Path, project: dict[str,Any]) -> dict[str,Any]:
         manifest,mcp=load_provider(factory,provider)
         canonical=json.dumps({"manifest":manifest,"mcp":mcp},sort_keys=True,separators=(",",":"))
         values.append({"provider":provider,"version":manifest["metadata"]["version"],"capabilities":sorted(capabilities),"mcp":{"id":mcp["metadata"]["id"],"transport":mcp["transport"]["type"]},"contentHash":sha256(canonical.encode()).hexdigest()})
-    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"IntegrationLock","metadata":{"id":project["metadata"]["id"]+"-integrations"},"factoryVersion":project["factory"]["version"],"integrations":values}
+    api_version=get_api_version(factory)
+    return {"apiVersion":api_version,"kind":"IntegrationLock","metadata":{"id":project["metadata"]["id"]+"-integrations"},"factoryVersion":project["factory"]["version"],"integrations":values}
 
 def render_codex(bindings: list[dict[str,Any]]) -> str:
     lines=["# BEGIN AIEF MANAGED MCP","# Secrets remain in the environment."]

@@ -18,6 +18,8 @@ from typing import Any, Callable
 import copy
 import subprocess
 
+from .config import get_api_version
+
 import yaml
 
 from .concurrency import ExecutionLease
@@ -374,9 +376,9 @@ ENGINEERING_OUTCOME_DIMENSIONS = (
 )
 
 
-def pending_engineering_outcome(scenario: str, agent: str) -> dict[str, Any]:
+def pending_engineering_outcome(factory: Path, scenario: str, agent: str) -> dict[str, Any]:
     return {
-        "apiVersion": "factory.gaddigital.io/v1alpha1",
+        "apiVersion": get_api_version(factory),
         "kind": "EngineeringOutcome",
         "metadata": {"id": f"outcome-{scenario}-{agent}"},
         "scenario": scenario,

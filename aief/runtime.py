@@ -5,13 +5,14 @@ from typing import Any
 import uuid, yaml
 from .knowledge import create_task_memory
 from .yamlio import load_yaml
+from .config import get_api_version
 
 TERMINAL = {"completed", "failed", "skipped"}
 
 class Execution:
     def __init__(self, root: Path, data: dict[str, Any]): self.root, self.data = root, data
     @classmethod
-    def create(cls, project: Path, workflow: dict[str, Any], task: str, agent: str | None = None) -> "Execution":
+    def create(cls, project: Path, factory: Path, workflow: dict[str, Any], task: str, agent: str | None = None) -> "Execution":
         identifier = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         root = project / ".ai" / "runtime" / "executions" / identifier
         root.mkdir(parents=True)
@@ -24,7 +25,8 @@ class Execution:
         metadata = workflow.get("metadata", {})
         workflow_id = workflow.get("id") or metadata.get("id")
         workflow_version = workflow.get("version") or metadata.get("version", "0.0.0")
-        data = {"apiVersion":"factory.gaddigital.io/v1alpha1", "kind":"Execution", "metadata":{"id":identifier}, "project":project_id, "workflow":{"id":workflow_id,"version":workflow_version}, "task":task, "status":"pending", "phases":phases, "artifacts":[]}
+        api_version = get_api_version(factory)
+        data = {"apiVersion": api_version, "kind":"Execution", "metadata":{"id":identifier}, "project":project_id, "workflow":{"id":workflow_id,"version":workflow_version}, "task":task, "status":"pending", "phases":phases, "artifacts":[]}
         if agent: data["agent"] = {"adapter": agent}
         execution = cls(root, data)
         execution.save(); return execution
@@ -82,9 +84,10 @@ class Execution:
         reason=self.data.get("blockingReason")
         if self.data["status"] != "blocked" or not reason or reason["type"] != blocking_type: raise RuntimeError(f"execution is not blocked by {blocking_type}")
         self.data.pop("blockingReason",None); self.data["status"]="running"; self.save(); return "running"
-    def handoff(self) -> Path:
+    def handoff(self, factory: Path) -> Path:
         next_phase = self.next_phase()
-        data = {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"Handoff","metadata":{"id":f"handoff-{self.data['metadata']['id']}"},"execution":self.data["metadata"]["id"],"task":self.data["task"],"status":self.data["status"],"summary":f"Execution {self.data['status']} for workflow {self.data['workflow']['id']}.","artifacts":self.data["artifacts"],"decisions":[],"constraints":[],"openQuestions":[],"nextActions":([f"Resume phase {next_phase['id']}"] if next_phase else [])}
+        api_version = get_api_version(factory)
+        data = {"apiVersion": api_version,"kind":"Handoff","metadata":{"id":f"handoff-{self.data['metadata']['id']}"},"execution":self.data["metadata"]["id"],"task":self.data["task"],"status":self.data["status"],"summary":f"Execution {self.data['status']} for workflow {self.data['workflow']['id']}.","artifacts":self.data["artifacts"],"decisions":[],"constraints":[],"openQuestions":[],"nextActions":([f"Resume phase {next_phase['id']}"] if next_phase else [])}
         path = self.root / "handoff.yaml"; path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"); return path
     def record_attempt(self, error: str, hypothesis: str, action: str, outcome: str, evidence: list[str] | None = None) -> str:
         phase = self.next_phase()

@@ -6,6 +6,7 @@ import yaml
 import hashlib
 import json
 
+from .config import get_api_version
 from .capabilities import resolve_profiles
 
 
@@ -241,7 +242,7 @@ def resolve_engineering_context(factory: Path, project_root: Path, project: dict
               "profiles":[{"id":item["id"],"version":item["version"],"extends":item["extends"]} for item in profile_resolutions],"categories":categories,
               "practices":[{"id":item["id"],"version":item["version"],"source":item["source"],"contentHash":item["contentHash"]} for item in practices],"taskContext":task_context}
     fingerprint=hashlib.sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
-    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"EffectiveEngineeringContext","metadata":{"id":f"{project['metadata']['id']}-{repository_id}-{skill_id}"},"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,
+    return {"apiVersion":get_api_version(factory),"kind":"EffectiveEngineeringContext","metadata":{"id":f"{project['metadata']['id']}-{repository_id}-{skill_id}"},"project":project["metadata"]["id"],"repository":repository_id,"skill":skill_id,
             **({"task":task["metadata"]["id"]} if task else {}),"profiles":profile_ids,"profileResolutions":profile_resolutions,"organizationCatalogs":catalog_resolutions,"categories":categories,"practices":practices,"resolutions":resolutions,"taskContext":task_context,"fingerprint":fingerprint}
 
 

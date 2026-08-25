@@ -1,71 +1,70 @@
-# AI Engineering Factory — Référence consolidée
+# AI Engineering Factory — Consolidated Reference
 
-Ce document est la vue d'ensemble de la Factory : son objectif, son
-fonctionnement entre le Core et un projet, son architecture de solution et son
-architecture technique exécutable.
+This document is the Factory overview: its purpose,
+how it functions between the Core and a project, its solution architecture and its
+executable technical architecture.
 
-## 1. Finalité du produit
+## 1. Product Purpose
 
-L'AI Engineering Factory industrialise l'utilisation d'agents de code tout en
-conservant les pratiques d'ingénierie, le contexte projet, la traçabilité et le
-contrôle humain.
+The AI Engineering Factory industrializes the use of coding agents while
+preserving engineering practices, project context, traceability and human
+control.
 
-La progression recherchée est :
+The desired progression is:
 
 ```text
-Développeur augmenté
-        → Équipe augmentée
-        → Delivery augmenté
-        → Organisation d'ingénierie augmentée
+Augmented developer
+        → Augmented team
+        → Augmented delivery
+        → Augmented engineering organization
 ```
 
-La Factory n'est ni un agent, ni une stack technique, ni un fournisseur de
-tickets. Elle fournit un processus commun que Claude Code, Codex ou un autre
-agent peut exécuter.
+The Factory is neither an agent, nor a technical stack, nor a ticket
+provider. It provides a common process that Claude Code, Codex or another
+agent can execute.
 
-## 2. Modèle de responsabilité
+## 2. Responsibility Model
 
-| Couche | Responsabilité | Exemples de contenu |
+| Layer | Responsibility | Example content |
 | --- | --- | --- |
-| Core | Définir comment travailler | schemas, policies, standards, workflows, skills |
-| Organization | Publier des pratiques réutilisables | standards, practices, catalogues versionnés |
-| Profile | Décrire une technologie ou un type de repository | Java, Maven, Flutter, Node |
-| Project | Décrire où et sous quelles contraintes travailler | `.ai/project.yaml`, architecture, domaine |
-| Integration | Fournir une capability externe | task-provider, source-control, CI |
-| Adapter | Traduire le Runtime vers un agent | Claude Code, Codex |
-| MCP/provider | Exécuter l'appel vers un système externe | GitLab, GitHub, Jira, Confluence |
+| Core | Define how to work | schemas, policies, standards, workflows, skills |
+| Organization | Publish reusable practices | standards, practices, versioned catalogs |
+| Profile | Describe a technology or repository type | Java, Maven, Flutter, Node |
+| Project | Describe where and under what constraints to work | `.ai/project.yaml`, architecture, domain |
+| Integration | Provide an external capability | task-provider, source-control, CI |
+| Adapter | Translate the Runtime to an agent | Claude Code, Codex |
+| MCP/provider | Execute the call to an external system | GitLab, GitHub, Jira, Confluence |
 
-Règle de dépendance : le Core dépend uniquement de ses contrats. Les couches
-inférieures peuvent spécialiser ou restreindre le Core, mais ne peuvent pas lui
-imposer un agent, une stack ou un provider.
+Dependency rule: The Core depends only on its own contracts. Lower layers
+can specialize or constrain the Core, but cannot impose an agent, stack or provider on it.
 
-## 3. Architecture de solution
+## 3. Solution Architecture
 
 ```mermaid
 flowchart TB
-    developer[Développeur]
-    request[Demande : commande ou langage naturel]
-    agent[Agent de code\nClaude Code / Codex / autre]
-    adapter[Adapter agent]
+    developer[Developer]
+    request[Request: command or natural language]
+    agent[Coding agent\nClaude Code / Codex / other]
+    adapter[Agent adapter]
     runtime[Factory Runtime]
 
-    subgraph factory[AI Engineering Factory installée sur le poste]
+    subgraph factory[AI Engineering Factory installed on workstation]
         core[Core\nSchemas · Policies · Standards\nWorkflows · Skills]
-        profiles[Profiles techniques]
-        org[Catalogues organisationnels optionnels]
-        integrations[Integrations par capabilities]
+        profiles[Technical profiles]
+        org[Optional organizational catalogs]
+        integrations[Integrations by capability]
     end
 
-    subgraph project[Workspace du projet]
+    subgraph project[Project workspace]
         config[.ai/project.yaml]
         topology[.ai/repository-map.yaml]
         context[Context · Decisions · Memory]
         state[.ai/runtime\nTasks · Executions · Artifacts · Handoffs]
-        source[Repositories et code source]
+        source[Repositories and source code]
     end
 
-    subgraph external[Systèmes externes optionnels]
-        mcp[MCP configuré par l'adapter]
+    subgraph external[Optional external systems]
+        mcp[MCP configured by adapter]
         provider[GitLab · GitHub · Jira · Confluence · CI]
     end
 
@@ -80,72 +79,65 @@ flowchart TB
     integrations --> mcp --> provider
 ```
 
-Le projet ne copie pas le Core. Il sélectionne une version de Factory et
-fournit uniquement son contexte et ses bindings.
+The project does not copy the Core. It selects a Factory version and
+provides only its context and bindings.
 
-### Lecture du flux
+### Reading the Flow
 
-Cette architecture sépare les responsabilités :
+This architecture separates responsibilities:
 
 ```text
-Processus commun        → Core
-Spécificités techniques → Profiles
-Configuration projet    → .ai/project.yaml
-Agent utilisé           → Adapter
-Système externe         → Provider/MCP
-État d'exécution        → .ai/runtime/
+Common process        → Core
+Technical specifics → Profiles
+Project config      → .ai/project.yaml
+Agent used          → Adapter
+External system     → Provider/MCP
+Execution state     → .ai/runtime/
 ```
 
-Le développeur formule une demande, par exemple `$implement Feature 2.1`.
-L'agent de code (Codex, Claude Code ou un autre agent) la transmet à son
-adapter. L'adapter traduit les capacités de l'agent vers le protocole commun,
-puis le Runtime orchestre la tâche : normalisation, phases, policies,
-validations, gates et traçabilité.
+The developer formulates a request, for example `$implement Feature 2.1`.
+The coding agent (Codex, Claude Code or another agent) transmits it to its
+adapter. The adapter translates the agent's capabilities to the common protocol,
+then the Runtime orchestrates the task: normalization, phases, policies,
+validations, gates and traceability.
 
-Le Core contient les règles réutilisables : schémas, policies, workflows et
-skills. Les profiles ajoutent les règles propres à une technologie comme
-Java, Maven ou Flutter. Le projet fournit son contexte local avec
-`.ai/project.yaml`, `.ai/repository-map.yaml`, les décisions, la mémoire et
-les repositories sources. Le dossier `.ai/runtime/` conserve l'état généré de
-l'exécution et reste local.
+The Core contains reusable rules: schemas, policies, workflows and
+skills. Profiles add rules specific to a technology like
+Java, Maven or Flutter. The project provides its local context with
+`.ai/project.yaml`, `.ai/repository-map.yaml`, decisions, memory and
+source repositories. The `.ai/runtime/` folder preserves the generated execution state and remains local.
 
-Les systèmes externes comme GitLab, GitHub, Jira ou Confluence sont appelés
-uniquement lorsqu'une capability le demande. Le Runtime utilise un contrat
-abstrait, par exemple `source-control → submit-change` ou
-`task-provider → search-task`, puis l'adapter invoque le MCP du provider réel :
+External systems like GitLab, GitHub, Jira or Confluence are called
+only when a capability requires it. The Runtime uses an abstract contract, for example `source-control → submit-change` or
+`task-provider → search-task`, then the adapter invokes the real provider's MCP:
 
 ```text
 Runtime → Integration → MCP → GitLab/GitHub/Jira/Confluence
 ```
 
-Le workflow reste ainsi identique quel que soit l'agent, la technologie ou le
-provider sélectionné par le projet.
+Thus the workflow remains identical regardless of the agent, technology or
+provider selected by the project.
 
-La soumission est également contrôlée par une chaîne de preuves : critères
-d'acceptation, validations persistées, matrice de couverture et review
-indépendante. Une soumission incomplète est refusée par le Runtime. Les
-validations peuvent être rejouées depuis le plan enregistré afin de vérifier
-qu'elles correspondent toujours au même commit.
+Submission is also controlled by a proof chain: acceptance criteria, persisted validations, coverage matrix and independent review. An incomplete submission is refused by the Runtime. Validations can be replayed from the recorded plan to verify that they still match the same commit.
 
-La procédure détaillée est décrite dans [29 — Chaîne de preuves et replay des
-validations](29-evidence-chain-and-replay.md).
+The detailed procedure is described in [29 — Evidence Chain and Validation Replay](29-evidence-chain-and-replay.md).
 
-## 4. Contenu du Core
+## 4. Core Content
 
 ```text
 core/
-├── schemas/       # Contrats machine-readable et artifacts
-├── standards/     # Méthodes et critères de qualité
-├── policies/      # Autorisations, risques, gates, traçabilité
-├── workflows/     # Orchestration ordonnée des phases
-└── skills/        # Capacités agentiques avec contrat et output schema
+├── schemas/       # Machine-readable contracts and artifacts
+├── standards/     # Methods and quality criteria
+├── policies/      # Authorizations, risks, gates, traceability
+├── workflows/     # Ordered orchestration of phases
+└── skills/        # Agentic capabilities with contract and output schema
 ```
 
-Un workflow définit **quoi faire et dans quel ordre**. Un Skill définit une
-capacité et sa méthode. Une Policy décide ce qui est autorisé. Un Profile
-explique comment une validation ou une convention s'applique à une technologie.
+A workflow defines **what to do and in what order**. A Skill defines a
+capability and its method. A Policy decides what is allowed. A Profile
+explains how a validation or convention applies to a technology.
 
-Exemple de workflow `implement-task` :
+Example of `implement-task` workflow:
 
 ```mermaid
 flowchart LR
@@ -154,57 +146,57 @@ flowchart LR
     impact[analyze-impact]
     risk[assess-risk]
     plan[create-plan]
-    gate1{Gate humain/policy}
+    gate1{Human gate/policy}
     implement[implement-change]
     validate[validate-change]
     review[review-change]
     trace[record-traceability]
     submit[submit-change]
-    gate2{Gate de soumission}
+    gate2{Submission gate}
 
     understand --> context --> impact --> risk --> plan --> gate1
     gate1 -->|approved| implement --> validate --> review --> trace --> gate2
     gate2 -->|approved| submit
-    gate1 -->|rejected| stop1[Execution bloquée]
-    gate2 -->|rejected| stop2[Execution bloquée]
+    gate1 -->|rejected| stop1[Execution blocked]
+    gate2 -->|rejected| stop2[Execution blocked]
 ```
 
-Chaque transition transmet un artifact structuré et validé par schema, jamais
-un texte libre implicite.
+Each transition transmits a structured artifact validated by schema, never
+implicit free text.
 
-## 5. Structure d'un projet consommateur
+## 5. Consumer Project Structure
 
 ```text
 project/
-├── AGENTS.md                 # Bootstrap commun des agents
-├── CLAUDE.md                 # Pont/bootstrap Claude Code
-├── .mcp.json                 # MCP projet Claude, si autorisé
-├── .codex/config.toml        # MCP et permissions Codex, si autorisé
+├── AGENTS.md                 # Common agent bootstrap
+├── CLAUDE.md                 # Claude Code bridge/bootstrap
+├── .mcp.json                 # Claude MCP project, if authorized
+├── .codex/config.toml        # Codex MCP and permissions, if authorized
 └── .ai/
-    ├── project.yaml          # Identité, Factory, profiles, providers
-    ├── repository-map.yaml   # Topologie et dépendances poly-repo
+    ├── project.yaml          # Identity, Factory, profiles, providers
+    ├── repository-map.yaml   # Topology and poly-repo dependencies
     ├── context/
     │   ├── project.md
     │   ├── architecture.md
     │   ├── domain.md
     │   └── conventions.md
-    ├── decisions/            # Décisions durables validées
-    ├── memory/               # Connaissance projet approuvée
-    ├── integration-lock.yaml # Résolution versionnée sans secret
+    ├── decisions/            # Validated durable decisions
+    ├── memory/               # Approved project knowledge
+    ├── integration-lock.yaml # Versioned resolution without secrets
     └── runtime/
-        ├── tasks/            # État Task et handoff
-        └── executions/       # Phases, artifacts et décisions
+        ├── tasks/            # Task state and handoff
+        └── executions/       # Phases, artifacts and decisions
 ```
 
-Le dossier `emmany-coming-soon`, un repository expérimental ou tout autre
-répertoire non déclaré reste hors périmètre. L'absence d'une entrée dans
-`repositories` ne donne pas le droit au Runtime de le modifier.
+The `emmany-coming-soon` folder, an experimental repository or any other
+undeclared directory remains out of scope. The absence of an entry in
+`repositories` does not grant the Runtime the right to modify it.
 
-## 6. Cycle d'exécution réel
+## 6. Actual Execution Cycle
 
 ```mermaid
 sequenceDiagram
-    actor D as Développeur
+    actor D as Developer
     participant A as Agent
     participant AD as Adapter
     participant R as Factory Runtime
@@ -217,81 +209,80 @@ sequenceDiagram
     participant M as MCP/provider
     participant FS as Git/workspace
 
-    D->>A: /implement EGW-142 ou demande naturelle
-    A->>AD: transmettre requête et identité agent
-    AD->>R: créer Request / Intent / Task
-    R->>P: découvrir racine et charger .ai/project.yaml
-    P-->>R: projet, Factory, repositories, version
-    R->>W: résoudre workflow et phases
+    D->>A: /implement EGW-142 or natural request
+    A->>AD: transmit request and agent identity
+    AD->>R: create Request / Intent / Task
+    R->>P: discover root and load .ai/project.yaml
+    P-->>R: project, Factory, repositories, version
+    R->>W: resolve workflow and phases
     W-->>R: implement-task + Skills + schemas
-    R->>C: charger contexte pertinent, profiles et pratiques
+    R->>C: load relevant context, profiles and practices
     C-->>R: EffectiveEngineeringContext
-    R->>PE: calculer risque, autonomie, tracking et actions
+    R->>PE: calculate risk, autonomy, tracking and actions
     PE-->>R: PolicyDecision
-    R->>G: vérifier gate avant modification
-    G-->>A: plan ou approbation requise
-    A->>FS: analyser et modifier selon le plan approuvé
-    A->>R: soumettre artifact de phase
-    R->>R: valider schema, persister artifact et avancer
-    R->>I: demander une capability si nécessaire
-    I->>M: appeler le provider via MCP configuré
-    M-->>I: résultat structuré
-    I-->>R: résultat de capability
-    R->>FS: validations, diff, branche et état workspace
-    R->>G: gate commit/push/MR/merge selon policy
-    R-->>AD: receipt, état, prochaine phase ou blocage
-    AD-->>A: afficher le résultat et continuer/attendre
+    R->>G: verify gate before modification
+    G-->>A: plan or approval required
+    A->>FS: analyze and modify per approved plan
+    A->>R: submit phase artifact
+    R->>R: validate schema, persist artifact and advance
+    R->>I: request capability if necessary
+    I->>M: call provider via configured MCP
+    M-->>I: structured result
+    I-->>R: capability result
+    R->>FS: validations, diff, branch and workspace state
+    R->>G: gate commit/push/MR/merge per policy
+    R-->>AD: receipt, state, next phase or blockage
+    AD-->>A: display result and continue/wait
 ```
 
-Le Runtime conserve l'état dans `.ai/runtime/`. Une nouvelle session ou un
-autre agent relit cet état et ne dépend pas de l'historique conversationnel.
+The Runtime preserves state in `.ai/runtime/`. A new session or
+another agent rereads this state and does not depend on conversation history.
 
-Le projet versionne sa vérité durable, notamment `.ai/project.yaml`, la carte
-des repositories, le contexte approuvé, les décisions, la mémoire validée et
-le verrou d'intégration. `.ai/runtime/` reste ignoré car il contient un état
-d'exécution local et généré.
+The project versions its durable truth, notably `.ai/project.yaml`, the repository map, approved context, decisions, validated memory and
+integration lock. `.ai/runtime/` remains ignored because it contains
+local, generated execution state.
 
-Lorsqu'un merge produit un conflit dans les fichiers durables `.ai/`, la
-résolution est revue comme une modification de code : conserver les deux
-versions jusqu'à la décision, vérifier les repositories, providers, branches
-et politiques résultants, puis relancer la validation du projet. Un conflit
-dans `.ai/runtime/` ne doit normalement pas se produire puisqu'il est ignoré.
+When a merge produces a conflict in durable `.ai/` files, the
+resolution is reviewed like a code modification: keep both
+versions until decision, verify repositories, providers, branches
+and resulting policies, then resume project validation. A conflict
+in `.ai/runtime/` should normally not occur since it is ignored.
 
-## 7. Runtime déterministe et raisonnement agentique
+## 7. Deterministic Runtime and Agentic Reasoning
 
-| Responsabilité | Nature | Autorité |
+| Responsibility | Nature | Authority |
 | --- | --- | --- |
-| Découvrir le workspace | Déterministe | Runtime |
-| Valider YAML/JSON Schema | Déterministe | Runtime |
-| Résoudre Factory, workflow, Skill et version | Déterministe | Runtime |
-| Comprendre le besoin métier | Agentique | Agent |
-| Analyser l'impact du code | Agentique | Agent, artifact structuré |
-| Calculer risque/autonomie/tracking | Déterministe | Policy Engine |
-| Proposer un plan | Agentique | Agent, gate éventuel |
-| Exécuter une commande de profil | Déterministe | Runtime, après autorisation |
-| Modifier le code | Agentique | Agent, scope approuvé |
-| Vérifier le diff et les tests | Hybride | Agent + Runtime |
-| Persister état, artifacts et handoff | Déterministe | Runtime |
-| Appeler GitLab/GitHub/Jira/Confluence | Déterministe | Adapter + Integration + MCP |
+| Discover workspace | Deterministic | Runtime |
+| Validate YAML/JSON Schema | Deterministic | Runtime |
+| Resolve Factory, workflow, Skill and version | Deterministic | Runtime |
+| Understand business need | Agentic | Agent |
+| Analyze code impact | Agentic | Agent, structured artifact |
+| Calculate risk/autonomy/tracking | Deterministic | Policy Engine |
+| Propose a plan | Agentic | Agent, possible gate |
+| Execute a profile command | Deterministic | Runtime, after authorization |
+| Modify code | Agentic | Agent, approved scope |
+| Verify diff and tests | Hybrid | Agent + Runtime |
+| Persist state, artifacts and handoff | Deterministic | Runtime |
+| Call GitLab/GitHub/Jira/Confluence | Deterministic | Adapter + Integration + MCP |
 
-Le Runtime ne devient donc pas un nouvel agent. Il garantit la reproductibilité,
-la sécurité et la gouvernance autour des capacités de raisonnement de l'agent.
+Thus the Runtime does not become a new agent. It guarantees
+reproducibility, security and governance around the agent's reasoning capabilities.
 
-## 8. Héritage des pratiques d'ingénierie
+## 8. Inheritance of Engineering Practices
 
-Le contexte effectif est calculé par niveau :
+The effective context is calculated by level:
 
 ```mermaid
 flowchart TD
-    core[Core policies et standards]
-    org[OrganizationCatalog optionnel]
-    profile[Profiles du repository]
-    project[Pratiques et contexte projet]
-    repo[Contraintes repository]
-    task[Task et impact courant]
+    core[Core policies and standards]
+    org[Optional OrganizationCatalog]
+    profile[Repository profiles]
+    project[Project practices and context]
+    repo[Repository constraints]
+    task[Current task and impact]
     resolver[Engineering Context Resolver]
     effective[EffectiveEngineeringContext]
-    skill[Skill courant]
+    skill[Current skill]
 
     core --> resolver
     org --> resolver
@@ -302,25 +293,25 @@ flowchart TD
     resolver --> effective --> skill
 ```
 
-Les pratiques `mandatory` ne sont pas surchargeables. Les pratiques `default`
-peuvent être spécialisées lorsque leur manifeste l'autorise. Les pratiques
-`optional` doivent être activées explicitement. Un projet peut ne sélectionner
-aucun catalogue organisationnel et garder uniquement ses conventions locales.
+`mandatory` practices cannot be overridden. `default` practices
+can be specialized when their manifest allows it. `optional` practices
+must be explicitly activated. A project can select no organizational catalog
+and keep only its local conventions.
 
-## 9. Capabilities externes et MCP
+## 9. External Capabilities and MCP
 
-Le Core demande une capability, jamais un outil MCP concret :
+The Core requests a capability, never a concrete MCP tool:
 
 ```text
 Skill → task-provider
-      → provider déclaré dans .ai/project.yaml
+      → provider declared in .ai/project.yaml
       → Integration catalog Factory
       → Adapter Claude/Codex
-      → MCP configuré localement
-      → système externe
+      → MCP configured locally
+      → external system
 ```
 
-Le projet déclare par exemple :
+The project declares, for example:
 
 ```yaml
 integrations:
@@ -328,12 +319,10 @@ integrations:
   source-control: {provider: example-provider}
 ```
 
-Les URLs, transports et secrets restent hors du projet ou dans une configuration
-gérée autorisée. Le Runtime échoue explicitement si le provider, la capability,
-le MCP ou l'authentification sont indisponibles ; il ne fait pas de fallback
-silencieux.
+URLs, transports and secrets remain outside the project or in an authorized managed configuration. The Runtime fails explicitly if the provider, capability,
+MCP or authentication are unavailable; it does not silently fall back.
 
-## 10. États et reprise
+## 10. States and Resumption
 
 ```mermaid
 stateDiagram-v2
@@ -343,41 +332,39 @@ stateDiagram-v2
     RUNNING --> WAITING_APPROVAL
     WAITING_APPROVAL --> RUNNING: approve
     WAITING_APPROVAL --> BLOCKED: reject / policy
-    RUNNING --> BLOCKED: précondition manquante
-    RUNNING --> FAILED: erreur phase ou validation
-    RUNNING --> COMPLETED: toutes les phases terminées
-    RUNNING --> CANCELLED: annulation explicite
-    BLOCKED --> RUNNING: correction et reprise
-    FAILED --> RUNNING: reprise autorisée
+    RUNNING --> BLOCKED: missing precondition
+    RUNNING --> FAILED: phase error or validation
+    RUNNING --> COMPLETED: all phases complete
+    RUNNING --> CANCELLED: explicit cancellation
+    BLOCKED --> RUNNING: correction and resumption
+    FAILED --> RUNNING: authorized resumption
     COMPLETED --> [*]
     CANCELLED --> [*]
 ```
 
-Une reprise vérifie l'identité de l'exécution, la phase courante, les artifacts
-déjà validés, le lease éventuel et l'état Git du workspace. Une divergence ou
-une modification locale non attribuée à l'exécution bloque l'action plutôt que
-de l'écraser.
+A resumption verifies execution identity, current phase, already-validated artifacts, any lease and workspace Git state. A divergence or
+unattributed local modification blocks the action rather than overwriting it.
 
-## 11. Commandes portables
+## 11. Portable Commands
 
-`aief` est la CLI déterministe commune aux adapters. Les commandes sont
-portables entre les projets et les agents ; seuls le point d'entrée natif et la
-présentation changent :
+`aief` is the deterministic CLI common to adapters. Commands are
+portable between projects and agents; only native entry point and
+presentation change:
 
-| Besoin | Claude Code | Codex | CLI portable |
+| Need | Claude Code | Codex | Portable CLI |
 | --- | --- | --- | --- |
-| Implémenter | `/implement ...` | `$implement ...` | `aief run ... --intent implement` |
-| Corriger | `/fix ...` | `$fix ...` | `aief run ... --intent fix` |
-| Refactorer | `/refactor ...` | `$refactor ...` | `aief run ... --intent refactor` |
-| Tester | `/test ...` | `$test ...` | `aief run ... --intent test` |
-| Analyser | `/analyze ...` | `$analyze ...` | `aief run ... --intent analyze` |
-| Reviewer | `/review ...` | `$review ...` | `aief run ... --intent review` |
-| Documenter | `/document ...` | `$document ...` | `aief run ... --intent document` |
+| Implement | `/implement ...` | `$implement ...` | `aief run ... --intent implement` |
+| Fix | `/fix ...` | `$fix ...` | `aief run ... --intent fix` |
+| Refactor | `/refactor ...` | `$refactor ...` | `aief run ... --intent refactor` |
+| Test | `/test ...` | `$test ...` | `aief run ... --intent test` |
+| Analyze | `/analyze ...` | `$analyze ...` | `aief run ... --intent analyze` |
+| Review | `/review ...` | `$review ...` | `aief run ... --intent review` |
+| Document | `/document ...` | `$document ...` | `aief run ... --intent document` |
 
-Exemple indépendant de l'agent :
+Agent-independent example:
 
 ```bash
-aief run "Implémente la fonctionnalité de filtrage" \
+aief run "Implement the filtering feature" \
   --agent codex \
   --intent implement \
   --expect-workflow implement-task \
@@ -385,7 +372,7 @@ aief run "Implémente la fonctionnalité de filtrage" \
   --factory "$FACTORY_HOME"
 ```
 
-Commandes de diagnostic et d'installation :
+Diagnosis and installation commands:
 
 ```bash
 aief validate . --factory "$FACTORY_HOME"
@@ -397,7 +384,7 @@ aief setup-adapter codex --factory "$FACTORY_HOME"
 aief setup-adapter claude-code --factory "$FACTORY_HOME"
 ```
 
-Commandes d'intégration et de contexte :
+Integration and context commands:
 
 ```bash
 aief integrations lock . --factory "$FACTORY_HOME"
@@ -407,41 +394,40 @@ aief engineering-context <repository-id> <skill-id> \
   --project . --factory "$FACTORY_HOME" --json
 ```
 
-Le Runtime ne demande pas à l'agent de réimplémenter ces opérations. Les
-adapters les invoquent avec des chemins explicites, l'identifiant du projet et
-la version de Factory résolue.
+The Runtime does not ask the agent to reimplement these operations. The
+adapters invoke them with explicit paths, project identifier and
+resolved Factory version.
 
-## 12. Tasks : unité de travail et traçabilité
+## 12. Tasks: Unit of Work and Traceability
 
-Une `Task` est la représentation normalisée d'une demande. Elle peut provenir
-d'un ticket externe, d'une commande ou du langage naturel :
+A `Task` is the normalized representation of a request. It can come
+from an external ticket, a command or natural language:
 
 ```mermaid
 flowchart LR
-    external[Tâche externe]
-    command[Commande]
-    natural[Langage naturel]
+    external[External task]
+    command[Command]
+    natural[Natural language]
     intake[Task Intake]
-    task[Task normalisée]
+    task[Normalized task]
     execution[Execution]
-    tracking[Tracking externe optionnel]
+    tracking[Optional external tracking]
 
     external --> intake
     command --> intake
     natural --> intake
     intake --> task --> execution
-    task -. promotion ou liaison .-> tracking
+    task -. promotion or linking .-> tracking
 ```
 
-Une Task locale peut rester locale pour un petit changement, ou être liée à un
-provider lorsque la policy de tracking le recommande ou l'exige. Une Task
-externe conserve toujours une identité Runtime locale et une référence
-canonique externe lorsqu'elle est liée.
+A local Task can remain local for a small change, or be linked to a
+provider when tracking policy recommends or requires it. An external Task
+always preserves a local Runtime identity and an external canonical reference when linked.
 
-Commandes de gestion des Tasks :
+Task management commands:
 
 ```bash
-aief intake "Corrige le mapping des statuts" --project . --factory "$FACTORY_HOME"
+aief intake "Fix status mapping" --project . --factory "$FACTORY_HOME"
 aief task inspect <task-id> --project . --factory "$FACTORY_HOME"
 aief task log <task-id> --project . --factory "$FACTORY_HOME"
 aief task tracking <task-id> --project . --factory "$FACTORY_HOME"
@@ -450,8 +436,8 @@ aief task assess-tracking <task-id> --impact impact.yaml \
 aief task resolve-provider <task-id> --project . --factory "$FACTORY_HOME"
 ```
 
-Pour un provider externe, la séquence contrôlée est : recherche de doublon,
-proposition, gate humain, création ou liaison, puis reprise du workflow :
+For an external provider, the controlled sequence is: search for duplicates,
+propose, human gate, create or link, then resume workflow:
 
 ```bash
 aief task search-external <task-id> --project . --factory "$FACTORY_HOME"
@@ -464,41 +450,41 @@ aief task propose-external <task-id> --proposal proposal.yaml \
 aief task create-external <task-id> --project . --factory "$FACTORY_HOME"
 ```
 
-Une création ou une liaison n'est jamais un fallback silencieux : provider,
-capability, authentification, policy et gate doivent tous être disponibles.
+A creation or linking is never a silent fallback: provider,
+capability, authentication, policy and gate must all be available.
 
-## 13. Fonctionnement de la mémoire
+## 13. How Memory Functions
 
-La Factory ne possède pas une mémoire globale implicite. Elle distingue quatre
-niveaux :
+The Factory has no implicit global memory. It distinguishes four
+levels:
 
 ```mermaid
 flowchart TB
-    session[Session agent\nobservations temporaires]
-    task[Task memory\nétat, décisions, artifacts, handoff]
-    project[Project memory\npatterns, lessons, contraintes approuvées]
-    authority[Context et décisions\nconnaissance durable validée]
-    session -->|information vérifiée| task
-    task -->|réutilisable au-delà de la tâche| project
-    project -->|décision structurante validée| authority
+    session[Agent session\ntemporary observations]
+    task[Task memory\nstate, decisions, artifacts, handoff]
+    project[Project memory\npatterns, lessons, approved constraints]
+    authority[Context and decisions\nvalidated durable knowledge]
+    session -->|verified information| task
+    task -->|reusable beyond task| project
+    project -->|structuring validated decision| authority
 ```
 
-| Niveau | Localisation typique | Durée | Source de vérité |
+| Level | Typical location | Duration | Source of truth |
 | --- | --- | --- | --- |
-| Session | contexte de Claude/Codex | session | aucune |
-| Task | `.ai/runtime/tasks/<task-id>/` | durée de la tâche | tâche courante |
-| Execution | `.ai/runtime/executions/<execution-id>/` | rétention Runtime | état de l'exécution |
-| Project memory | `.ai/memory/` | versionnée | connaissance approuvée |
-| Context/decisions | `.ai/context/`, `.ai/decisions/` | durable | vérité projet validée |
+| Session | Claude/Codex context | session | none |
+| Task | `.ai/runtime/tasks/<task-id>/` | task duration | current task |
+| Execution | `.ai/runtime/executions/<execution-id>/` | Runtime retention | execution state |
+| Project memory | `.ai/memory/` | versioned | approved knowledge |
+| Context/decisions | `.ai/context/`, `.ai/decisions/` | durable | validated project truth |
 
-La promotion est contrôlée : une observation de session devient d'abord un
-artifact de tâche, puis éventuellement un `MemoryCandidate`. Elle n'est écrite
-dans la mémoire projet qu'après validation explicite. La conversation de
-l'agent n'est jamais utilisée pour reprendre une tâche ou établir une décision.
+Promotion is controlled: a session observation first becomes a
+task artifact, then possibly a `MemoryCandidate`. It is written
+to project memory only after explicit validation. The agent's conversation is
+never used to resume a task or establish a decision.
 
-## 14. Reprise et handoff multi-agent
+## 14. Multi-Agent Resumption and Handoff
 
-Une reprise suit toujours l'état persistant, jamais le contexte de chat :
+A resumption always follows persistent state, never chat context:
 
 ```mermaid
 sequenceDiagram
@@ -508,19 +494,19 @@ sequenceDiagram
     participant A2 as Agent 2
 
     A1->>R: acquire lease
-    A1->>R: exécuter phases et soumettre artifacts
-    R->>FS: persister state, artifacts et dernière phase
+    A1->>R: execute phases and submit artifacts
+    R->>FS: persist state, artifacts and last phase
     A1->>R: handoff
-    R->>FS: écrire handoff.yaml et libérer lease
+    R->>FS: write handoff.yaml and release lease
     A2->>R: inspect execution
     A2->>R: acquire lease
-    R->>FS: vérifier état Git, artifacts et policy
-    FS-->>R: prochaine phase déterminée
+    R->>FS: verify Git state, artifacts and policy
+    FS-->>R: next phase determined
     R-->>A2: execution next
-    A2->>R: continuer sans relire la conversation de A1
+    A2->>R: continue without rereading A1's conversation
 ```
 
-Commandes de reprise :
+Resumption commands:
 
 ```bash
 aief execution inspect <execution-id> --project . --factory "$FACTORY_HOME"
@@ -533,35 +519,35 @@ aief execution lease status <execution-id>
 aief execution lease release <execution-id> --owner agent:session
 ```
 
-Avant de reprendre, le Runtime vérifie :
+Before resuming, the Runtime verifies:
 
-- que l'Execution existe et n'est pas annulée ou terminée ;
-- que les artifacts précédents respectent leurs schemas ;
-- que le workflow et la version de Factory sont identiques ;
-- que le lease est libre, expiré ou détenu par l'agent courant ;
-- que le workspace Git correspond au snapshot enregistré ;
-- que les nouvelles informations n'imposent pas une reclassification de policy.
+- that the Execution exists and is not cancelled or completed;
+- that previous artifacts respect their schemas;
+- that workflow and Factory version are identical;
+- that the lease is free, expired or held by the current agent;
+- that Git workspace matches the recorded snapshot;
+- that new information does not require policy reclassification.
 
-Une même opération rejouée avec le même `operationId` renvoie son résultat
-persisté sans produire de doublon. Le même identifiant avec un contenu différent
-est refusé.
+The same operation replayed with the same `operationId` returns its
+persisted result without producing a duplicate. The same identifier with different content
+is refused.
 
-## 15. Résumé opérationnel
+## 15. Operational Summary
 
 ```text
-Intention développeur
-    → Task normalisée
-    → Workflow versionné
-    → Context/Profile effectifs
+Developer intent
+    → Normalized task
+    → Versioned workflow
+    → Effective context/profile
     → PolicyDecision
-    → Plan et gate
-    → Modification agentique contrôlée
-    → Validation déterministe
+    → Plan and gate
+    → Controlled agentic modification
+    → Deterministic validation
     → Review
-    → Traceability/Handoff
-    → Commit, MR ou merge selon autorisation
+    → Traceability/handoff
+    → Commit, MR or merge per authorization
 ```
 
-Pour installer un projet, consulter [22 — Project installation guide](22-project-installation-guide.md).
-Pour les commandes et la reprise Runtime, consulter [14 — Universal Factory Runtime](14-universal-runtime.md).
-Pour les adapters et MCP, consulter [13 — Agent adapters and MCP](13-agent-adapters-and-mcp.md).
+To install a project, see [22 — Project Installation Guide](22-project-installation-guide.md).
+For runtime commands and resumption, see [14 — Universal Factory Runtime](14-universal-runtime.md).
+For adapters and MCP, see [13 — Agent Adapters and MCP](13-agent-adapters-and-mcp.md).

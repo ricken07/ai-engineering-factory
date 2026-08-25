@@ -1,14 +1,13 @@
-# 32 — Observabilité légère du Runtime
+# 32 — Lightweight Runtime Observability
 
-AIEF n'est pas une plateforme d'observabilité : pas de dashboard propriétaire,
-pas de serveur central, pas de message broker, pas de base dédiée. Ce que le
-Runtime offre est un événement structuré, minimal, stocké localement, pour
-chaque transition qu'il fait déjà transiter — jamais une seconde machine à
-états parallèle à `Execution`.
+AIEF is not an observability platform: no proprietary dashboard, no central
+server, no message broker, no dedicated database. What the Runtime offers is
+a structured, minimal event, stored locally, for each transition it already
+transits — never a second state machine parallel to `Execution`.
 
 ## Event Envelope
 
-Chaque événement suit un contrat unique, agent-neutre :
+Each event follows a single, agent-neutral contract:
 
 ```yaml
 event:
@@ -21,28 +20,27 @@ project:
   id: emmany
 task:
   id: EGW-142
-execution:      # absent pour request.created et intent.resolved,
-  id: exec-142  # qui précèdent la création de l'Execution
-payload: {}     # données spécifiques à l'événement, redigées (voir Sécurité)
+execution:      # absent for request.created and intent.resolved,
+  id: exec-142  # which precede Execution creation
+payload: {}     # event-specific data, redacted (see Security)
 ```
 
-Le contrat est décrit par `core/schemas/runtime-event.schema.json`. `event.type`
-est une énumération fermée — un type non listé est rejeté par
-`TaskEventLog.append`, pour empêcher la dérive de nommage libre.
+The contract is described by `core/schemas/runtime-event.schema.json`. `event.type`
+is a closed enumeration — an unlisted type is rejected by `TaskEventLog.append`
+to prevent naming drift.
 
-## Stockage
+## Storage
 
-Un fichier JSONL append-only par Task, agent-neutre, déjà en place avant cet
-incrément :
+One append-only JSONL file per Task, agent-neutral, already in place before
+this increment:
 
 ```text
 .ai/runtime/tasks/<task-id>/events.jsonl
 ```
 
-C'est le seul backend requis. Rien d'autre n'est nécessaire pour utiliser
-AIEF.
+This is the only required backend. Nothing else is needed to use AIEF.
 
-## Événements minimum
+## Minimal Events
 
 ```text
 request.created
@@ -72,71 +70,67 @@ execution.failed
 execution.cancelled
 ```
 
-Chacun réutilise une transition Runtime déjà existante — aucun n'a été ajouté
-en créant un mécanisme parallèle :
+Each reuses an existing Runtime transition — none added by creating a parallel
+mechanism:
 
-| Événement | Transition Runtime réutilisée |
+| Event | Reused Runtime Transition |
 |---|---|
 | `request.created`, `intent.resolved`, `task.normalized` | `RuntimeService.intake` (Request → IntentResolution → Task) |
 | `workflow.started` | `Execution.create` |
-| `phase.started` | `RuntimeService.prepare_phase` (matérialisation du contrat de Skill / contexte d'ingénierie) |
-| `phase.completed` | `Execution.advance` sur succès |
+| `phase.started` | `RuntimeService.prepare_phase` (Skill contract / engineering context materialization) |
+| `phase.completed` | `Execution.advance` on success |
 | `phase.failed` | `Execution.fail_phase` |
-| `policy.evaluated` / `policy.reclassified` | `RuntimeService.reassess_policy` ; `reclassified` seulement si le risque effectif ou l'autonomie autorisée changent réellement par rapport à la révision `PolicyDecision` précédente, sinon `evaluated` |
-| `gate.requested` | une entrée `policyGates` ou une opération de tracking externe passe à `pending` |
+| `policy.evaluated` / `policy.reclassified` | `RuntimeService.reassess_policy`; `reclassified` only if effective risk or authorized autonomy actually change from prior `PolicyDecision`, else `evaluated` |
+| `gate.requested` | a `policyGates` entry or external tracking operation moves to `pending` |
 | `gate.approved` / `gate.rejected` | `approve_execution`, `approve_policy_gate`, `TaskTrackingManager.approve` |
-| `workspace.prepared` / `workspace.blocked` | `RuntimeService.workspace` et les blocages de sécurité workspace dans `prepare_phase` — remplace l'ancien nommage dynamique `workspace.<action>` |
-| `integration.resolved` / `integration.failed` | `TaskTrackingManager.resolve_provider` (résolution MCP/provider) |
-| `execution.completed` | `Execution.advance` quand `next_phase()` devient `None` |
-| `execution.failed` | `Execution.fail_phase` (toute Execution actuelle échoue avec sa phase) |
-| `execution.cancelled` | `Execution.cancel` — complète un statut `cancelled` déjà présent dans `common.schema.json#/$defs/executionStatus` et déjà vérifié partout (`readiness.py`, `service.py`) mais jusqu'ici jamais atteignable ; ce n'est pas une nouvelle machine à états, seulement la transition manquante vers un état déjà déclaré |
+| `workspace.prepared` / `workspace.blocked` | `RuntimeService.workspace` and workspace safety blocks in `prepare_phase` — replaces old dynamic naming `workspace.<action>` |
+| `integration.resolved` / `integration.failed` | `TaskTrackingManager.resolve_provider` (MCP/provider resolution) |
+| `execution.completed` | `Execution.advance` when `next_phase()` becomes `None` |
+| `execution.failed` | `Execution.fail_phase` (any current Execution fails with its phase) |
+| `execution.cancelled` | `Execution.cancel` — completes a `cancelled` status already present in `common.schema.json#/$defs/executionStatus` and already verified everywhere (`readiness.py`, `service.py`) but never reached until now; not a new state machine, just the missing transition to an already-declared state |
 
-`run_profile_validation` n'émet pas d'événement `validation.*` dédié : ses
-transitions passent par `complete_phase`/`fail_phase`, qui émettent déjà
-`phase.completed`/`phase.failed`/`execution.*` avec `payload.phase ==
-"validation"`. Un événement `validation.*` séparé aurait dupliqué exactement
-le même fait sous un second nom — supprimé lors de l'audit de consolidation
-(voir `docs/34-release-readiness.md`).
+`run_profile_validation` does not emit a dedicated `validation.*` event: its
+transitions pass through `complete_phase`/`fail_phase`, which already emit
+`phase.completed`/`phase.failed`/`execution.*` with `payload.phase ==
+"validation"`. A separate `validation.*` event would duplicate exactly the
+same fact under a second name — removed during consolidation review (see
+`docs/34-release-readiness.md`).
 
 ## Export
 
-- **Par défaut** : événements structurés en local (`events.jsonl`). Toujours
-  actif, jamais désactivable — c'est la seule source de vérité requise.
-- **Optionnel** : export OpenTelemetry, activé uniquement par la variable
-  d'environnement `AIEF_OBSERVABILITY_OTEL=1`. Sans elle, `opentelemetry`
-  n'est même pas importé. Avec elle mais sans le paquet installé (ou toute
-  autre erreur d'export), l'échec est absorbé silencieusement : une Execution
-  normale n'est jamais bloquée par l'indisponibilité de l'exporteur. AIEF ne
-  dépend d'aucun backend externe pour fonctionner.
+- **By default**: structured events locally (`events.jsonl`). Always
+  active, never disabled — it is the sole required source of truth.
+- **Optional**: OpenTelemetry export, enabled only by the
+  `AIEF_OBSERVABILITY_OTEL=1` environment variable. Without it, `opentelemetry`
+  is not even imported. With it but no package installed (or any other export
+  error), the failure is silently absorbed: a normal Execution is never blocked
+  by exporter unavailability. AIEF depends on no external backend to function.
 
-## Sécurité
+## Security
 
-`TaskEventLog.append` redige le `payload` avant écriture :
+`TaskEventLog.append` redacts `payload` before writing:
 
-- toute clé nommée `secret(s)`, `token(s)`, `password(s)`, `apikey`/`api_key`,
-  `authorization`, `credential(s)`, `private(_)key` → valeur remplacée par
-  `[REDACTED]` ;
-- toute valeur correspondant à un motif de secret connu (clé AWS, jeton
-  GitHub, jeton Slack, clé privée PEM, JWT) → `[REDACTED]`, où qu'elle
-  apparaisse ;
-- toute clé nommée `content`, `prompt(s)` ou `body` → `[OMITTED:opt-in
-  required]` par défaut. Un appelant qui a une raison explicite d'inclure ce
-  contenu doit passer `allow_content=True` — jamais le comportement par
-  défaut.
+- any key named `secret(s)`, `token(s)`, `password(s)`, `apikey`/`api_key`,
+  `authorization`, `credential(s)`, `private(_)key` → value replaced by
+  `[REDACTED]`;
+- any value matching a known secret pattern (AWS key, GitHub token, Slack token,
+  PEM private key, JWT) → `[REDACTED]`, wherever it appears;
+- any key named `content`, `prompt(s)` or `body` → `[OMITTED:opt-in
+  required]` by default. A caller with an explicit reason to include this
+  content must pass `allow_content=True` — never the default behavior.
 
-Aucun prompt complet, aucun contenu source arbitraire et aucun contenu privé
-du contexte projet (par exemple le texte d'une pratique d'ingénierie résolue)
-n'est donc journalisé sans décision explicite au point d'appel.
+No complete prompt, no arbitrary source content, and no private project
+context content (e.g., resolved engineering practice text) is logged without
+explicit decision at the call site.
 
-## Ce que ce n'est pas
+## What It Is Not
 
-- Pas un remplacement des documents d'état (`Task`, `Execution`,
-  `PolicyDecision`, ...), qui restent la source de vérité structurée et
-  validée par schéma.
-- Pas un système de conformité comportementale Claude/Codex à lui seul : les
-  événements permettent de vérifier qu'une trajectoire a eu lieu, pas que
-  deux agents produisent la même trajectoire — voir le futur harnais de
-  scénarios pour cette preuve.
-- Pas un journal d'audit réglementaire : il vit sous `.ai/runtime/`, gitignoré,
-  et n'est pas reconstruit rétroactivement pour les Tasks antérieures à son
+- Not a replacement for state documents (`Task`, `Execution`,
+  `PolicyDecision`, ...), which remain the structured, schema-validated
+  source of truth.
+- Not a Claude/Codex behavioral conformance system by itself: events verify that
+  a trajectory occurred, not that two agents produce the same trajectory — see
+  future scenario harness for that proof.
+- Not a regulatory audit log: it lives under `.ai/runtime/`, gitignored,
+  and is not reconstructed retroactively for Tasks predating its
   introduction.

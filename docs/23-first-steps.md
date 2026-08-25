@@ -1,57 +1,57 @@
-# 23 — Premiers pas dans un projet Factory
+# 23 — First Steps in a Factory Project
 
-Ce guide commence après l’installation décrite dans
+This guide begins after the installation described in
 [`22-project-installation-guide.md`](22-project-installation-guide.md).
-Les prompts d’autorisation attendus et les modèles projet sont détaillés dans
+Expected permission prompts and project templates are detailed in
 [`25-agent-permissions.md`](25-agent-permissions.md).
 
-## 1. Ce que lance le développeur
+## 1. What the Developer Launches
 
-Le développeur démarre Claude Code ou Codex depuis la racine qui contient
-`.ai/project.yaml` :
+The developer starts Claude Code or Codex from the root containing
+`.ai/project.yaml`:
 
 ```bash
 cd "<PROJECT_ROOT>"
 
-# Une session Codex
+# A Codex session
 codex
 
-# Ou une session Claude Code
+# Or a Claude Code session
 claude
 ```
 
-Il ne lance pas `aief run`. L’adapter installé le fait automatiquement et pilote
-la boucle Runtime pour le compte de l’agent.
+They do not run `aief run`. The installed adapter does it automatically and drives
+the Runtime loop on behalf of the agent.
 
-## 2. Commande native ou texte libre
+## 2. Native Command or Free Text
 
-Les commandes natives rendent l’intention explicite :
+Native commands make intent explicit:
 
-| Intention | Codex | Claude Code |
+| Intent | Codex | Claude Code |
 | --- | --- | --- |
-| Analyser | `$analyze TASK-123` | `/analyze TASK-123` |
-| Implémenter | `$implement TASK-123` | `/implement TASK-123` |
-| Corriger | `$fix TASK-123` | `/fix TASK-123` |
-| Refactorer | `$refactor ComponentName` | `/refactor ComponentName` |
-| Tester | `$test TASK-123` | `/test TASK-123` |
-| Reviewer | `$review CHANGE-123` | `/review CHANGE-123` |
-| Documenter | `$document TASK-123` | `/document TASK-123` |
+| Analyze | `$analyze TASK-123` | `/analyze TASK-123` |
+| Implement | `$implement TASK-123` | `/implement TASK-123` |
+| Fix | `$fix TASK-123` | `/fix TASK-123` |
+| Refactor | `$refactor ComponentName` | `/refactor ComponentName` |
+| Test | `$test TASK-123` | `/test TASK-123` |
+| Review | `$review CHANGE-123` | `/review CHANGE-123` |
+| Document | `$document TASK-123` | `/document TASK-123` |
 
-Le texte libre est équivalent :
+Free text is equivalent:
 
 ```text
-Implémente TASK-123.
-Corrige le bug où une transaction FAILED reste PENDING.
-Refactore PaymentOrchestrator sans modifier son comportement.
-Analyse la continuité d’apprentissage sans modifier le code.
+Implement TASK-123.
+Fix the bug where a FAILED transaction remains PENDING.
+Refactor PaymentOrchestrator without changing its behavior.
+Analyze learning continuity without modifying the code.
 ```
 
-L’adapter conserve la demande complète. Le Runtime détermine l’intention, crée
-une Task locale ou résout la référence externe, puis sélectionne le workflow.
+The adapter preserves the complete request. The Runtime determines intent, creates
+a local Task or resolves the external reference, then selects the workflow.
 
-Pour un Skill natif, l’adapter transmet aussi l’intention et le workflow attendus
-avec `--intent` et `--expect-workflow`. Avant toute analyse détaillée ou
-modification, la session doit afficher un reçu Runtime réel contenant au moins :
+For a native Skill, the adapter also transmits the intent and expected workflow
+with `--intent` and `--expect-workflow`. Before any detailed analysis or
+modification, the session must display a real Runtime receipt containing at least:
 
 ```yaml
 runtimeReceipt: created
@@ -63,11 +63,11 @@ nextPhase: understand
 taskLog: <workspace>/.ai/runtime/tasks/<task-id>/events.jsonl
 ```
 
-`Successfully loaded skill` signifie uniquement que l’agent a chargé ses
-instructions. Une phrase comme `Task normalized` sans reçu ni Execution ne
-constitue pas une exécution Factory et doit provoquer un arrêt fermé.
+`Successfully loaded skill` only means the agent has loaded its
+instructions. A phrase like `Task normalized` without receipt or Execution is
+not a Factory execution and must trigger a clean shutdown.
 
-Le journal peut être consulté pendant ou après l’exécution :
+The log can be consulted during or after execution:
 
 ```bash
 aief task log <task-id> \
@@ -75,77 +75,77 @@ aief task log <task-id> \
   --factory "$GAD_AI_FACTORY_HOME"
 ```
 
-Il permet de vérifier la trajectoire réellement persistée : intention,
-workflow, phases, artifacts, décisions de policy, gates, workspace et
-validations. Voir [`26-task-execution-log.md`](26-task-execution-log.md).
+It allows verification of the actual persisted trajectory: intent,
+workflow, phases, artifacts, policy decisions, gates, workspace and
+validations. See [`26-task-execution-log.md`](26-task-execution-log.md).
 
-## 3. Ce qui se passe automatiquement
+## 3. What Happens Automatically
 
 ```text
-Demande utilisateur
+User request
   ↓
-Skill/intent de l’agent
+Agent skill/intent
   ↓
-aief run (appel interne)
+aief run (internal call)
   ↓
-Task + Execution persistées dans .ai/runtime
+Task + Execution persisted in .ai/runtime
   ↓
 execution next
   ↓
-Core Skill + contexte d’ingénierie effectif
+Core Skill + effective engineering context
   ↓
-Claude/Codex réalise le travail agentique
+Claude/Codex performs agentic work
   ↓
-artifact structuré + complete-phase
+structured artifact + complete-phase
   ↓
-phase suivante, gate ou fin
+next phase, gate, or completion
 ```
 
-L’adapter ne choisit ni l’ordre des phases, ni l’autonomie, ni les commandes de
-validation. Ces décisions appartiennent au Runtime commun.
+The adapter does not choose phase order, autonomy, or validation commands.
+These decisions belong to the common Runtime.
 
-## 4. Premier scénario recommandé : analyse seule
+## 4. First Recommended Scenario: Analysis Only
 
-Dans Codex :
+In Codex:
 
 ```text
-$analyze Analyse l’architecture actuelle, vérifie les documents contre le code
-et les tests, et ne modifie aucun fichier.
+$analyze Analyze the current architecture, verify documents against code
+and tests, and modify no files.
 ```
 
-Dans Claude Code :
+In Claude Code:
 
 ```text
-/analyze Analyse l’architecture actuelle, vérifie les documents contre le code
-et les tests, et ne modifie aucun fichier.
+/analyze Analyze the current architecture, verify documents against code
+and tests, and modify no files.
 ```
 
-Ou, dans les deux agents :
+Or, in either agent:
 
 ```text
-Analyse l’architecture actuelle, vérifie les documents contre le code et les
-tests, et ne modifie aucun fichier.
+Analyze the current architecture, verify documents against code and
+tests, and modify no files.
 ```
 
-Résultat attendu : une Task locale, une Execution `analyze-task`, des artifacts
-structurés et aucune modification du code.
+Expected result: a local Task, an `analyze-task` Execution, structured artifacts
+and no code modifications.
 
-## 5. Deuxième scénario : petite modification locale
+## 5. Second Scenario: Small Local Modification
 
-Après validation du scénario précédent :
+After validating the previous scenario:
 
 ```text
-Ajoute les tests manquants pour <comportement précis>. Ne modifie pas le
-comportement fonctionnel et arrête-toi avant tout commit.
+Add missing tests for <specific behavior>. Do not change functional
+behavior and stop before any commit.
 ```
 
-Avec une autonomie maximale `L2`, l’agent peut analyser, modifier localement et
-tester. Il ne peut pas pousser, ouvrir une MR ou créer une tâche externe.
+With maximum autonomy `L2`, the agent can analyze, modify locally and
+test. It cannot push, open an MR or create an external task.
 
-## 6. Scénario sans MCP
+## 6. Scenario Without MCP
 
-Configurer explicitement le projet pour que la traçabilité Factory locale soit
-le système de référence :
+Explicitly configure the project so that local Factory traceability is
+the reference system:
 
 ```yaml
 integrations: {}
@@ -153,93 +153,92 @@ taskTracking:
   mode: local
 ```
 
-Sans `task-provider`, ne donnez pas une référence qui nécessite une récupération
-externe. Fournissez la demande complète ou une référence documentaire locale :
+Without `task-provider`, do not provide a reference requiring
+external lookup. Provide the complete request or a local document reference:
 
 ```text
-Analyse les priorités décrites dans docs/AUDIT.md et vérifie leur état réel dans
-le code. Ne modifie aucun fichier.
+Analyze the priorities described in docs/AUDIT.md and verify their actual state in
+the code. Modify no files.
 ```
 
-La Factory crée une Task locale. Même si le risque ou le nombre de repositories
-rend le niveau de tracking `required`, la Task, l'Execution, les artifacts et le
-journal `.ai/runtime/tasks/<task-id>/events.jsonl` satisfont cette exigence.
-Aucun provider n'est résolu.
+The Factory creates a local Task. Even if risk or repository count
+makes the tracking level `required`, the Task, Execution, artifacts and
+log `.ai/runtime/tasks/<task-id>/events.jsonl` satisfy that requirement.
+No provider is resolved.
 
-Avec `taskTracking.mode: external`, le comportement reste strict : une exigence
-`required` bloque tant qu'une référence externe n'est pas liée. Le Runtime ne
-bascule jamais automatiquement d'un mode vers l'autre.
+With `taskTracking.mode: external`, behavior remains strict: a `required`
+requirement blocks until an external reference is linked. The Runtime never
+automatically switches between modes.
 
-## 7. Gates et questions utilisateur
+## 7. Gates and User Questions
 
-Lorsque le Runtime exige une validation humaine, l’agent doit :
+When the Runtime requires human validation, the agent must:
 
-1. arrêter la progression de l’Execution ;
-2. présenter la phase, l’action et le risque concernés ;
-3. demander une décision précise ;
-4. enregistrer l’approbation ou le refus ;
-5. reprendre la même Execution, sans en créer une nouvelle.
+1. stop Execution progression;
+2. present the phase, action, and risk involved;
+3. ask for an explicit decision;
+4. record approval or rejection;
+5. resume the same Execution, without creating a new one.
 
-Répondre en texte naturel suffit. Le développeur n’appelle pas
-`aief execution approve` lui-même : l’adapter traduit sa décision.
+Responding in natural language is sufficient. The developer does not call
+`aief execution approve` themselves: the adapter translates their decision.
 
-## 8. Reprise par un autre agent
+## 8. Resumption by Another Agent
 
-Si Claude Code est interrompu :
+If Claude Code is interrupted:
 
 ```bash
 cd "<PROJECT_ROOT>"
 codex
 ```
 
-Puis :
+Then:
 
 ```text
-Reprends la tâche active en utilisant l’état Factory persistant.
+Resume the active task using the persisted Factory state.
 ```
 
-Codex doit lire `.ai/runtime/`, vérifier l’état Git et reprendre la prochaine
-phase déclarée par le Runtime. La conversation Claude n’est jamais une source de
-vérité nécessaire à cette reprise.
+Codex must read `.ai/runtime/`, verify Git state and resume the next
+phase declared by the Runtime. The Claude conversation is never a necessary
+source of truth for this resumption.
 
-## 9. Reprendre après une mise à niveau de la Factory
+## 9. Resuming After a Factory Upgrade
 
-Une session qui a déjà chargé un Skill peut conserver ses anciennes
-instructions. Après une mise à niveau du Runtime, du protocole ou d’un Skill :
+A session that has already loaded a Skill may retain its old
+instructions. After a Runtime, protocol, or Skill upgrade:
 
-1. arrêter l’action en cours avant toute nouvelle modification ;
-2. quitter complètement Claude Code ou Codex ;
-3. vérifier que le CLI expose les nouvelles options ;
-4. vérifier que le Skill installé pointe vers la Factory attendue ;
-5. relancer l’agent depuis la racine du workspace ;
-6. invoquer à nouveau l’intention et contrôler le reçu Runtime.
+1. stop current action before any new modification;
+2. exit Claude Code or Codex completely;
+3. verify the CLI exposes new options;
+4. verify the installed Skill points to the expected Factory;
+5. relaunch the agent from the workspace root;
+6. invoke intent again and check the Runtime receipt.
 
 ```bash
-aief run --help | grep -- '--expect-workflow'
+aief run --help | grep -- ‘--expect-workflow’
 aief task --help | grep log
 
 test -f "$HOME/.claude/skills/implement/SKILL.md"
-# ou : test -f "$HOME/.agents/skills/implement/SKILL.md"
+# or: test -f "$HOME/.agents/skills/implement/SKILL.md"
 
 cd "$PROJECT_ROOT"
 claude
-# ou : codex
+# or: codex
 ```
 
-Dans la nouvelle session, utiliser la syntaxe propre à l'agent :
+In the new session, use agent-specific syntax:
 
 ```text
-Codex      $implement Feature 1.1 — Fixer les trois contrats cassés
-Claude     /implement Feature 1.1 — Fixer les trois contrats cassés
+Codex      $implement Feature 1.1 — Fix the three broken contracts
+Claude     /implement Feature 1.1 — Fix the three broken contracts
 ```
 
-Le reçu doit contenir `execution`, `intent`, `workflow`, `nextPhase` et
-`taskLog`. Si l’agent affiche seulement `Successfully loaded skill` ou affirme
-que la Task est normalisée sans reçu, arrêter l’exécution.
+The receipt must contain `execution`, `intent`, `workflow`, `nextPhase` and
+`taskLog`. If the agent only displays `Successfully loaded skill` or claims
+the Task is normalized without a receipt, stop execution.
 
-Les commandes affichées dans les demandes de permission doivent contenir des
-chemins absolus littéraux. Cette commande provoque volontairement un prompt car
-Claude ne peut pas l’analyser statiquement :
+Commands shown in permission requests must contain literal absolute paths. This
+command intentionally triggers a prompt because Claude cannot parse it statically:
 
 ```bash
 aief execution complete-phase <id> \
@@ -247,7 +246,7 @@ aief execution complete-phase <id> \
   --factory "${GAD_AI_FACTORY_HOME}"
 ```
 
-La forme correcte est :
+The correct form is:
 
 ```bash
 aief execution complete-phase <id> \
@@ -257,37 +256,37 @@ aief execution complete-phase <id> \
   --json
 ```
 
-Le parcours Codex détaillé, notamment le diagnostic de `$implement`, est décrit
-dans [`27-codex-usage.md`](27-codex-usage.md).
+The detailed Codex journey, including `$implement` diagnostics, is described
+in [`27-codex-usage.md`](27-codex-usage.md).
 
-Si Claude propose encore `$(pwd)` ou `${...}`, refuser la permission, arrêter
-la session et la relancer après mise à niveau du Skill.
+If Claude still proposes `$(pwd)` or `${...}`, deny permission, stop
+the session and relaunch it after Skill upgrade.
 
-Si l’agent indique que la Factory n’est pas configurée, vérifier dans sa propre
-session :
+If the agent indicates the Factory is not configured, check in its own
+session:
 
 ```bash
 printenv GAD_AI_FACTORY_HOME
 test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
 ```
 
-La présence de l’export dans `.zshrc` ne prouve pas qu’un processus lancé depuis
-un IDE, une application graphique ou une ancienne session l’a hérité. Quitter
-l’agent, recharger l’environnement dans le terminal puis relancer depuis ce
-même terminal. Voir la section « Rendre la Factory visible au processus agent »
-du [guide d’installation](22-project-installation-guide.md).
+The presence of the export in `.zshrc` does not prove a process launched from
+an IDE, graphical application, or old session inherited it. Exit the agent,
+reload the environment in the terminal, then relaunch from that
+same terminal. See the section "Making the Factory Visible to the Agent Process"
+in the [installation guide](22-project-installation-guide.md).
 
-### Workspace déjà modifié par l’ancienne session
+### Workspace Already Modified by Old Session
 
-Ne pas supprimer, stasher ou incorporer automatiquement les fichiers concernés.
-Les conserver comme modifications locales non attribuées, relancer la nouvelle
-Execution et laisser Workspace Safety les détecter. Le Runtime doit se bloquer
-avant `implement-change` et demander une décision explicite. Une confirmation
-native Claude/Codex ne vaut pas approbation d’un gate Factory.
+Do not delete, stash, or automatically incorporate the affected files.
+Keep them as unattributed local modifications, relaunch the new
+Execution and let Workspace Safety detect them. The Runtime must block
+before `implement-change` and request an explicit decision. A native
+Claude/Codex confirmation does not count as approval of a Factory gate.
 
-## 10. Quand utiliser directement `aief`
+## 10. When to Use `aief` Directly
 
-Uniquement pour administrer ou diagnostiquer :
+Only for administration or diagnostics:
 
 ```bash
 aief validate . --factory "$GAD_AI_FACTORY_HOME"
@@ -296,18 +295,18 @@ aief integrations doctor . --factory "$GAD_AI_FACTORY_HOME"
 aief execution inspect <execution-id> --project . --factory "$GAD_AI_FACTORY_HOME"
 ```
 
-`aief run` reste une interface bas niveau destinée aux adapters, aux tests
-d’intégration et au diagnostic du Runtime.
+`aief run` remains a low-level interface for adapters, integration
+tests and Runtime diagnostics.
 
-## 11. Vérification rapide
+## 11. Quick Checklist
 
-Avant la première tâche mutante :
+Before the first mutating task:
 
-- [ ] l’agent a été lancé depuis la racine contenant `.ai/project.yaml` ;
-- [ ] le skill adapter est installé ;
-- [ ] `GAD_AI_FACTORY_HOME` résout la version épinglée ;
-- [ ] la demande est passée automatiquement au Runtime ;
-- [ ] une Execution apparaît dans `.ai/runtime/` ;
-- [ ] le reçu contient `taskLog` et le journal commence par `task.normalized` ;
-- [ ] l’agent respecte les gates et le niveau d’autonomie ;
-- [ ] les changements préexistants du développeur restent intacts.
+- [ ] the agent was launched from the root containing `.ai/project.yaml`;
+- [ ] the skill adapter is installed;
+- [ ] `GAD_AI_FACTORY_HOME` resolves the pinned version;
+- [ ] the request is passed automatically to the Runtime;
+- [ ] an Execution appears in `.ai/runtime/`;
+- [ ] the receipt contains `taskLog` and the log begins with `task.normalized`;
+- [ ] the agent respects gates and autonomy level;
+- [ ] pre-existing developer changes remain intact.

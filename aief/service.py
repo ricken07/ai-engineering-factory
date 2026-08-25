@@ -23,6 +23,7 @@ from .task_log import TaskEventLog
 from .readiness import build_backlog
 from .yamlio import load_yaml
 from .evidence import git_sha, submission_evidence_gaps
+from .config import get_api_version
 from datetime import datetime, timezone
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
@@ -204,7 +205,8 @@ class RuntimeService:
         reclassified = history and (previous_risk != decision["effectiveRisk"] or previous_autonomy != decision["authorizedAutonomy"])
         existing_gates={item["id"] for item in execution.data.get("policyGates",[])}
         newly_required=[identifier for identifier in decision["requiredGates"] if identifier not in existing_gates]
-        artifact={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"PolicyDecision",
+        api_version=get_api_version(self.factory)
+        artifact={"apiVersion":api_version,"kind":"PolicyDecision",
                   "metadata":{"id":f"policy-{execution.data['metadata']['id']}-{revision:03d}"},"task":execution.data["task"],
                   "risk":{"effective":decision["effectiveRisk"],"reasons":decision["reasons"]},
                   "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"],"reasons":decision["reasons"]},
