@@ -121,7 +121,7 @@ def build_backlog(project_root: Path, project_id: str, ready_only: bool = False)
             entry["position"] = position
 
     return {
-        "apiVersion": "factory.gaddigital.io/v1alpha1",
+        "apiVersion": "aief.dev/v1alpha1",
         "kind": "TaskBacklog",
         "metadata": {"id": "task-backlog"},
         "project": project_id,

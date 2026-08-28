@@ -1,6 +1,6 @@
 # Copy this file to organization/catalogs/<organization-id>.yaml and adapt it.
 # This template is intentionally provider-, stack- and organization-neutral.
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: OrganizationCatalog
 metadata:
   id: example-organization

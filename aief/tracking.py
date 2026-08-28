@@ -91,7 +91,7 @@ class TaskTrackingManager:
         reference = task.get("source",{}).get("reference")
         status = "not-required" if mode == "local" else "linked" if external and reference else task.get("tracking",{}).get("external",{}).get("status","unresolved")
         satisfied = mode == "local" or status == "linked" or decision.level != "required"
-        artifact={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"TaskTrackingDecision","metadata":{"id":f"tracking-{safe_task_id(task_id)}"},"task":task_id,"decision":{"level":decision.level,"mode":mode,"satisfied":satisfied},"reasons":list(decision.reasons),"requiredBefore":([decision.required_before] if decision.required_before else []),"provider":{"capability":"task-provider","status":"not-required" if mode == "local" else "unresolved"},"duplicateSearch":{"required":mode == "external" and not external,"status":"skipped" if mode == "local" or external else "pending"},"externalTracking":{"status":status,**({"reference":reference} if reference else {})}}
+        artifact={"apiVersion":"aief.dev/v1alpha1","kind":"TaskTrackingDecision","metadata":{"id":f"tracking-{safe_task_id(task_id)}"},"task":task_id,"decision":{"level":decision.level,"mode":mode,"satisfied":satisfied},"reasons":list(decision.reasons),"requiredBefore":([decision.required_before] if decision.required_before else []),"provider":{"capability":"task-provider","status":"not-required" if mode == "local" else "unresolved"},"duplicateSearch":{"required":mode == "external" and not external,"status":"skipped" if mode == "local" or external else "pending"},"externalTracking":{"status":status,**({"reference":reference} if reference else {})}}
         assert_schema(self.factory,"task-tracking-decision.schema.json",artifact)
         task["tracking"]={**task.get("tracking",{}),"level":decision.level,"mode":mode}
         if reference: task["tracking"].update({"canonicalReference":reference,"external":{"provider":task.get("source",{}).get("provider","external"),"reference":reference,"status":"linked"}})
@@ -110,7 +110,7 @@ class TaskTrackingManager:
         except ProviderResolutionError as exc:
             binding=self.project.get("integrations",{}).get("task-provider"); provider=binding.get("provider") if isinstance(binding,dict) else binding or "unresolved"
             mcp_status={"MCP_NOT_CONFIGURED":"not-configured","MCP_UNAVAILABLE":"unavailable","AUTHENTICATION_REQUIRED":"authentication-required"}.get(exc.code,"unavailable")
-            resolution={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"IntegrationResolution","metadata":{"id":f"task-provider-{provider}"},"capability":"task-provider","provider":{"id":provider,"version":"0.0.0"},"status":"unavailable","operations":[],"mcp":{"status":mcp_status},"error":{"code":exc.code,"message":exc.message}}
+            resolution={"apiVersion":"aief.dev/v1alpha1","kind":"IntegrationResolution","metadata":{"id":f"task-provider-{provider}"},"capability":"task-provider","provider":{"id":provider,"version":"0.0.0"},"status":"unavailable","operations":[],"mcp":{"status":mcp_status},"error":{"code":exc.code,"message":exc.message}}
             self._write(task_id,"provider-resolution.yaml",resolution)
             try:
                 tracking=self._read(task_id,"tracking.yaml"); tracking["provider"]={"capability":"task-provider","id":provider,"status":"unavailable"}; tracking["externalTracking"]["status"]="unavailable"; self._write(task_id,"tracking.yaml",tracking)
@@ -134,7 +134,7 @@ class TaskTrackingManager:
         if path.is_file(): return yaml.safe_load(path.read_text(encoding="utf-8"))
         resolution=self.resolve_provider(task_id,[operation]); provider=resolution["provider"]["id"]
         status="waiting-approval" if approval_required else "pending"
-        data={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"ExternalOperation","metadata":{"id":operation_id},"task":task_id,"provider":provider,"capability":"task-provider","operation":operation,"status":status,"approval":{"required":approval_required,"status":"pending" if approval_required else "not-required"},"input":{**input_data,"operationId":operation_id}}
+        data={"apiVersion":"aief.dev/v1alpha1","kind":"ExternalOperation","metadata":{"id":operation_id},"task":task_id,"provider":provider,"capability":"task-provider","operation":operation,"status":status,"approval":{"required":approval_required,"status":"pending" if approval_required else "not-required"},"input":{**input_data,"operationId":operation_id}}
         assert_schema(self.factory,"external-operation.schema.json",data)
         self._write(task_id,relative,data)
         if approval_required:
@@ -158,7 +158,7 @@ class TaskTrackingManager:
         operation=self._read(task_id,f"operations/search-task-{safe_task_id(task_id)}.yaml")
         if operation["status"] == "completed": return self._read(task_id,"search.yaml")
         operation["status"]="completed"; operation["result"]={"matchCount":len(matches)}; self._write(task_id,f"operations/{operation['metadata']['id']}.yaml",operation)
-        search={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"ExternalTaskSearch","metadata":{"id":f"search-{safe_task_id(task_id)}"},"task":task_id,"provider":operation["provider"],"query":operation["input"]["query"],"matches":matches,"status":"completed"}
+        search={"apiVersion":"aief.dev/v1alpha1","kind":"ExternalTaskSearch","metadata":{"id":f"search-{safe_task_id(task_id)}"},"task":task_id,"provider":operation["provider"],"query":operation["input"]["query"],"matches":matches,"status":"completed"}
         assert_schema(self.factory,"external-task-search.schema.json",search)
         self._write(task_id,"search.yaml",search); tracking=self._read(task_id,"tracking.yaml"); tracking["duplicateSearch"]["status"]="completed"
         tracking["externalTracking"]["status"]="awaiting-link" if any(item["recommendation"] in {"link-existing","review"} for item in matches) else "awaiting-creation"; self._write(task_id,"tracking.yaml",tracking); return search

@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/knowledge-promotion.schema.json",
+  "$id": "https://aief.dev/schemas/knowledge-promotion.schema.json",
   "type": "object",
   "required": ["apiVersion", "kind", "metadata", "candidate", "target", "approval", "status"],
   "properties": {
-    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
     "kind": {"const": "KnowledgePromotion"},
     "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
     "candidate": {"type": "string"},

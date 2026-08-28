@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/request.schema.json",
+  "$id": "https://aief.dev/schemas/request.schema.json",
   "type": "object",
   "required": ["apiVersion", "kind", "metadata", "text", "receivedAt"],
   "properties": {
-    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
     "kind": {"const": "Request"},
     "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
     "text": {"type": "string", "minLength": 1},

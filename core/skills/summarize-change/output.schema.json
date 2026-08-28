@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/skills/summarize-change/output.schema.json",
+  "$id": "https://aief.dev/skills/summarize-change/output.schema.json",
   "type": "object",
   "required": ["summary", "status", "evidence", "unknowns", "details"],
   "properties": {

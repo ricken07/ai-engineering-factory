@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/policy-decision.schema.json",
+  "$id": "https://aief.dev/schemas/policy-decision.schema.json",
   "type": "object",
   "required": [
     "apiVersion",
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "apiVersion": {
-      "const": "factory.gaddigital.io/v1alpha1"
+      "const": "aief.dev/v1alpha1"
     },
     "kind": {
       "const": "PolicyDecision"

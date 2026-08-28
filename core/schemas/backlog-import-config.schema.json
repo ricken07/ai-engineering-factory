@@ -1,7 +1,7 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/backlog-import-config.schema.json",
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://aief.dev/schemas/backlog-import-config.schema.json",
   "type":"object", "required":["apiVersion","kind","metadata"],
-  "properties":{"apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},"kind":{"const":"BacklogImportConfig"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+  "properties":{"apiVersion":{"const":"aief.dev/v1alpha1"},"kind":{"const":"BacklogImportConfig"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},
     "granularity":{"enum":["epic","feature","task","bug"],"default":"task"},
     "hierarchyLevels":{"$ref":"common.schema.json#/$defs/stringArray","default":["epic","feature","task","bug"]},
     "groupBy":{"enum":["folder","domain","feature","none"],"default":"none"},

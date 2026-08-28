@@ -229,7 +229,7 @@ def test_task_registry_rejects_duplicate_yaml_keys(tmp_path: Path):
     project=tmp_path/"project"; initialize(Path("templates/project"),project)
     task_root=project/".ai/runtime/tasks/local-duplicate"; task_root.mkdir(parents=True)
     (task_root/"task.yaml").write_text(
-        "apiVersion: factory.gaddigital.io/v1alpha1\nkind: Task\nmetadata: {id: local-duplicate}\n"
+        "apiVersion: aief.dev/v1alpha1\nkind: Task\nmetadata: {id: local-duplicate}\n"
         "objective: {summary: demo}\nscope: {repositories: [main]}\nscope: {repositories: []}\n",
         encoding="utf-8",
     )

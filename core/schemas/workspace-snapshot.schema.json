@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/workspace-snapshot.schema.json",
+  "$id": "https://aief.dev/schemas/workspace-snapshot.schema.json",
   "type": "object",
   "required": ["apiVersion", "kind", "metadata", "capturedAt", "repositories", "decision"],
   "properties": {
-    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
     "kind": {"const": "WorkspaceSnapshot"},
     "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
     "capturedAt": {"type": "string", "format": "date-time"},

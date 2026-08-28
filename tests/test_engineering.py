@@ -191,24 +191,24 @@ def test_missing_document_in_unreferenced_catalog_does_not_break_a_referenced_si
     (organization / "practices" / "broken").mkdir(parents=True)
     (organization / "practices" / "good" / "practice.md").write_text("# Good practice\n")
     (organization / "practices" / "good" / "practice.yaml").write_text(yaml.safe_dump({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "Practice",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "Practice",
         "metadata": {"id": "good-practice", "name": "Good", "version": "1.0.0"},
         "category": "convention", "enforcement": "default",
         "document": {"path": "practice.md"}, "override": {"allowed": True},
     }))
     (organization / "practices" / "broken" / "practice.yaml").write_text(yaml.safe_dump({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "Practice",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "Practice",
         "metadata": {"id": "broken-practice", "name": "Broken", "version": "1.0.0"},
         "category": "convention", "enforcement": "optional",
         "document": {"path": "missing.md"}, "override": {"allowed": True},
     }))
     (organization / "catalogs" / "good-catalog.yaml").write_text(yaml.safe_dump({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "OrganizationCatalog",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "OrganizationCatalog",
         "metadata": {"id": "good-catalog", "name": "Good", "version": "1.0.0"},
         "extends": [], "practiceRefs": ["good-practice@1.0.0"],
     }))
     (organization / "catalogs" / "broken-catalog.yaml").write_text(yaml.safe_dump({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "OrganizationCatalog",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "OrganizationCatalog",
         "metadata": {"id": "broken-catalog", "name": "Broken", "version": "1.0.0"},
         "extends": [], "practiceRefs": ["broken-practice@1.0.0"],
     }))
@@ -227,7 +227,7 @@ def test_duplicate_practice_id_is_still_rejected_even_when_unreferenced(tmp_path
     for folder in ("first", "second"):
         (organization / folder).mkdir(parents=True)
         (organization / folder / "practice.yaml").write_text(yaml.safe_dump({
-            "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "Practice",
+            "apiVersion": "aief.dev/v1alpha1", "kind": "Practice",
             "metadata": {"id": "dup", "name": "Dup", "version": "1.0.0"},
             "category": "convention", "enforcement": "optional",
             "document": {"path": "missing.md"}, "override": {"allowed": True},

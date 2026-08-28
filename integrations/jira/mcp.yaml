@@ -1,4 +1,4 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: McpBinding
 metadata: {id: jira-default, name: Jira MCP, version: 1.0.0}
 provider: jira

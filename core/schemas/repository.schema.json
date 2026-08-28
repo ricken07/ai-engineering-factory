@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/repository.schema.json",
+  "$id": "https://aief.dev/schemas/repository.schema.json",
   "type": "object",
   "required": [
     "id",

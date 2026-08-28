@@ -1,10 +1,10 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"https://factory.gaddigital.io/schemas/integration-lock.schema.json",
+  "$id":"https://aief.dev/schemas/integration-lock.schema.json",
   "type":"object",
   "required":["apiVersion","kind","metadata","factoryVersion","integrations"],
   "properties":{
-    "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"},
+    "apiVersion":{"const":"aief.dev/v1alpha1"},
     "kind":{"const":"IntegrationLock"},
     "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
     "factoryVersion":{"$ref":"common.schema.json#/$defs/semanticVersion"},

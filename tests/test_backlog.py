@@ -26,7 +26,7 @@ def service(tmp_path: Path, autonomy="L2", provider="jira") -> RuntimeService:
 
 def proposal(import_id: str, candidate_id: str, title: str, parent: str | None = None) -> dict:
     value = {
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "ExternalTaskProposal",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "ExternalTaskProposal",
         "metadata": {"id": candidate_id}, "sourceImport": import_id, "type": "task",
         "title": title, "description": "Detail.", "acceptanceCriteria": ["It works"],
         "repositories": [], "risk": "medium",
@@ -75,7 +75,7 @@ def test_auto_link_high_confidence_duplicate_policy(tmp_path):
     runtime = service(tmp_path)
     config_path = runtime.project_root / "backlog-import-config.yaml"
     config_path.write_text(yaml.safe_dump({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "BacklogImportConfig",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "BacklogImportConfig",
         "metadata": {"id": "auto-link"}, "duplicatePolicy": "auto-link-high-confidence",
     }))
     import_id = runtime.backlog.start("specs", "jira", str(config_path))["importId"]

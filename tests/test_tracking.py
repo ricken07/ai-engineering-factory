@@ -33,7 +33,7 @@ def local_task(runtime: RuntimeService, text="Corrige le problème de callback M
 
 
 def proposal(identifier):
-    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"ExternalTaskProposal","metadata":{"id":f"proposal-{identifier}"},"sourceTask":identifier,"title":"Fix MTN callback mapping","description":"FAILED callbacks remain PENDING.","acceptanceCriteria":["FAILED maps to FAILED"],"repositories":["api"],"risk":"high"}
+    return {"apiVersion":"aief.dev/v1alpha1","kind":"ExternalTaskProposal","metadata":{"id":f"proposal-{identifier}"},"sourceTask":identifier,"title":"Fix MTN callback mapping","description":"FAILED callbacks remain PENDING.","acceptanceCriteria":["FAILED maps to FAILED"],"repositories":["api"],"risk":"high"}
 
 
 def test_tracking_policy_optional_recommended_and_required():

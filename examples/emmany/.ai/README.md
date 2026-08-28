@@ -1,4 +1,4 @@
-# Emmany AI Engineering Configuration Example
+# Emmany - AI Engineering Configuration Example
 
 This directory demonstrates how a poly-repository project consumes the centrally installed Factory. It is reference data, not an active production configuration.
 

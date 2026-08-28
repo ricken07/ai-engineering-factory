@@ -111,7 +111,7 @@ class WorkspaceManager:
                 blockers.append({"repository":repository["id"], "reason":"wrong-base-branch"})
         decision = {"status":"blocked" if blockers else ("isolation-required" if mode == "worktree" else "branch-required"),
                     "mode":mode, "reasons":blockers}
-        document = {"apiVersion":"factory.gaddigital.io/v1alpha1", "kind":"WorkspaceSnapshot",
+        document = {"apiVersion":"aief.dev/v1alpha1", "kind":"WorkspaceSnapshot",
                     "metadata":{"id":f"workspace-{self.execution_root.name}"},
                     "capturedAt":datetime.now(timezone.utc).isoformat(), "repositories":repositories, "decision":decision}
         self.state_path.write_text(yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8")

@@ -1,11 +1,11 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Project
 metadata:
   id: emmany
-  name: Emmany Gateway
+  name: Emmany Application
 factory:
-  version: 1.15.0
-  homeEnv: GAD_AI_FACTORY_HOME
+  version: 1.0.0
+  homeEnv: AI_FACTORY_HOME
 workspace:
   strategy: polyrepo
   root: .
