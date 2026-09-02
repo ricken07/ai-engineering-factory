@@ -104,14 +104,14 @@ def run_simple_feature(factory: Path, workdir: Path, agent: str) -> dict[str, An
 def run_natural_language_bug(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
     project_root = _seed_project(factory, workdir)
     service = RuntimeService(project_root, factory)
-    intake = service.intake("Il y a un bug: la transaction de paiement échoue systématiquement", agent)
+    intake = service.intake("Il y a un bug: la transaction de paiement échoue systématiquement", agent, confirmed=True)
     return {"workflow": intake["intent"]["workflow"], "intent": intake["intent"]["intent"]}
 
 
 def run_ambiguous_request(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
     project_root = _seed_project(factory, workdir)
     service = RuntimeService(project_root, factory)
-    intake = service.intake("Le système de paiement", agent)
+    intake = service.intake("Le système de paiement", agent, confirmed=True)
     return {"workflow": intake["intent"]["workflow"], "mutating": intake["intent"]["mutating"]}
 
 
@@ -139,7 +139,7 @@ def run_dirty_workspace(factory: Path, workdir: Path, agent: str) -> dict[str, A
     _git_commit_baseline(project_root)
     (project_root / "untracked-change.txt").write_text("dirty")
     service = RuntimeService(project_root, factory)
-    execution = service.start("Refactore le composant local", agent)
+    execution = service.start("Refactore le composant local", agent, confirmed=True)
     task = TaskRegistry(project_root).load(execution.data["task"])
     task["scope"] = {"repositories": ["main"]}
     TaskRegistry(project_root).save(task)
@@ -179,7 +179,7 @@ def run_tracking_required(factory: Path, workdir: Path, agent: str) -> dict[str,
 def run_human_gate(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
     project_root = _seed_project(factory, workdir, autonomy={"default": "L3", "maximum": "L3"}, repositories=_MAIN_REPOSITORY)
     service = RuntimeService(project_root, factory)
-    execution = service.start("Implémente une évolution locale", agent)
+    execution = service.start("Implémente une évolution locale", agent, confirmed=True)
     identifier = execution.data["metadata"]["id"]
     task_data = TaskRegistry(project_root).load(execution.data["task"])
     task_data["autonomy"] = {"requested": "L3"}

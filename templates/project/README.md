@@ -10,6 +10,13 @@ After onboarding, start `codex` or `claude` from this workspace root. Use an
 agent-native intent or natural language; the installed adapter invokes `aief`
 internally. Developers do not normally run `aief run` themselves.
 
+The template starts with `activation.mode: auto`: a native command
+(`/implement`, `$implement`, ...) always activates the Factory, and free text
+does too, but only after the agent asks for and receives explicit
+confirmation. Set it to `manual` to keep the Factory off by default; a native
+command still activates it, for that execution only, and free text is then
+never routed through it.
+
 Review the shared least-privilege agent configuration in
 `.claude/settings.json`, `.codex/config.toml` and
 `.codex/rules/factory.rules`. Extend it only with validation commands required

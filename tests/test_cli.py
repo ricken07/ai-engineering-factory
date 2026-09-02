@@ -22,10 +22,49 @@ def test_intake_and_run_commands(tmp_path: Path, capsys):
     destination = tmp_path / "demo"
     assert main(["init", str(destination)]) == 0
     capsys.readouterr()
-    assert main(["intake", "Corrige le bug DEMO-12", "--project", str(destination), "--factory", ".", "--json"]) == 0
+    assert main(["intake", "Corrige le bug DEMO-12", "--project", str(destination), "--factory", ".", "--activation-confirmed", "--json"]) == 0
     assert '"workflow": "fix-bug"' in capsys.readouterr().out
     assert main(["run", "/analyze DEMO-12", "--project", str(destination), "--factory", ".", "--agent", "codex"]) == 0
     assert "nextPhase: understand" in capsys.readouterr().out
+
+
+def test_activation_gate_native_command_and_unconfirmed_free_text(tmp_path: Path, capsys):
+    from aief.intake import ActivationRequired
+
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    capsys.readouterr()
+    # Default `activation.mode: auto` — a native command always runs directly.
+    assert main(["intake", "/fix DEMO-13", "--project", str(destination), "--factory", ".", "--json"]) == 0
+    assert '"workflow": "fix-bug"' in capsys.readouterr().out
+    # Free text is refused until the developer explicitly confirms it.
+    import pytest
+    with pytest.raises(ActivationRequired):
+        main(["intake", "Corrige le bug DEMO-13", "--project", str(destination), "--factory", "."])
+    assert main(["intake", "Corrige le bug DEMO-13", "--project", str(destination), "--factory", ".", "--activation-confirmed", "--json"]) == 0
+    assert '"workflow": "fix-bug"' in capsys.readouterr().out
+
+
+def test_activation_gate_manual_mode_blocks_free_text_but_not_native_commands(tmp_path: Path, capsys):
+    import yaml
+    from aief.intake import ActivationDeclined
+
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    project_file = destination / ".ai/project.yaml"
+    data = yaml.safe_load(project_file.read_text())
+    data["activation"]["mode"] = "manual"
+    project_file.write_text(yaml.safe_dump(data, sort_keys=False))
+    capsys.readouterr()
+
+    # A native command still activates the Factory, for this execution only.
+    assert main(["intake", "/fix DEMO-14", "--project", str(destination), "--factory", ".", "--json"]) == 0
+    assert '"workflow": "fix-bug"' in capsys.readouterr().out
+
+    # Free text is never routed through the Factory, confirmed or not.
+    import pytest
+    with pytest.raises(ActivationDeclined):
+        main(["intake", "Corrige le bug DEMO-14", "--project", str(destination), "--factory", ".", "--activation-confirmed"])
 
 
 def test_run_adapter_contract_pins_intent_and_workflow(tmp_path: Path, capsys):
@@ -77,7 +116,7 @@ def test_task_tracking_status_command(tmp_path: Path, capsys):
     from aief.project import initialize
     from aief.service import RuntimeService
     project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
-    intake=service.intake("Corrige un petit bug"); identifier=intake["task"]["metadata"]["id"]
+    intake=service.intake("Corrige un petit bug", confirmed=True); identifier=intake["task"]["metadata"]["id"]
     service.reassess_tracking(identifier,{"risk":"low","repositories":["main"],"changeTypes":["refactoring"]})
     assert main(["task","tracking",identifier,"--project",str(project),"--factory",".","--json"]) == 0
     assert '"level": "optional"' in capsys.readouterr().out

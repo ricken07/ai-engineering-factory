@@ -184,9 +184,15 @@ Refactor PaymentOrchestrator without changing its behavior.
 Analyze this module without modifying the code.
 ```
 
-In both cases, the adapter transmits the request intact to the common Runtime. The
-Runtime normalizes the intent, creates or resumes the Task and Execution, applies
-policies and returns to the agent the next phase to execute.
+A native command always transmits the request intact to the common Runtime.
+Free text does too, but only after clearing the Activation Gate governed by
+`activation.mode` in `.ai/project.yaml` (`auto` by default at installation:
+the adapter asks for explicit confirmation first; `manual`: free text is
+never routed through the Factory, only a native command activates it, for
+that execution only). See [`23-first-steps.md`](23-first-steps.md#2-native-command-or-free-text).
+Once transmitted, the Runtime normalizes the intent, creates or resumes the
+Task and Execution, applies policies and returns to the agent the next phase
+to execute.
 
 ```text
 Developer
@@ -412,6 +418,11 @@ workspaceSafety:
   mode: worktree                         # Isolates agent changes.
   baseBranch: main                       # Default target branch.
   taskBranchPrefix: aief                 # Prefix for Factory work branches.
+
+activation:
+  mode: auto                             # auto (default): free text asks before routing through
+                                          # the Factory. manual: only a native command activates it,
+                                          # and only for that execution; free text never routes.
 
 repositories:
   - id: backend
@@ -703,7 +714,9 @@ Codex      $analyze Analyze the current architecture without modifying the code.
 Claude     /analyze Analyze the current architecture without modifying the code.
 ```
 
-Free text must follow the same path:
+Free text must follow the same path, once the Activation Gate has cleared it
+(the agent asks for confirmation first under the default `activation.mode:
+auto`; see [`23-first-steps.md`](23-first-steps.md#2-native-command-or-free-text)):
 
 ```text
 Analyze the current architecture, verify documents against code and do
@@ -874,6 +887,7 @@ Do not silently replace the contents of an existing version folder.
 - [ ] Adapters were previewed then explicitly installed.
 - [ ] Native Claude/Codex permissions were reviewed and committed.
 - [ ] Profile-specific validations have precise prefixes, no global shell authorization.
+- [ ] `activation.mode` reflects the intended default (`auto` unless the team explicitly wants `manual`).
 - [ ] Gates, external writes and Git publications remain interactive.
 - [ ] `.ai/project.yaml` describes all managed repositories.
 - [ ] Profiles match technologies actually detected.

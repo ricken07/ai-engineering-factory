@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 from collections.abc import Callable
 
 from .compiler import compile_workflow
-from .intake import INTENT_WORKFLOWS, TaskRegistry, create_request, normalize_task, resolve_intent
+from .intake import INTENT_WORKFLOWS, TaskRegistry, create_request, enforce_activation, normalize_task, resolve_intent
 from .project import find_project, load_project
 from .runtime import Execution
 from .tracking import TaskTrackingManager, evaluate_tracking
@@ -57,14 +57,15 @@ class RuntimeService:
         )
 
     def intake(self, text: str, agent: str | None = None, intent: str | None = None,
-               expected_workflow: str | None = None) -> dict[str, Any]:
-        request = create_request(text, agent)
+               expected_workflow: str | None = None, confirmed: bool = False) -> dict[str, Any]:
+        request = create_request(text, agent=agent)
         if intent is not None:
             if intent not in INTENT_WORKFLOWS:
                 raise ValueError(f"unsupported adapter intent: {intent}")
             request["command"] = intent
             request["arguments"] = text.strip()
         intent = resolve_intent(request)
+        enforce_activation(intent, (self.project.get("activation") or {}).get("mode", "auto"), confirmed)
         if expected_workflow is not None and intent["workflow"] != expected_workflow:
             raise RuntimeError(
                 f"adapter expected workflow {expected_workflow}, but Runtime resolved {intent['workflow']}"
@@ -91,10 +92,10 @@ class RuntimeService:
         return {"request": request, "intent": intent, "task": task, "path": str(task_path)}
 
     def start(self, text: str, agent: str | None = None, intent: str | None = None,
-              expected_workflow: str | None = None) -> Execution:
-        intake = self.intake(text, agent, intent, expected_workflow)
+              expected_workflow: str | None = None, confirmed: bool = False) -> Execution:
+        intake = self.intake(text, agent, intent, expected_workflow, confirmed)
         workflow = compile_workflow(self.factory, intake["task"]["workflow"])
-        execution = Execution.create(self.project_root, workflow, intake["task"]["metadata"]["id"], agent)
+        execution = Execution.create(self.project_root, self.factory, workflow, intake["task"]["metadata"]["id"], agent)
         self._events(execution.data["task"]).append(
             "workflow.started", execution=execution.data["metadata"]["id"],
             payload={"agent": agent, "phase": execution.next_phase()["id"], "status": execution.data["status"],
@@ -308,7 +309,7 @@ class RuntimeService:
         if manager.read() is not None:
             if owner is None: raise PermissionError("lease owner is required to hand off an active execution")
             manager.release(owner)
-        return execution.handoff()
+        return execution.handoff(self.factory)
 
     def _impacted_repository_ids(self, execution: Execution, task: dict[str, Any]) -> list[str]:
         identifiers = list(execution.data.get("repositories", [])) or list(task.get("scope", {}).get("repositories", []))

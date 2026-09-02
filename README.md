@@ -90,7 +90,16 @@ Request
 → Handoff
 ```
 
-Explicit commands and natural language enter the same Runtime and are normalized identically. Commands are shortcuts, not a separate execution path.
+Explicit commands and natural language enter the same Runtime and are normalized identically. Commands are shortcuts, not a separate execution path, and always activate the Runtime for their own execution.
+
+Natural language is gated by `activation.mode` in `.ai/project.yaml`, on by default at installation:
+
+| `activation.mode` | Native command | Natural language |
+| --- | --- | --- |
+| `auto` (default) | Runs directly. | The agent asks for explicit confirmation before routing through the Runtime; declined requests are handled directly. |
+| `manual` | Runs directly, activating the Runtime for that execution only. | Never routed through the Runtime. |
+
+`aief run`/`aief intake` enforce this themselves — an unconfirmed or disabled natural-language request is refused before any Task is persisted, not just discouraged by adapter instructions. See [`docs/23-first-steps.md`](docs/23-first-steps.md#2-native-command-or-free-text).
 
 ## A developer experience
 

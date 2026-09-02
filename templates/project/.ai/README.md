@@ -19,6 +19,11 @@ Task, Execution, artifacts and logs under `.ai/runtime/` are the tracking system
 and no external task manager is configured. Use `external` only when required
 Tasks must be linked through a configured `task-provider`.
 
+`project.yaml` also selects `activation.mode` (`auto` by default). A native
+command always activates the Factory for its own execution. Under `auto`,
+free text activates it only after the agent asks the developer and receives
+an explicit yes; under `manual`, free text never activates it.
+
 ## Responsibility boundaries
 
 ```text

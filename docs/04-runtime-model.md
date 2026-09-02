@@ -76,3 +76,20 @@ Knowledge learned during execution remains task-local until the `promote-knowled
 Commands are optional intent shortcuts. `aief run` normalizes commands and natural language through the same Request, IntentResolution, Task and Execution contracts. Phase results are schema-validated before persistence, and runtime state can be resumed by a different adapter.
 
 See `docs/14-universal-runtime.md` for the executable protocol and use cases.
+
+## Activation gate
+
+`.ai/project.yaml` declares `activation.mode` (`auto` by default at
+installation, or `manual`). It decides whether a request reaches the pipeline
+above, based on `IntentResolution.source`:
+
+- `source: explicit-command` (a native `/implement`, `$implement`, ...) always
+  activates the Factory for that execution, regardless of `mode`.
+- Any other source is natural language. Under `auto` it requires explicit
+  human confirmation first; under `manual` it never activates the Factory.
+
+The Runtime enforces this in `RuntimeService.intake` (shared by `aief intake`
+and `aief run`), not just in adapter documentation: an unconfirmed or
+disabled natural-language request raises `ActivationRequired` or
+`ActivationDeclined` before any Task is persisted. A confirmed request passes
+`--activation-confirmed`.

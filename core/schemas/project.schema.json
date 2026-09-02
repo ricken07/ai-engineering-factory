@@ -65,6 +65,17 @@
       },
       "additionalProperties": false
     },
+    "activation": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "manual"],
+          "default": "auto"
+        }
+      },
+      "additionalProperties": false
+    },
     "repositories": {
       "type": "array",
       "items": {

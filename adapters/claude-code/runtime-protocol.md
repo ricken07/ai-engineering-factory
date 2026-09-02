@@ -1,8 +1,11 @@
 # Claude Code Runtime Protocol
 
-This protocol is mandatory for every Factory engineering request, whether the
-user invokes `/implement`, `/fix`, another native Skill, or uses natural
-language. The adapter must not simulate workflow orchestration in conversation.
+This protocol is mandatory for every request the Activation Gate in
+`bootstrap.md` routes to the Factory: a native Skill (`/implement`, `/fix`,
+...) always routes here; natural language routes here only after the
+`activation.mode` check has been satisfied (explicit human confirmation under
+`auto`, or declared inapplicable and handled directly under `manual`). The
+adapter must not simulate workflow orchestration in conversation.
 
 ## Start or resume
 
@@ -24,6 +27,12 @@ language. The adapter must not simulate workflow orchestration in conversation.
      --project "<workspace-root>" \
      --factory "<resolved-factory-home>"
    ```
+
+   For a free-text request routed here under `activation.mode: auto`, add
+   `--activation-confirmed` — only once the developer has given an explicit
+   yes to the Activation Gate question. Never pass it speculatively, and
+   never pass it for `activation.mode: manual` (free text never reaches this
+   protocol under that mode). A native Skill never needs this flag.
 
 5. Treat the command as successful only when stdout contains a concrete
    `runtimeReceipt`, `execution`, `intent`, `workflow` and `nextPhase`. Verify

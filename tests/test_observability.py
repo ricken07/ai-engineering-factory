@@ -24,7 +24,7 @@ def runtime(tmp_path: Path):
     data["repositories"] = [{"id": "main", "path": ".", "role": "application", "profiles": ["generic"], "responsibilities": [], "dependencies": [], "criticalDomains": []}]
     (project_root / ".ai/project.yaml").write_text(yaml.safe_dump(data, sort_keys=False))
     service = RuntimeService(project_root, ROOT)
-    execution = service.start("Implémente une évolution locale")
+    execution = service.start("Implémente une évolution locale", confirmed=True)
     task_data = TaskRegistry(project_root).load(execution.data["task"])
     task_data["autonomy"] = {"requested": "L3"}
     TaskRegistry(project_root).save(task_data)
@@ -66,7 +66,7 @@ def test_workspace_events_after_resume_show_blocked_then_prepared(tmp_path: Path
     subprocess.run(["git", "add", "."], cwd=project, check=True)
     subprocess.run(["git", "commit", "-m", "baseline"], cwd=project, check=True, capture_output=True)
     service = RuntimeService(project, Path("."))
-    execution = service.start("Refactore le composant local")
+    execution = service.start("Refactore le composant local", confirmed=True)
     task = TaskRegistry(project).load(execution.data["task"])
     task["scope"] = {"repositories": ["main"]}
     TaskRegistry(project).save(task)

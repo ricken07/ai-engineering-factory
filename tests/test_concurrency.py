@@ -60,7 +60,7 @@ def test_operation_id_cannot_be_reused_with_different_input(tmp_path: Path):
 def test_gate_approval_replay_is_single_transition(tmp_path: Path):
     workflow={"metadata":{"id":"demo","version":"1.0.0"},"phases":[{"id":"plan","skill":"create-plan","gate":{"id":"before-implementation","type":"human-approval"}},{"id":"next","skill":"implement-change"}]}
     from aief.runtime import Execution
-    execution=Execution.create(tmp_path,workflow,"TASK-1"); execution.advance({"summary":"plan"})
+    execution=Execution.create(tmp_path,Path("."),workflow,"TASK-1"); execution.advance({"summary":"plan"})
     service=object.__new__(RuntimeService); service.project_root=tmp_path
     identifier=execution.data["metadata"]["id"]
     service.approve_execution(identifier,"approve-plan-1")

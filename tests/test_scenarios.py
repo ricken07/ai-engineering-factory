@@ -76,7 +76,7 @@ def test_engineering_outcome_is_a_contract_only_with_no_measurement(tmp_path: Pa
         schemas[path.name] = schema
         registry = registry.with_resource(schema["$id"], Resource.from_contents(schema))
     validator = Draft202012Validator(schemas["engineering-outcome.schema.json"], registry=registry)
-    outcome = pending_engineering_outcome("simple-feature", "claude-code")
+    outcome = pending_engineering_outcome(ROOT, "simple-feature", "claude-code")
     assert not list(validator.iter_errors(outcome))
     assert set(outcome["dimensions"]) == set(ENGINEERING_OUTCOME_DIMENSIONS)
     assert all(dimension["status"] == "not_evaluated" for dimension in outcome["dimensions"].values())

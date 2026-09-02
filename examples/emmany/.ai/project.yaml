@@ -13,6 +13,8 @@ workspaceSafety:
   mode: worktree
   baseBranch: main
   taskBranchPrefix: aief
+activation:
+  mode: auto
 repositories:
   - id: egw-api
     path: ./egw-api

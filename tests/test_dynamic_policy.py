@@ -50,7 +50,7 @@ def runtime(tmp_path: Path):
     data=yaml.safe_load((project_root/".ai/project.yaml").read_text()); data["autonomy"]={"default":"L3","maximum":"L3"}
     data["repositories"]=[{"id":"main","path":".","role":"application","profiles":["generic"],"responsibilities":[],"dependencies":[],"criticalDomains":[]}]
     (project_root/".ai/project.yaml").write_text(yaml.safe_dump(data,sort_keys=False))
-    service=RuntimeService(project_root,ROOT); execution=service.start("Implémente une évolution locale")
+    service=RuntimeService(project_root,ROOT); execution=service.start("Implémente une évolution locale",confirmed=True)
     task_data=TaskRegistry(project_root).load(execution.data["task"]); task_data["autonomy"]={"requested":"L3"}; TaskRegistry(project_root).save(task_data)
     for phase in execution.data["phases"]:
         if phase["skill"] == "analyze-impact": break

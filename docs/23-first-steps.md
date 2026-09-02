@@ -49,6 +49,22 @@ Analyze learning continuity without modifying the code.
 The adapter preserves the complete request. The Runtime determines intent, creates
 a local Task or resolves the external reference, then selects the workflow.
 
+### Activation gate
+
+`.ai/project.yaml` sets `activation.mode`, defaulted to `auto` at
+installation:
+
+| `activation.mode` | Native command | Free text |
+| --- | --- | --- |
+| `auto` (default) | Runs directly. | The agent asks the developer whether to route the request through the Factory, and only does so after an explicit yes. A no is handled directly, without the Factory. |
+| `manual` | Runs directly, activating the Factory for that execution only — the project setting itself is unchanged. | Never routed through the Factory; always handled directly. |
+
+The Runtime enforces this itself: `aief intake`/`aief run` refuse an
+unconfirmed or disabled free-text request rather than relying on adapter
+discipline alone. A confirmed free-text request under `auto` passes
+`--activation-confirmed`; it is never needed for a native command, and never
+valid for free text under `manual`.
+
 For a native Skill, the adapter also transmits the intent and expected workflow
 with `--intent` and `--expect-workflow`. Before any detailed analysis or
 modification, the session must display a real Runtime receipt containing at least:
@@ -305,7 +321,7 @@ Before the first mutating task:
 - [ ] the agent was launched from the root containing `.ai/project.yaml`;
 - [ ] the skill adapter is installed;
 - [ ] `GAD_AI_FACTORY_HOME` resolves the pinned version;
-- [ ] the request is passed automatically to the Runtime;
+- [ ] the request is passed automatically to the Runtime, respecting `activation.mode`;
 - [ ] an Execution appears in `.ai/runtime/`;
 - [ ] the receipt contains `taskLog` and the log begins with `task.normalized`;
 - [ ] the agent respects gates and autonomy level;

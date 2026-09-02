@@ -10,6 +10,17 @@ from .yamlio import load_yaml
 from .config import get_api_version
 
 
+class ActivationRequired(RuntimeError):
+    """A natural-language request needs explicit human confirmation before the
+    Factory activates (`activation.mode: auto`, the default)."""
+
+
+class ActivationDeclined(RuntimeError):
+    """A natural-language request was submitted while Factory activation is
+    disabled (`activation.mode: manual`); only a native command activates it,
+    and only for its own execution."""
+
+
 INTENT_WORKFLOWS = {
     "analyze": "analyze-task",
     "implement": "implement-task",
@@ -94,6 +105,31 @@ def resolve_intent(request: dict[str, Any], factory: Path | None = None) -> dict
         "reason": reason,
         "requiresClarification": confidence == "ambiguous" and intent in MUTATING,
     }
+
+
+def enforce_activation(resolution: dict[str, Any], mode: str, confirmed: bool) -> None:
+    """Gate Factory routing for non-command requests per `activation.mode`.
+
+    A native command (`source: explicit-command`) always activates the
+    Factory for its own execution, regardless of `mode`. Only natural-language
+    requests are gated: `manual` never routes them through the Factory;
+    `auto` (the default) requires explicit human confirmation first.
+    """
+    if resolution["source"] == "explicit-command":
+        return
+    if mode == "manual":
+        raise ActivationDeclined(
+            "activation.mode is 'manual': natural-language requests are not routed "
+            "through the Factory. Use a native command to activate it for this "
+            "execution, or handle this request directly without the Factory."
+        )
+    if mode == "auto" and not confirmed:
+        raise ActivationRequired(
+            "activation.mode is 'auto': ask the human whether this natural-language "
+            "request should be routed through the Factory. Retry with confirmed=True "
+            "only after an explicit yes; otherwise handle the request directly "
+            "without the Factory."
+        )
 
 
 def normalize_task(request: dict[str, Any], resolution: dict[str, Any], factory: Path | None = None) -> dict[str, Any]:
