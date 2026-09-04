@@ -1,6 +1,6 @@
 # 22 — Installing AI Engineering Factory in a Project
 
-This document is the target procedure for connecting an existing project to the AI Engineering Factory. The Factory is installed once on the developer's workstation; the project receives only its `.ai/` template and agent bootstrap files.
+This document is the target procedure for connecting an existing project to the AI Engineering Factory. The Factory itself stays agnostic of any organization or project: cloning it installs only `core/`, `profiles/`, `adapters/` and `integrations/`, never a specific company's practices. An organization normally installs and pins one Factory version **once**, as the shared reference every team member and every project points to; a project only ever receives its own `.ai/` template and agent bootstrap files. If the organization also maintains its own engineering practices, it defines and hosts that catalog separately — never committed into this repository — and each project selects it explicitly. See [`organization/README.md`](../organization/README.md) and [`24-organization-knowledge-catalog.md`](24-organization-knowledge-catalog.md).
 
 After installation, continue with [`23-first-steps.md`](23-first-steps.md) for the daily workflow from Claude Code or Codex.
 
@@ -236,6 +236,13 @@ uv --version
 ```
 
 ## 3. Install a Central Factory Version
+
+An organization normally performs this step once — pinning one immutable
+version as the reference every team member and every project resolves
+through `GAD_AI_FACTORY_HOME` — rather than each developer choosing their own
+version independently. A shared filesystem path, a documented per-workstation
+convention, or a mounted/synced location are equally valid as long as the
+resolved `factory.yaml` matches the version each project requests.
 
 Define the installation parameters:
 
