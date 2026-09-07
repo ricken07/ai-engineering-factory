@@ -4,9 +4,9 @@
 
 The Factory itself carries no organization- or project-specific content —
 cloning it installs only `core/`, `profiles/`, `adapters/` and
-`integrations/`. An organization installs and pins the required version
-**once**, as the shared reference for every team member and every project,
-for example:
+`integrations/`. The organization's single reference is a published Git tag,
+pinned once for every team member and every project (see
+[`09-governance.md`](09-governance.md#versioning)); for example:
 
 ```text
 ~/.gad/ai-engineering-factory/0.1.0/

@@ -237,12 +237,15 @@ uv --version
 
 ## 3. Install a Central Factory Version
 
-An organization normally performs this step once — pinning one immutable
-version as the reference every team member and every project resolves
-through `GAD_AI_FACTORY_HOME` — rather than each developer choosing their own
-version independently. A shared filesystem path, a documented per-workstation
-convention, or a mounted/synced location are equally valid as long as the
-resolved `factory.yaml` matches the version each project requests.
+The organization's single reference is the published Git tag (`vX.Y.Z`), not
+a local clone: pin that same tag on every workstation and in CI, rather than
+each developer choosing their own version independently. Where each checkout
+physically lives — a fresh clone per workstation, or one shared
+filesystem/mounted location every `GAD_AI_FACTORY_HOME` points to — is a
+deployment detail; what must never diverge is the tag. See
+[`09-governance.md`](09-governance.md#versioning) for the release process and
+the fail-closed guarantee that a project cannot silently run against a build
+that drifted from its declared tag.
 
 Define the installation parameters:
 

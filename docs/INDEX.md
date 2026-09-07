@@ -101,7 +101,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | Document | Purpose | Audience |
 |----------|---------|----------|
 | [05 — Policy Resolution](05-policy-resolution.md) | Multi-layer policies (Factory → Profile → Project → Repository → Task). Resolution algorithm. Risk and autonomy escalation. | Governance, architects |
-| [09 — Governance & Versioning](09-governance.md) | Semantic versioning, review requirements for schema/policy/workflow changes, compatibility checks, ownership model | Governance, release managers |
+| [09 — Governance & Versioning](09-governance.md) | Semantic versioning, the published Git tag as the organization's single reference, release process, review requirements for schema/policy/workflow changes, compatibility checks, ownership model | Governance, release managers |
 | [10 — Security Baseline](10-security.md) | Security principles, least privilege, no secrets in prompts, destructive operations, critical changes, permission templates | Security, operators |
 | [20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md) | Policies re-evaluated after impact analysis and planning. Monotonic risk/scope. Escalation audit trail. | Governance, operators |
 
