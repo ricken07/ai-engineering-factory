@@ -61,6 +61,8 @@
     "policyDecision": {
       "type": "string"
     },
+    "governedExecutionPlan": {"type":"string"},
+    "roles": {"type":"object","properties":{"producer":{"$ref":"#/$defs/role"},"verifier":{"$ref":"#/$defs/role"},"reviewer":{"$ref":"#/$defs/role"},"approver":{"$ref":"#/$defs/role"}},"additionalProperties":false},
     "policyGates": {
       "type":"array",
       "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"}},"additionalProperties":false}
@@ -154,5 +156,6 @@
       }
     }
   },
+  "$defs":{"role":{"type":"object","required":["type","identity"],"properties":{"type":{"enum":["agent","runtime","human"]},"identity":{"type":"string"},"session":{"type":"string"},"independentFromProducer":{"type":"boolean"}},"additionalProperties":false}},
   "additionalProperties": false
 }

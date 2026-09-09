@@ -18,11 +18,12 @@ from .engineering import resolve_engineering_context
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy
+from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
 from .task_log import TaskEventLog
 from .readiness import build_backlog
 from .yamlio import load_yaml
-from .evidence import git_sha, submission_evidence_gaps
+from .evidence import git_sha, submission_evidence_gaps, build_evidence_bundle, experimental_metrics
 from .config import get_api_version
 from datetime import datetime, timezone
 
@@ -212,16 +213,24 @@ class RuntimeService:
                   "risk":{"effective":decision["effectiveRisk"],"reasons":decision["reasons"]},
                   "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"],"reasons":decision["reasons"]},
                   "permissions":{"allowed":decision["allowedActions"],"denied":decision["deniedActions"]},
-                  "gates":{"required":decision["requiredGates"]},"matchedRules":decision["matchedRules"]}
+                  "gates":{"required":decision["requiredGates"]},"matchedRules":decision["matchedRules"],
+                  "provenance":decision.get("provenance",[])}
+        from .policy import policy_fingerprint
+        artifact["fingerprint"] = policy_fingerprint({key:value for key,value in artifact.items() if key != "fingerprint"})
         assert_schema(self.factory,"policy-decision.schema.json",artifact)
         name=f"policy-decision-{revision:03d}.yaml"; (execution.root/name).write_text(yaml.safe_dump(artifact,sort_keys=False),encoding="utf-8")
+        plan = governed_execution_plan(api_version, execution.data, decision, name)
+        assert_schema(self.factory, "governed-execution-plan.schema.json", plan)
+        plan_name=f"governed-execution-plan-{revision:03d}.yaml"
+        (execution.root/plan_name).write_text(yaml.safe_dump(plan,sort_keys=False),encoding="utf-8")
         gates={item["id"]:item for item in execution.data.get("policyGates",[])}
         for identifier in decision["requiredGates"]:
             gates.setdefault(identifier,{"id":identifier,"status":"pending"})
-        execution.data.update({"policyDecision":name,"risk":decision["effectiveRisk"],
+        execution.data.update({"policyDecision":name,"governedExecutionPlan":plan_name,"risk":decision["effectiveRisk"],
                                "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]},
                                "repositories":decision["observations"]["repositories"],"policyGates":list(gates.values())})
-        if name not in execution.data["artifacts"]: execution.data["artifacts"].append(name)
+        for item in (name, plan_name):
+            if item not in execution.data["artifacts"]: execution.data["artifacts"].append(item)
         task.setdefault("classification",{}).update({"risk":decision["effectiveRisk"],"domains":decision["observations"]["domains"],"changeTypes":decision["observations"]["changeTypes"]})
         task.setdefault("scope",{})["repositories"]=decision["observations"]["repositories"]
         task["autonomy"]={"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]}
@@ -269,7 +278,10 @@ class RuntimeService:
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
-        if gate and gate["status"] != "approved": gate.update({"status":"approved","approvedAt":datetime.now(timezone.utc).isoformat(),"approvedBy":approved_by}); execution.save()
+        if gate and gate["status"] != "approved":
+            gate.update({"status":"approved","approvedAt":datetime.now(timezone.utc).isoformat(),"approvedBy":approved_by})
+            execution.data.setdefault("roles", {})["approver"]={"type":"human","identity":approved_by}
+            execution.save()
 
     def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
@@ -432,6 +444,24 @@ class RuntimeService:
                     payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase": phase["id"], "reason": reason},
                 )
                 return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"],"workspace":workspace}
+            plan_name=execution.data.get("governedExecutionPlan")
+            if not plan_name:
+                plans=sorted(execution.root.glob("governed-execution-plan-*.yaml"))
+                if plans:
+                    plan_name=plans[-1].name
+                    execution.data["governedExecutionPlan"]=plan_name
+                    if plan_name not in execution.data["artifacts"]: execution.data["artifacts"].append(plan_name)
+                    execution.save()
+            # Compatibility for executions created before policy reassessment;
+            # once a PolicyDecision exists, its governed plan is mandatory.
+            if execution.data.get("policyDecision") and (not plan_name or not (execution.root / plan_name).is_file()):
+                execution.block({"type":"governed-plan-required","message":"a governed execution plan is required before implementation"})
+                return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"]}
+            plan=load_yaml(execution.root / plan_name) if plan_name and (execution.root / plan_name).is_file() else {"enforcementPoints":[]}
+            for point in plan.get("enforcementPoints", []):
+                if not point.get("status",{}).get("enforceable",False):
+                    execution.block({"type":"enforcement-unavailable","message":f"required enforcement unavailable: {point.get('action')}"})
+                    return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"]}
         repository_ids = self._impacted_repository_ids(execution, task)
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next(item for item in compiled["phases"] if item["id"] == phase["id"])
@@ -484,6 +514,8 @@ class RuntimeService:
         if AUTONOMY_RANK.get(authorized, -1) < AUTONOMY_RANK["L2"]:
             raise PermissionError(f"profile command execution requires autonomy L2; authorized level is {authorized}")
         plan = self.profile_validation_plan(execution_id)
+        execution.data.setdefault("roles", {}).setdefault("verifier", {"type":"runtime","identity":"aief-runtime"})
+        execution.save()
         contexts = {identifier:self.engineering_context(execution_id, identifier) for identifier in dict.fromkeys(item["repository"] for item in plan)}
         results: list[dict[str, Any]] = []
         snapshots: dict[str, str] = {}
@@ -504,7 +536,7 @@ class RuntimeService:
             "status": "failed" if failures else "completed",
             "evidence": [f"{item['repository']}:{item['profile']}:{item['operation']}:exit-{item['exitCode']}" for item in results],
             "unknowns": [],
-            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results,"validationPlan":plan,"commits":snapshots,"evidenceMatrix":[]},
+            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results,"validationPlan":plan,"commits":snapshots,"evidenceMatrix":[],"verifier":{"type":"runtime","identity":"aief-runtime"}},
         }
         events = self._events(execution.data["task"])
         agent = execution.data.get("agent", {}).get("adapter")
@@ -550,6 +582,19 @@ class RuntimeService:
         replay = {"summary":f"Replayed {len(results)} validation command(s) on the recorded commits.","status":"completed" if all(item["exitCode"] == 0 for item in results) else "failed","evidence":[f"{item['repository']}:{item['operation']}:exit-{item['exitCode']}" for item in results],"unknowns":[],"details":{"skill":"replay-validation","sourceValidation":"validation.yaml","results":results,"commits":commits}}
         (execution.root / "validation-replay.yaml").write_text(yaml.safe_dump(replay,sort_keys=False,allow_unicode=True),encoding="utf-8")
         return replay
+
+    def evidence_bundle(self, execution_id: str) -> dict[str, Any]:
+        execution=self.execution(execution_id)
+        bundle=build_evidence_bundle(self.factory, execution.root, execution.data)
+        assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
+        name="evidence-bundle.yaml"
+        (execution.root/name).write_text(yaml.safe_dump(bundle,sort_keys=False,allow_unicode=True),encoding="utf-8")
+        if name not in execution.data["artifacts"]:
+            execution.data["artifacts"].append(name); execution.save()
+        return bundle
+
+    def metrics(self, execution_id: str) -> dict[str, Any]:
+        return experimental_metrics(self.execution(execution_id).root, self.execution(execution_id).data)
 
     def task_events(self, task_id: str) -> list[dict[str, Any]]:
         TaskRegistry(self.project_root).load(task_id)

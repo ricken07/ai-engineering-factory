@@ -1,0 +1,10 @@
+apiVersion: aief.dev/v1alpha1
+kind: Policy
+metadata:
+  id: factory-policy
+  version: 1.0.0
+scope: factory
+rules:
+  - id: factory-governance-baseline
+    description: Explicit baseline layer; constraints are added by factory releases.
+    effect: {}

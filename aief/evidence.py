@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import subprocess
+import hashlib
+import json
 
 from .yamlio import load_yaml
 
@@ -71,3 +73,38 @@ def submission_evidence_gaps(execution_root: Path) -> list[str]:
     if not criteria:
         gaps.append("planning.details.acceptanceCriteria is missing")
     return gaps
+
+
+def build_evidence_bundle(factory: Path, execution_root: Path, execution: dict[str, Any]) -> dict[str, Any]:
+    """Create an audit artifact from persisted evidence only; never infer agent facts."""
+    def read(name: str) -> dict[str, Any]:
+        path = execution_root / name
+        return load_yaml(path) if path.is_file() else {}
+    policy = read(execution.get("policyDecision", ""))
+    plan = read(execution.get("governedExecutionPlan", ""))
+    validation, review = read("validation.yaml"), read("review.yaml")
+    body = {"apiVersion":"aief.dev/v1alpha1", "kind":"EvidenceBundle",
+            "metadata":{"id":f"evidence-{execution['metadata']['id']}"}, "task":execution["task"],
+            "execution":execution["metadata"]["id"],
+            "inputs":{"workflow":execution["workflow"],"contextFingerprints":plan.get("contextFingerprints",[])},
+            "control":{"policyDecision":execution.get("policyDecision"),"governedExecutionPlan":execution.get("governedExecutionPlan"),"risk":execution.get("risk"),"enforcementPoints":plan.get("enforcementPoints",[])},
+            "executionEvidence":{"producer":execution.get("roles",{}).get("producer"),"revision":validation.get("details",{}).get("commits",{})},
+            "verification":{"validations":validation.get("details",{}).get("results",[]),"expected":validation.get("details",{}).get("validationPlan",[]),"verifier":execution.get("roles",{}).get("verifier")},
+            "review":{"reviewer":execution.get("roles",{}).get("reviewer"),"result":review.get("details",{}).get("decision")},
+            "humanDecisions":[], "outputs":{"artifacts":execution.get("artifacts",[])}}
+    body["integrity"]={"fingerprint":hashlib.sha256(json.dumps(body,sort_keys=True,separators=(",",":")).encode()).hexdigest()}
+    return body
+
+
+def experimental_metrics(execution_root: Path, execution: dict[str, Any]) -> dict[str, Any]:
+    """Structured observations with explicit unavailable values, never estimates."""
+    validation = load_yaml(execution_root / "validation.yaml") if (execution_root / "validation.yaml").is_file() else {}
+    results = validation.get("details", {}).get("results", [])
+    return {"taskId":execution["task"], "executionId":execution["metadata"]["id"],
+            "metrics":{"validationCount":{"value":len(results),"availability":"observed"},
+                       "validationFailures":{"value":sum(item.get("exitCode") != 0 for item in results if isinstance(item,dict)),"availability":"observed"},
+                       "gateCount":{"value":len(execution.get("policyGates",[])),"availability":"observed"},
+                       "evidenceCompleteness":{"value":not submission_evidence_gaps(execution_root),"availability":"observed"},
+                       "duration":{"value":None,"availability":"unavailable"},"agentDuration":{"value":None,"availability":"unavailable"},
+                       "runtimeDuration":{"value":None,"availability":"unavailable"},"tokenUsage":{"value":None,"availability":"unavailable"},
+                       "modelCost":{"value":None,"availability":"unavailable"},"toolCalls":{"value":None,"availability":"unavailable"},"agentTurns":{"value":None,"availability":"unavailable"}}}

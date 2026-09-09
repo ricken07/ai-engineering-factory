@@ -49,6 +49,7 @@ The developer does not need to restate the project architecture, organization co
 
 - Risk-based autonomy and explicit human accountability.
 - Gates for protected actions and most-restrictive-policy resolution.
+- A fingerprinted governed execution plan linking policy decisions to Runtime controls.
 
 ### Execution
 

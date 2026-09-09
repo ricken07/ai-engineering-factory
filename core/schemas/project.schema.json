@@ -160,7 +160,11 @@
     },
     "policyRefs": {
       "$ref": "common.schema.json#/$defs/stringArray"
-    }
+    },
+    "policy": {"$ref":"#/$defs/policyConstraint"}
+  },
+  "$defs": {
+    "policyConstraint": {"type":"object","properties":{"risk":{"$ref":"common.schema.json#/$defs/riskLevel"},"maximumAutonomy":{"$ref":"common.schema.json#/$defs/autonomyLevel"},"allowedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"deniedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"requiredGates":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false}
   },
   "additionalProperties": false
 }

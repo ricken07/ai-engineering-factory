@@ -56,6 +56,11 @@ submission.
 A successful validation must therefore be tied to the code actually tested,
 not merely an agent assertion.
 
+`aief execution evidence <execution-id>` derives an `EvidenceBundle` from the
+persisted artifacts. `aief execution metrics <execution-id>` exports structured
+observations keyed by task and execution; unavailable provider fields remain
+explicitly unavailable rather than estimated.
+
 ## Independent Review
 
 The review must be produced independently of implementation. It must

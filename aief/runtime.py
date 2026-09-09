@@ -27,7 +27,9 @@ class Execution:
         workflow_version = workflow.get("version") or metadata.get("version", "0.0.0")
         api_version = get_api_version(factory)
         data = {"apiVersion": api_version, "kind":"Execution", "metadata":{"id":identifier}, "project":project_id, "workflow":{"id":workflow_id,"version":workflow_version}, "task":task, "status":"pending", "phases":phases, "artifacts":[]}
-        if agent: data["agent"] = {"adapter": agent}
+        if agent:
+            data["agent"] = {"adapter": agent}
+            data["roles"] = {"producer":{"type":"agent","identity":agent}}
         execution = cls(root, data)
         execution.save(); return execution
     @classmethod

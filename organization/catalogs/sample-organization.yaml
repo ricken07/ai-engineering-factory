@@ -9,3 +9,6 @@ extends:
 practiceRefs:
   - sample-organization-guidelines@1.0.0
 profileBindings: {}
+policy:
+  maximumAutonomy: L3
+  requiredGates: [organization-change-review]

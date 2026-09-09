@@ -32,6 +32,17 @@ from .service import AUTONOMY_RANK, RuntimeService
 from .yamlio import load_yaml
 
 
+def evaluation_run(level: str, repeat: int, task: str, repository: str, starting_commit: str,
+                   agent: str, acceptance_criteria: list[str], environment: dict[str, Any], model: str | None = None) -> dict[str, Any]:
+    """Describe a repeatable experimental condition; execution remains external."""
+    if level not in {"L0", "L1", "L2", "L3"}: raise ValueError("level must be L0, L1, L2, or L3")
+    data={"apiVersion":"aief.dev/v1alpha1","kind":"EvaluationRun","metadata":{"id":f"evaluation-{level.lower()}-{repeat}"},
+          "level":level,"repeat":repeat,"task":task,"repository":repository,"startingCommit":starting_commit,
+          "agent":agent,"acceptanceCriteria":acceptance_criteria,"environment":environment}
+    if model: data["model"]=model
+    return data
+
+
 # --------------------------------------------------------------------------
 # Fixtures — a single minimal, reusable seed project per scenario. Multi-repo
 # scenarios reuse the existing examples/emmany fixture rather than a new one.

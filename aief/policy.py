@@ -3,6 +3,8 @@ from dataclasses import dataclass, asdict
 from typing import Any
 from pathlib import Path
 import yaml
+import hashlib
+import json
 
 RISK = {name: rank for rank, name in enumerate(("unknown", "low", "medium", "high", "critical"))}
 AUTONOMY = {f"L{i}": i for i in range(5)}
@@ -78,7 +80,65 @@ def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[s
         when=rule.get("when",{})
         if when.get("risk") == effective:
             gates.update(rule["effect"].get("requireApproval",[])); matched.append(rule["id"])
-    return {"effectiveRisk":effective,"requestedAutonomy":requested,"authorizedAutonomy":authorized,
-            "allowedActions":sorted(allowed),"deniedActions":sorted(all_actions-allowed),"requiredGates":sorted(gates),
+    constraints = _layered_constraints(factory, project, task, repositories)
+    layered = resolve_policy(requested, [
+        {"source":"risk", "risk":effective, "maximumAutonomy":risk_limit}, *constraints,
+    ])
+    # Existing factory rules determine the action baseline; layers can only
+    # remove actions and add gates.  Their risk/autonomy constraints are
+    # resolved by the same most-restrictive aggregation.
+    allowed = sorted(set(allowed).intersection(layered.allowedActions) if layered.allowedActions else allowed)
+    denied = sorted(set(all_actions - set(allowed)) | set(layered.deniedActions))
+    allowed = sorted(set(allowed) - set(denied))
+    return {"effectiveRisk":layered.effectiveRisk,"requestedAutonomy":requested,"authorizedAutonomy":layered.authorizedAutonomy,
+            "allowedActions":allowed,"deniedActions":denied,"requiredGates":sorted(gates | set(layered.requiredGates)),
             "matchedRules":sorted(set(matched)),"observations":{"repositories":repositories,"domains":sorted(domains),"changeTypes":sorted(change_types)},
-            "reasons":[f"effective risk is {effective}",f"authorized autonomy is {authorized}"]}
+            "reasons":[f"effective risk is {layered.effectiveRisk}",f"authorized autonomy is {layered.authorizedAutonomy}"],
+            "provenance": layered.reasons}
+
+
+def _constraint(value: Any, source: str) -> dict[str, Any] | None:
+    if not isinstance(value, dict): return None
+    permitted = {key:value[key] for key in ("risk", "maximumAutonomy", "allowedActions", "deniedActions", "requiredGates") if key in value}
+    return {"source": source, **permitted} if permitted else None
+
+
+def _layered_constraints(factory: Path, project: dict[str, Any], task: dict[str, Any], repositories: list[str]) -> list[dict[str, Any]]:
+    """Read only provider-neutral policy declarations in a stable precedence order."""
+    result: list[dict[str, Any]] = []
+    factory_constraint = _constraint(load_factory_policy(factory), "factory")
+    if factory_constraint: result.append(factory_constraint)
+    for reference in project.get("engineering", {}).get("organizationCatalogs", []):
+        identifier = reference.partition("@")[0]
+        path = factory / "organization" / "catalogs" / f"{identifier}.yaml"
+        if path.is_file():
+            item = _constraint(yaml.safe_load(path.read_text(encoding="utf-8")).get("policy"), f"organization:{identifier}")
+            if item: result.append(item)
+    catalog = {item["id"]: item for item in project.get("repositories", [])}
+    for identifier in repositories:
+        repository = catalog.get(identifier, {})
+        for profile in repository.get("profiles", []):
+            path = factory / "profiles" / profile / "profile.yaml"
+            if path.is_file():
+                item = _constraint(yaml.safe_load(path.read_text(encoding="utf-8")).get("policy"), f"profile:{profile}")
+                if item: result.append(item)
+    for source, value in (("project", project.get("policy")),):
+        item = _constraint(value, source)
+        if item: result.append(item)
+    for identifier in repositories:
+        item = _constraint(catalog.get(identifier, {}).get("policy"), f"repository:{identifier}")
+        if item: result.append(item)
+    item = _constraint(task.get("policy"), "task")
+    if item: result.append(item)
+    return result
+
+
+def load_factory_policy(factory: Path) -> dict[str, Any]:
+    """Factory defaults are explicit, even when no organization is selected."""
+    path = factory / "core" / "policies" / "factory-policy.yaml"
+    return yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
+def policy_fingerprint(decision: dict[str, Any]) -> str:
+    canonical = json.dumps(decision, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode()).hexdigest()

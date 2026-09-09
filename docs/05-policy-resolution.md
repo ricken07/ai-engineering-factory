@@ -5,6 +5,8 @@ Policies may come from multiple layers:
 ```text
 Factory
   ↓
+Organization
+  ↓
 Profile
   ↓
 Project
@@ -47,3 +49,8 @@ Policy resolution produces a `PolicyDecision` containing:
 - reasons/rules that produced the decision.
 
 This decision is referenced by the execution for auditability.
+
+The Runtime also persists a fingerprinted `GovernedExecutionPlan` after each
+policy evaluation. It carries the effective permissions, gates, repositories,
+the referenced decision and concrete `EnforcementPoint`s. A missing required
+enforcement mechanism blocks implementation; a prompt is never enforcement.

@@ -56,6 +56,15 @@ produit un document valide contre ce schéma, sans aucune mesure :
 l'évaluation réelle de la qualité du code reste hors périmètre d'AIEF
 (elle appartient à l'agent et, plus tard, à un juge humain ou LLM séparé).
 
+## Experimental conditions L0--L3
+
+`evaluation_run(...)` produces an `EvaluationRun` contract for the four
+experimental conditions: L0 raw agent, L1 contextualized agent, L2 structured
+engineering, and L3 governed control plane. Each descriptor fixes the task,
+repository, starting commit, agent, acceptance criteria, environment and repeat
+number. The harness records the condition; it does not claim to execute or
+judge an LLM experiment.
+
 ## Fixtures
 
 Un seul projet minimal réutilisable (`templates/project`, via
