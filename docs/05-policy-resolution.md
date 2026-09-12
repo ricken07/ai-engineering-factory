@@ -47,3 +47,10 @@ Policy resolution produces a `PolicyDecision` containing:
 - reasons/rules that produced the decision.
 
 This decision is referenced by the execution for auditability.
+
+Each effective decision also produces a fingerprinted
+`GovernedExecutionPlan`. Policy intent is distinct from enforcement assurance:
+the Runtime persists provider-neutral `EnforcementPoint` artifacts whose status
+is `ENFORCED`, `ENFORCEABLE`, `UNAVAILABLE` or `UNVERIFIED`. A strict
+enforcement requirement is satisfied only by `ENFORCED`; the other states fail
+closed until an active mechanism is proven.

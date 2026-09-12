@@ -36,6 +36,9 @@ KIND_SCHEMAS = {
     "BacklogImportConfig": "backlog-import-config.schema.json",
     "BacklogImportPlan": "backlog-import-plan.schema.json",
     "EngineeringOutcome": "engineering-outcome.schema.json",
+    "EnforcementPoint": "enforcement-point.schema.json",
+    "GovernedExecutionPlan": "governed-execution-plan.schema.json",
+    "EvidenceBundle": "evidence-bundle.schema.json",
 }
 
 

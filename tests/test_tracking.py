@@ -100,6 +100,9 @@ def test_provider_resolution_errors_are_explicit(tmp_path):
 
 def test_gitlab_native_provider_exposes_only_verified_task_operations(tmp_path):
     project=tmp_path/"project"; initialize(ROOT/"templates/project",project)
+    # Provider resolution intentionally verifies native adapter installation.
+    # Keep this fixture hermetic instead of depending on ~/.codex/config.toml.
+    (project/".codex/config.toml").write_text("[mcp_servers.gitlab]\nurl = 'https://gitlab.example/mcp'\n")
     data=yaml.safe_load((project/".ai/project.yaml").read_text())
     data["integrations"]={"task-provider":{"provider":"gitlab"}}
     data["taskTracking"]={"mode":"external"}

@@ -88,3 +88,14 @@ Level 2, vérifie que le rapport garde ses cinq colonnes, qu'une régression
 simulée est bien rapportée en échec, que le contrat Level 3 valide son
 schéma sans mesure, et que deux exécutions indépendantes du même scénario
 produisent le même résultat.
+
+## Experimental run metadata
+
+Harness conformance levels above are not the experimental conditions L0–L3.
+For an experimental run, `aief run` accepts explicit
+`--experiment-condition`, `--repeat-index`, `--environment-identifier`,
+`--model-identifier` and `--agent-session` values. The Execution exports AIEF
+version/commit, project and starting repository commits, workflow version,
+context/policy/plan fingerprints, agent/model, adapter version, condition,
+repeat and environment. Unobserved values are `UNAVAILABLE`; autonomy is never
+misused as an inferred experimental condition.

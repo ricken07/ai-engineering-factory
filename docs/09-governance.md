@@ -49,3 +49,12 @@ Before releasing a new Factory version:
 ## Ownership
 
 A central engineering governance group should own Core changes. Project teams own their `.ai/` context and may contribute reusable profiles/integrations through review.
+
+## Research baseline claim discipline
+
+Code, schemas and tests support claims about deterministic policy resolution,
+fingerprinted governed plans, Runtime-observed validation, explicit enforcement
+assurance and reviewer independence when trusted identities exist. They do not
+establish improvements in quality, reproducibility, policy compliance, human
+effort, delivery speed or cost, nor superiority over another framework or
+agent. Those remain experimental questions.

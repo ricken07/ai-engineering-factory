@@ -6,11 +6,16 @@ import json
 import yaml
 from jsonschema import Draft202012Validator
 from collections.abc import Callable
+from copy import deepcopy
+from functools import wraps
 
 from .compiler import compile_workflow
 from .intake import INTENT_WORKFLOWS, TaskRegistry, create_request, enforce_activation, normalize_task, resolve_intent
 from .project import find_project, load_project
 from .runtime import Execution
+from .timing import Clock, SystemClock, timestamp
+from .identity import actor_identity, declared_actor, review_independence, trusted_session_actor
+from .enforcement import enforcement_point, assert_required_enforcement
 from .tracking import TaskTrackingManager, evaluate_tracking
 from .backlog import BacklogImportManager
 from .capabilities import execute_plan, validation_plan
@@ -22,17 +27,46 @@ from .validation import assert_schema
 from .task_log import TaskEventLog
 from .readiness import build_backlog
 from .yamlio import load_yaml
-from .evidence import git_sha, submission_evidence_gaps
+from .evidence import build_evidence_bundle, file_fingerprint, fingerprint, git_sha, submission_evidence_gaps
 from .config import get_api_version
-from datetime import datetime, timezone
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
+
+
+def measured_runtime(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Accumulate an outer Runtime operation once, excluding timed nested calls."""
+    @wraps(method)
+    def wrapped(self: "RuntimeService", subject: Any, *args: Any, **kwargs: Any) -> Any:
+        execution_id = subject.data["metadata"]["id"] if isinstance(subject, Execution) else subject
+        clock = getattr(self, "clock", None) or SystemClock()
+        try:
+            initial = self.execution(execution_id)
+        except (FileNotFoundError, AttributeError):
+            return method(self, subject, *args, **kwargs)
+        before = initial.data["timingState"].get("runtimeAccumulatedNs", 0)
+        started = clock.monotonic_ns()
+        result: Any = None
+        try:
+            result = method(self, subject, *args, **kwargs)
+            return result
+        finally:
+            current = self.execution(execution_id)
+            nested = current.data["timingState"].get("runtimeAccumulatedNs", 0) - before
+            current._observe("runtime", clock.monotonic_ns() - started - max(0, nested))
+            current.save()
+            if (current.root / "evidence-bundle.yaml").is_file():
+                build_evidence_bundle(current.root, factory=getattr(self, "factory", None),
+                                      project_root=getattr(self, "project_root", None))
+            if isinstance(subject, Execution): subject.data = current.data
+            if isinstance(result, Execution): result.data = current.data
+    return wrapped
 
 
 class RuntimeService:
     """Deterministic boundary shared by all agent adapters."""
 
-    def __init__(self, project: Path, factory: Path, environment: dict[str, str] | None = None):
+    def __init__(self, project: Path, factory: Path, environment: dict[str, str] | None = None,
+                 clock: Clock | None = None):
         self.project_root = find_project(project)
         self.project = load_project(self.project_root)
         self.factory = factory.resolve()
@@ -45,6 +79,7 @@ class RuntimeService:
         if installed != requested:
             raise RuntimeError(f"project requires Factory {requested}, but {installed} was provided")
         self.factory_version = installed
+        self.clock = clock or SystemClock()
         self.tracking = TaskTrackingManager(self.project_root,self.factory,self.project,environment,factory_version=installed)
         self.backlog = BacklogImportManager(self.project_root,self.factory,self.project,environment)
 
@@ -54,6 +89,7 @@ class RuntimeService:
             self.project_root, task_id,
             project_id=project.get("metadata", {}).get("id"),
             factory_version=getattr(self, "factory_version", None),
+            clock=getattr(self, "clock", None),
         )
 
     def intake(self, text: str, agent: str | None = None, intent: str | None = None,
@@ -92,10 +128,16 @@ class RuntimeService:
         return {"request": request, "intent": intent, "task": task, "path": str(task_path)}
 
     def start(self, text: str, agent: str | None = None, intent: str | None = None,
-              expected_workflow: str | None = None, confirmed: bool = False) -> Execution:
+              expected_workflow: str | None = None, confirmed: bool = False,
+              agent_session: str | None = None, experiment: dict[str, Any] | None = None) -> Execution:
         intake = self.intake(text, agent, intent, expected_workflow, confirmed)
         workflow = compile_workflow(self.factory, intake["task"]["workflow"])
-        execution = Execution.create(self.project_root, self.factory, workflow, intake["task"]["metadata"]["id"], agent)
+        runtime_started = self.clock.monotonic_ns()
+        execution = Execution.create(self.project_root, self.factory, workflow, intake["task"]["metadata"]["id"], agent,
+                                     self.clock, agent_session)
+        execution.data["reproducibility"] = self._reproducibility(execution, agent, experiment or {})
+        execution.record_runtime_duration(runtime_started)
+        execution.save()
         self._events(execution.data["task"]).append(
             "workflow.started", execution=execution.data["metadata"]["id"],
             payload={"agent": agent, "phase": execution.next_phase()["id"], "status": execution.data["status"],
@@ -107,7 +149,57 @@ class RuntimeService:
         root = self.project_root / ".ai" / "runtime" / "executions" / execution_id
         if not root.is_dir():
             raise FileNotFoundError(f"execution not found: {execution_id}")
-        return Execution.load(root)
+        return Execution.load(root, getattr(self, "clock", None))
+
+    def _observed_value(self, value: Any) -> dict[str, Any]:
+        return {"value": value, "availability": "OBSERVED" if value is not None else "UNAVAILABLE"}
+
+    def _commit_or_unavailable(self, path: Path) -> dict[str, Any]:
+        try:
+            return self._observed_value(git_sha(path))
+        except RuntimeError:
+            return self._observed_value(None)
+
+    def _reproducibility(self, execution: Execution, agent: str | None, experiment: dict[str, Any]) -> dict[str, Any]:
+        adapter_version = None
+        if agent:
+            adapter_path = self.factory / "adapters" / agent / "adapter.yaml"
+            if adapter_path.is_file(): adapter_version = load_yaml(adapter_path).get("metadata", {}).get("version")
+        actor = execution.data.get("actors", {}).get("producer", {})
+        context_files = []
+        for configured in self.project.get("context", {}).values():
+            if isinstance(configured, str):
+                path = self.project_root / configured
+                if path.is_file(): context_files.append({"path": configured, "fingerprint": file_fingerprint(path)})
+        repository_commits: dict[str, str | None] = {}
+        for repository in self.project.get("repositories", []):
+            value = self._commit_or_unavailable(self.project_root / repository["path"])
+            repository_commits[repository["id"]] = value["value"]
+        repository_availability = "OBSERVED" if repository_commits and all(repository_commits.values()) else "UNAVAILABLE"
+        return {
+            "aiefVersion": self._observed_value(self.factory_version),
+            "aiefCommit": self._commit_or_unavailable(self.factory),
+            "projectCommit": self._commit_or_unavailable(self.project_root),
+            "repositoryStartingCommit": {"value": repository_commits or None, "availability": repository_availability},
+            "workflowVersion": self._observed_value(execution.data["workflow"].get("version")),
+            "contextFingerprint": self._observed_value(fingerprint(context_files) if context_files else None),
+            "policyFingerprint": self._observed_value(None),
+            "governedExecutionPlanFingerprint": self._observed_value(None),
+            "agentIdentifier": self._observed_value(actor.get("id")),
+            "modelIdentifier": self._observed_value(experiment.get("modelIdentifier")),
+            "adapterVersion": self._observed_value(adapter_version),
+            "experimentalCondition": self._observed_value(experiment.get("condition")),
+            "repeatIndex": self._observed_value(experiment.get("repeatIndex")),
+            "environmentIdentifier": self._observed_value(experiment.get("environmentIdentifier")),
+        }
+
+    def _session_actor(self, execution: Execution, owner: str | None, actor_type: str = "agent") -> dict[str, Any]:
+        if owner:
+            lease = ExecutionLease(execution.root).read()
+            if lease and lease.get("owner") == owner:
+                return trusted_session_actor(owner, actor_type, execution=execution.data["metadata"]["id"])
+            return actor_identity(owner, actor_type, "runtime-session", "OBSERVED", execution=execution.data["metadata"]["id"])
+        return declared_actor(None, actor_type)
 
     def _assert_lease(self, execution: Execution, owner: str | None) -> None:
         lease=ExecutionLease(execution.root)
@@ -115,6 +207,17 @@ class RuntimeService:
             if owner is None: raise PermissionError("an execution lease is active; owner is required")
             lease.assert_owner(owner)
 
+    @staticmethod
+    def _pending_policy_gates(execution: Execution, phase_id: str) -> set[str]:
+        required_for_phase = {
+            "implementation": {"before-implementation"},
+            "submission": {"before-commit", "before-submission"},
+        }
+        return required_for_phase.get(phase_id, set()).intersection(
+            item["id"] for item in execution.data.get("policyGates", []) if item["status"] == "pending"
+        )
+
+    @measured_runtime
     def complete_phase(self, execution_id: str, output: dict[str, Any], operation_id: str | None = None, owner: str | None = None) -> Execution:
         execution = self.execution(execution_id)
         self._assert_lease(execution,owner)
@@ -124,6 +227,9 @@ class RuntimeService:
         phase = execution.next_phase()
         if phase is None:
             raise RuntimeError("execution is already complete")
+        pending = self._pending_policy_gates(execution, phase["id"])
+        if pending:
+            raise PermissionError("required policy gates are pending: " + ", ".join(sorted(pending)))
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next((item for item in compiled["phases"] if item["id"] == phase["id"]), None)
         if definition is None:
@@ -135,6 +241,24 @@ class RuntimeService:
             details = "; ".join(f"{'.'.join(map(str, error.path)) or 'root'}: {error.message}" for error in errors)
             raise ValueError(f"invalid output for {definition['skill']}: {details}")
         completed_skill=phase["skill"]
+        output = deepcopy(output)
+        if completed_skill == "implement-change":
+            if owner:
+                producer = self._session_actor(execution, owner)
+                adapter = execution.data.get("agent", {}).get("adapter")
+                if adapter: producer["adapter"] = adapter
+                execution.observe_actor("producer", producer)
+        elif completed_skill == "review-change":
+            details = output.setdefault("details", {})
+            # Runtime-owned identity always replaces artifact-supplied assurance.
+            claimed = details.get("reviewerSession") or details.get("reviewerId")
+            reviewer = self._session_actor(execution, owner) if owner else declared_actor(claimed)
+            execution.observe_actor("reviewer", reviewer)
+            required = execution.data.get("review", {}).get("independentRequired", True)
+            independence = review_independence(execution.data.get("actors", {}).get("producer"), reviewer, required=required)
+            execution.data["review"] = {"independentRequired": required, "independence": independence}
+            details["reviewer"] = reviewer
+            details["independence"] = independence
         observations: dict[str, Any] = {}
         if completed_skill == "analyze-impact" and output.get("status") == "completed":
             observations = self._impact_observations(output)
@@ -143,6 +267,8 @@ class RuntimeService:
             phase_observations = observations or output.get("details", {}).get("impact", output.get("details", {}))
             self.reassess_policy(execution,phase_observations,completed_skill)
         if completed_skill == "submit-change" and output.get("status") == "completed":
+            points = [load_yaml(execution.root / name) for name in execution.data.get("enforcementPoints", []) if (execution.root / name).is_file()]
+            assert_required_enforcement(points)
             gaps = submission_evidence_gaps(execution.root)
             if gaps:
                 raise ValueError("submission evidence is incomplete: " + "; ".join(gaps))
@@ -156,6 +282,8 @@ class RuntimeService:
                      "evidence":output.get("evidence", [])},
         )
         if execution.data["status"] == "completed":
+            bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
+            assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
             events.append(
                 "execution.completed", execution=execution_id,
                 payload={"agent": execution.data.get("agent", {}).get("adapter"),
@@ -193,6 +321,7 @@ class RuntimeService:
         if unknown:
             raise ValueError(f"analyze-impact references unknown project repositories: {', '.join(unknown)}")
 
+    @measured_runtime
     def reassess_policy(self, execution: Execution, observations: dict[str, Any], trigger: str) -> dict[str, Any]:
         task=TaskRegistry(self.project_root).load(execution.data["task"])
         merged={key:observations[key] for key in ("risk","repositories","changeTypes","domains") if key in observations}
@@ -217,10 +346,40 @@ class RuntimeService:
         name=f"policy-decision-{revision:03d}.yaml"; (execution.root/name).write_text(yaml.safe_dump(artifact,sort_keys=False),encoding="utf-8")
         gates={item["id"]:item for item in execution.data.get("policyGates",[])}
         for identifier in decision["requiredGates"]:
-            gates.setdefault(identifier,{"id":identifier,"status":"pending"})
+            if identifier not in gates:
+                gates[identifier] = {"id":identifier,"status":"pending"}
+                execution.start_policy_gate(gates[identifier])
         execution.data.update({"policyDecision":name,"risk":decision["effectiveRisk"],
                                "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]},
                                "repositories":decision["observations"]["repositories"],"policyGates":list(gates.values())})
+        compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
+        independent_review_required = any(item.get("skill") == "review-change" for item in compiled.get("phases", []))
+        execution.data["review"] = {
+            "independentRequired": independent_review_required,
+            "independence": "UNVERIFIED" if independent_review_required else "NOT_REQUIRED",
+        }
+        plan = {
+            "apiVersion": api_version, "kind": "GovernedExecutionPlan",
+            "metadata": {"id": f"plan-{execution.data['metadata']['id']}-{revision:03d}"},
+            "execution": execution.data["metadata"]["id"], "task": execution.data["task"],
+            "workflow": execution.data["workflow"], "policyDecision": name,
+            "requirements": {"independentReviewRequired": independent_review_required},
+        }
+        plan["fingerprint"] = fingerprint(plan)
+        plan_name = f"governed-execution-plan-{revision:03d}.yaml"
+        (execution.root / plan_name).write_text(yaml.safe_dump(plan, sort_keys=False), encoding="utf-8")
+        execution.data["governedExecutionPlan"] = plan_name
+        if plan_name not in execution.data["artifacts"]: execution.data["artifacts"].append(plan_name)
+        reproducibility = execution.data.setdefault("reproducibility", {})
+        reproducibility["policyFingerprint"] = self._observed_value(fingerprint(artifact))
+        reproducibility["governedExecutionPlanFingerprint"] = self._observed_value(plan["fingerprint"])
+        for gate_id in decision["requiredGates"]:
+            point = enforcement_point(
+                execution=execution.data["metadata"]["id"], action=f"cross-gate:{gate_id}", decision="DENY",
+                mechanism_type="runtime", capability="phase-transition", status="ENFORCED",
+                evidence_ref=name, required=True,
+            )
+            self._persist_enforcement_point(execution, point)
         if name not in execution.data["artifacts"]: execution.data["artifacts"].append(name)
         task.setdefault("classification",{}).update({"risk":decision["effectiveRisk"],"domains":decision["observations"]["domains"],"changeTypes":decision["observations"]["changeTypes"]})
         task.setdefault("scope",{})["repositories"]=decision["observations"]["repositories"]
@@ -244,6 +403,56 @@ class RuntimeService:
             )
         return artifact
 
+    def _persist_enforcement_point(self, execution: Execution, point: dict[str, Any]) -> str:
+        assert_schema(self.factory, "enforcement-point.schema.json", point)
+        name = f"{point['metadata']['id']}.yaml"
+        (execution.root / name).write_text(yaml.safe_dump(point, sort_keys=False), encoding="utf-8")
+        if name not in execution.data["enforcementPoints"]: execution.data["enforcementPoints"].append(name)
+        if name not in execution.data["artifacts"]: execution.data["artifacts"].append(name)
+        execution.save()
+        return name
+
+    @measured_runtime
+    def authorize_action(self, execution_id: str, action: str, *, required: bool = True) -> dict[str, Any]:
+        """The mandatory boundary for actions executed through Runtime.
+
+        This proves only the AIEF-controlled path; it makes no claim about
+        commands an agent might invoke outside Runtime.
+        """
+        execution = self.execution(execution_id)
+        if not execution.data.get("policyDecision"):
+            point = enforcement_point(
+                execution=execution_id, action=action, decision="DENY", mechanism_type="runtime",
+                capability="governed-action", status="UNAVAILABLE", required=required,
+            )
+            self._persist_enforcement_point(execution, point)
+            raise PermissionError("no PolicyDecision is available for governed action")
+        policy = load_yaml(execution.root / execution.data["policyDecision"])
+        denied = action in policy.get("permissions", {}).get("denied", [])
+        decision = "DENY" if denied else "ALLOW"
+        point = enforcement_point(
+            execution=execution_id, action=action, decision=decision, mechanism_type="runtime",
+            capability="governed-action", status="ENFORCED", evidence_ref=execution.data["policyDecision"],
+            required=required,
+        )
+        self._persist_enforcement_point(execution, point)
+        if denied:
+            raise PermissionError(f"policy denies governed action: {action}")
+        return point
+
+    @measured_runtime
+    def record_external_enforcement(self, execution_id: str, *, action: str, decision: str,
+                                    mechanism_type: str, capability: str, status: str,
+                                    evidence_ref: str | None = None, required: bool = False) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        point = enforcement_point(execution=execution_id, action=action, decision=decision,
+                                  mechanism_type=mechanism_type, capability=capability, status=status,
+                                  evidence_ref=evidence_ref, required=required)
+        self._persist_enforcement_point(execution, point)
+        if required: assert_required_enforcement([point])
+        return point
+
+    @measured_runtime
     def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         payload={"decision":"approve"}
@@ -257,7 +466,8 @@ class RuntimeService:
             "gate.approved", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"),
                      "phase": phase["id"] if phase else None, "status":"approved",
-                     "approvedBy":owner or "human", "gate":"phase-gate"},
+                     "approvedBy":owner or "human", "gate":"phase-gate",
+                     "actor": self._session_actor(execution, owner, "human")},
         )
         if execution.data["status"] == "completed":
             events.append(
@@ -269,8 +479,14 @@ class RuntimeService:
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
-        if gate and gate["status"] != "approved": gate.update({"status":"approved","approvedAt":datetime.now(timezone.utc).isoformat(),"approvedBy":approved_by}); execution.save()
+        if gate and gate["status"] != "approved":
+            owner = None if approved_by == "human" else approved_by
+            actor = self._session_actor(execution, owner, "human")
+            gate.update({"status":"approved","approvedAt":timestamp(self.clock),"approvedBy":approved_by,"actor":actor})
+            execution.complete_policy_gate(gate)
+            execution.save()
 
+    @measured_runtime
     def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
@@ -295,6 +511,7 @@ class RuntimeService:
         if action=="release": return manager.release(owner)
         raise ValueError(f"unknown lease action: {action}")
 
+    @measured_runtime
     def cancel_execution(self, execution_id: str, reason: str, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         execution.cancel(reason)
@@ -387,13 +604,13 @@ class RuntimeService:
             "invocation": "core-contract",
         }
 
+    @measured_runtime
     def prepare_phase(self, execution_id: str) -> dict[str, Any]:
         execution = self.execution(execution_id)
         phase = execution.next_phase()
         if phase is None: return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[]}
         task = TaskRegistry(self.project_root).load(execution.data["task"])
-        required_for_phase={"implementation":{"before-implementation"},"submission":{"before-commit","before-submission"}}
-        pending=required_for_phase.get(phase["id"],set()).intersection(item["id"] for item in execution.data.get("policyGates",[]) if item["status"]=="pending")
+        pending = self._pending_policy_gates(execution, phase["id"])
         if pending:
             execution.data["status"]="waiting-approval"; execution.save()
             return {"execution":execution_id,"status":"waiting-approval","phase":phase,"engineeringContexts":[],"requiredPolicyGates":sorted(pending)}
@@ -449,6 +666,7 @@ class RuntimeService:
         return {"execution":execution_id,"status":execution.data["status"],"phase":phase,
                 "skillContract":skill_contract,"engineeringContexts":contexts}
 
+    @measured_runtime
     def workspace(self, execution_id: str, action: str, execute: bool = False) -> dict[str, Any]:
         execution = self.execution(execution_id)
         task = TaskRegistry(self.project_root).load(execution.data["task"])
@@ -475,6 +693,7 @@ class RuntimeService:
         )
         return result
 
+    @measured_runtime
     def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
         execution = self.execution(execution_id)
         if execution.data["status"] in {"waiting-approval", "blocked", "failed", "cancelled"}:
@@ -485,26 +704,36 @@ class RuntimeService:
             raise PermissionError(f"profile command execution requires autonomy L2; authorized level is {authorized}")
         plan = self.profile_validation_plan(execution_id)
         contexts = {identifier:self.engineering_context(execution_id, identifier) for identifier in dict.fromkeys(item["repository"] for item in plan)}
+        # engineering_context persists through independently loaded Execution
+        # instances; reload before adding timing/identity so neither write can
+        # overwrite the other's artifacts.
+        execution = self.execution(execution_id)
         results: list[dict[str, Any]] = []
         snapshots: dict[str, str] = {}
+        validation_started = self.clock.monotonic_ns()
+        verifier = actor_identity(f"runtime:{execution_id}", "runtime", "runtime", "TRUSTED", execution=execution_id)
+        execution.observe_actor("verifier", verifier)
         for item in plan:
             command = {key:value for key,value in item.items() if key not in {"repository","cwd"}}
             kwargs = {"runner":runner} if runner is not None else {}
             result = execute_plan([command], Path(item["cwd"]), execute=True, **kwargs)[0]
-            results.append({"repository":item["repository"],"cwd":item["cwd"],**result})
+            results.append({"repository":item["repository"],"cwd":item["cwd"],**result,
+                            "verifiedAt":timestamp(self.clock),"verifier":verifier["id"],"execution":execution_id})
             try:
                 snapshots[item["repository"]] = git_sha(Path(item["cwd"]))
             except RuntimeError:
                 # Unit-test and generated project fixtures may not be Git roots;
                 # real workspace validation remains commit-bound by workspace safety.
                 snapshots[item["repository"]] = "unavailable"
+        execution.record_validation_duration(validation_started)
+        execution.save()
         failures = [result for result in results if result["exitCode"] != 0]
         report = {
             "summary": f"Executed {len(results)} profile validation command(s) across {len(set(item['repository'] for item in results))} repository(ies).",
             "status": "failed" if failures else "completed",
             "evidence": [f"{item['repository']}:{item['profile']}:{item['operation']}:exit-{item['exitCode']}" for item in results],
             "unknowns": [],
-            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results,"validationPlan":plan,"commits":snapshots,"evidenceMatrix":[]},
+            "details": {"skill":"validate-change","authorizedAutonomy":authorized,"engineeringContexts":{identifier:[practice["id"] for practice in context["practices"]] for identifier,context in contexts.items()},"results":results,"validationPlan":plan,"commits":snapshots,"verifier":verifier,"evidenceMatrix":[]},
         }
         events = self._events(execution.data["task"])
         agent = execution.data.get("agent", {}).get("adapter")
@@ -526,6 +755,7 @@ class RuntimeService:
             self.complete_phase(execution_id, report)  # emits phase.completed (and execution.completed if terminal)
         return report
 
+    @measured_runtime
     def replay_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
         execution = self.execution(execution_id)
         validation_path = execution.root / "validation.yaml"
@@ -570,7 +800,7 @@ class RuntimeService:
     def resume_tracking_executions(self, task_id: str) -> list[str]:
         resumed=[]; root=self.project_root/".ai"/"runtime"/"executions"
         for path in root.glob("*/execution.yaml") if root.is_dir() else []:
-            execution=Execution.load(path.parent)
+            execution=Execution.load(path.parent, self.clock)
             if execution.data.get("task") == task_id and execution.data.get("blockingReason",{}).get("type") == "external-tracking-required":
                 execution.resume("external-tracking-required"); resumed.append(execution.data["metadata"]["id"])
         return resumed

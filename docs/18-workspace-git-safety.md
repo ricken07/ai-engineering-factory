@@ -103,3 +103,8 @@ Rollback is planned by default. With `--execute`, it only removes a worktree own
 ## Forbidden operations
 
 The structured Git boundary rejects force push (including force-with-lease), hard reset, clean, branch deletion and discard-changes. Rollback cannot reset a developer workspace or discard agent changes.
+
+Workspace guards can support an `ENFORCED` status only when their decision was
+evaluated on the current Runtime path and an evidence reference is persisted.
+Native Git or agent configuration outside that path is not promoted to
+Runtime enforcement without verification.

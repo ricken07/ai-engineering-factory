@@ -68,3 +68,9 @@ Conversation state is never used to establish ownership or decide whether an ope
 - contradictory repeated approval: `FAIL`.
 
 This increment intentionally does not add distributed scheduling, background workers, automatic agent routing or cross-machine locking.
+
+Lease-bound owner identities are the Runtime's trusted session mechanism for
+producer/reviewer comparison. A free-form owner supplied without an active,
+matching lease is only observed, not trusted. Timing accumulators are persisted
+with Execution state; replayed operations and repeated gate decisions do not
+add their historical duration a second time.

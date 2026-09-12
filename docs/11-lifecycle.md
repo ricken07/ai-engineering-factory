@@ -15,9 +15,9 @@ Risk assessment
   ↓
 Policy decision
   ↓
-Plan
+Governed execution plan
   ↓
-Gate (if required)
+Enforcement point / gate (if required)
   ↓
 Implement
   ↓
@@ -31,7 +31,14 @@ Submit
   ↓
 Human/CI gates
   ↓
+Evidence bundle
+  ↓
 Merge or handoff
 ```
+
+Execution and phase timers begin and end on these persisted transitions. Human
+gate intervals are accumulated separately from Runtime and validation time;
+overlapping open gates count as one waiting interval rather than double-counted
+human attention time.
 
 A task may span multiple repositories while remaining one functional task. Each repository may have independent branches, commits and change requests linked back to the same task/execution.

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/governed-execution-plan.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "execution", "task", "workflow", "policyDecision", "requirements", "fingerprint"],
+  "properties": {
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
+    "kind": {"const": "GovernedExecutionPlan"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "execution": {"type": "string"},
+    "task": {"type": "string"},
+    "workflow": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string"}, "version": {"$ref": "common.schema.json#/$defs/semanticVersion"}},
+      "additionalProperties": false
+    },
+    "policyDecision": {"type": "string"},
+    "requirements": {
+      "type": "object",
+      "required": ["independentReviewRequired"],
+      "properties": {"independentReviewRequired": {"type": "boolean"}},
+      "additionalProperties": false
+    },
+    "fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

@@ -61,9 +61,55 @@
     "policyDecision": {
       "type": "string"
     },
+    "governedExecutionPlan": {"type": "string"},
+    "enforcementPoints": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "actors": {
+      "type": "object",
+      "properties": {
+        "producer": {"$ref": "actor-identity.schema.json"},
+        "verifier": {"$ref": "actor-identity.schema.json"},
+        "reviewer": {"$ref": "actor-identity.schema.json"}
+      },
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "required": ["independentRequired", "independence"],
+      "properties": {
+        "independentRequired": {"type": "boolean"},
+        "independence": {"enum": ["INDEPENDENT", "NOT_INDEPENDENT", "UNVERIFIED", "NOT_REQUIRED"]}
+      },
+      "additionalProperties": false
+    },
+    "metrics": {"$ref": "experimental-metrics.schema.json"},
+    "timingState": {
+      "type": "object",
+      "required": ["executionStartedMonotonicNs", "runtimeAccumulatedNs", "validationAccumulatedNs", "gateWaitingAccumulatedNs", "activeGateCount", "gateWaitingStartedMonotonicNs"],
+      "properties": {
+        "executionStartedMonotonicNs": {"type": ["integer", "null"]},
+        "runtimeAccumulatedNs": {"type": "integer", "minimum": 0},
+        "validationAccumulatedNs": {"type": "integer", "minimum": 0},
+        "gateWaitingAccumulatedNs": {"type": "integer", "minimum": 0},
+        "activeGateCount": {"type": "integer", "minimum": 0},
+        "gateWaitingStartedMonotonicNs": {"type": ["integer", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "reproducibility": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["value", "availability"],
+        "properties": {
+          "value": {"type": ["string", "integer", "object", "array", "null"]},
+          "availability": {"enum": ["OBSERVED", "DERIVED", "UNAVAILABLE"]}
+        },
+        "additionalProperties": false
+      }
+    },
     "policyGates": {
       "type":"array",
-      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"}},"additionalProperties":false}
+      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"},"actor":{"$ref":"actor-identity.schema.json"},"timing":{"$ref":"#/$defs/gateTiming"}},"additionalProperties":false}
     },
     "risk": {
       "$ref": "common.schema.json#/$defs/riskLevel"
@@ -99,6 +145,9 @@
             "$ref": "common.schema.json#/$defs/executionStatus"
           },
           "skill": {"type": "string"},
+          "actorType": {"enum": ["runtime", "agent", "human", "provider"]},
+          "timing": {"$ref": "#/$defs/phaseTiming"},
+          "gateTiming": {"$ref": "#/$defs/gateTiming"},
           "gate": {"$ref": "gate.schema.json"},
           "artifacts": {
             "$ref": "common.schema.json#/$defs/stringArray"
@@ -152,6 +201,36 @@
       "additionalProperties": {
         "type": "string"
       }
+    }
+  },
+  "$defs": {
+    "measurement": {
+      "type": "object",
+      "required": ["value", "availability"],
+      "properties": {"value": {"type": ["integer", "null"]}, "availability": {"enum": ["OBSERVED", "DERIVED", "UNAVAILABLE"]}},
+      "additionalProperties": false
+    },
+    "phaseTiming": {
+      "type": "object",
+      "required": ["startedAt", "completedAt", "durationMs"],
+      "properties": {
+        "startedAt": {"type": ["string", "null"], "format": "date-time"},
+        "completedAt": {"type": ["string", "null"], "format": "date-time"},
+        "durationMs": {"$ref": "#/$defs/measurement"},
+        "startedMonotonicNs": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "gateTiming": {
+      "type": "object",
+      "properties": {
+        "gate": {"type": "string"},
+        "requestedAt": {"type": ["string", "null"], "format": "date-time"},
+        "decidedAt": {"type": ["string", "null"], "format": "date-time"},
+        "durationMs": {"$ref": "#/$defs/measurement"},
+        "startedMonotonicNs": {"type": "integer"}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

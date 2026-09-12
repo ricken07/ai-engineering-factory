@@ -2,6 +2,12 @@
 
 The Factory is not a security sandbox by itself. Agent runtime permissions and MCP/tool permissions remain critical.
 
+An `ENFORCED` assurance applies only to the AIEF-controlled execution path
+named by its `EnforcementPoint`. AIEF does not infer that an agent is unable to
+invoke the same operation outside Runtime. External or native mechanisms are
+reported as `ENFORCEABLE`, `UNVERIFIED` or `UNAVAILABLE` until execution-bound
+evidence exists.
+
 ## Baseline
 
 - Default to least privilege.
@@ -12,6 +18,8 @@ The Factory is not a security sandbox by itself. Agent runtime permissions and M
 - External actions require both capability availability and policy permission.
 - Generated code must be validated and reviewed according to task risk.
 - Agents must not suppress failing tests merely to obtain a successful pipeline.
+- Artifact-authored actor labels never authenticate their author or prove
+  independent review.
 
 ## Provider permissions
 
