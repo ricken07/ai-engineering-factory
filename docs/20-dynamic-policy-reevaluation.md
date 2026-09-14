@@ -75,3 +75,9 @@ aief execution approve-policy <execution-id> before-implementation \
 - unresolved tracking and workspace safety remain independent mandatory checks.
 
 The agent still performs semantic impact and planning analysis. It never decides the effective autonomy or removes a required human gate.
+
+Each decision revision produces a corresponding fingerprinted governed plan.
+Required gates also receive Runtime `EnforcementPoint` records. Their assurance
+describes the active phase-transition guard only; it does not claim control of
+parallel commands outside Runtime. Gate waiting starts once when requested and
+ends on the persisted decision, including after a resumed execution.

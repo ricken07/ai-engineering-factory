@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/enforcement-point.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "execution", "action", "decision", "mechanism", "assurance", "required"],
+  "properties": {
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
+    "kind": {"const": "EnforcementPoint"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "execution": {"type": "string"},
+    "action": {"type": "string"},
+    "decision": {"enum": ["ALLOW", "DENY"]},
+    "mechanism": {
+      "type": "object",
+      "required": ["type", "capability"],
+      "properties": {
+        "type": {"enum": ["runtime", "workspace", "adapter", "native-agent", "provider"]},
+        "capability": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "assurance": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {"status": {"enum": ["ENFORCED", "ENFORCEABLE", "UNAVAILABLE", "UNVERIFIED"]}},
+      "additionalProperties": false
+    },
+    "required": {"type": "boolean"},
+    "evidenceRef": {"type": "string"}
+  },
+  "allOf": [{
+    "if": {"properties": {"assurance": {"properties": {"status": {"const": "ENFORCED"}}}}},
+    "then": {"required": ["evidenceRef"]}
+  }],
+  "additionalProperties": false
+}

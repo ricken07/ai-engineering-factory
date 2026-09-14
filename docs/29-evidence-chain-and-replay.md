@@ -63,20 +63,21 @@ explicitly unavailable rather than estimated.
 
 ## Independent Review
 
-The review must be produced independently of implementation. It must
-contain:
+The review must be produced independently of implementation. Review output may
+declare session labels, but declarations are not identity proof. The Runtime
+stores producer and reviewer identities with source and assurance, then derives:
 
 ```yaml
-details:
-  independent: true
-  implementationSession: implementation-123
-  reviewerSession: review-456
-  decision: approved
-  blockingFindings: []
+review:
+  independentRequired: true
+  independence: INDEPENDENT # or NOT_INDEPENDENT / UNVERIFIED / NOT_REQUIRED
 ```
 
-The Runtime refuses submission if sessions are identical, if review is
-not approved, or if blocking findings remain open.
+Distinct identities prove `INDEPENDENT` only when both are trusted. Same
+reliable identity produces `NOT_INDEPENDENT`; missing, declared-only or
+insufficiently comparable identity produces `UNVERIFIED`. Required independent
+review fails closed for every state except `INDEPENDENT`. Review approval and
+blocking findings remain separate required checks.
 
 ## Replay
 
@@ -114,3 +115,11 @@ policy gates satisfied
 
 This check occurs before any commit, MR/PR or merge. Delivery mode choice
 and authorization gates remain separate from technical proof.
+
+## Evidence bundle
+
+On completion, `evidence-bundle.yaml` indexes the Task, Execution,
+GovernedExecutionPlan, PolicyDecision, EnforcementPoints, actor identities,
+review independence, validation revision/results, gates, experimental metrics,
+reproducibility metadata and final artifacts. It stores references and SHA-256
+fingerprints instead of duplicating phase contents, and is itself fingerprinted.

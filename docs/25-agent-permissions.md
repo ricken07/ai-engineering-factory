@@ -174,6 +174,16 @@ auto-approve:
 Policy can refuse the action after native confirmation. The reverse is not true:
 confirming a Claude/Codex window does not validate a Factory gate.
 
+Likewise, native configuration is not automatically `ENFORCED` evidence. A
+known capability may be `ENFORCEABLE`; an assumed external configuration is
+`UNVERIFIED`; absence is `UNAVAILABLE`. Only execution-bound verification can
+promote the applicable Runtime path to `ENFORCED`.
+
+Adapter labels are recorded as `OBSERVED`. A session becomes `TRUSTED` for
+review-independence comparison only through an active matching Runtime lease.
+Text written in `review.yaml` remains artifact-declared and cannot authenticate
+the reviewer.
+
 ## Git Identity and Commit Messages
 
 The Factory does not sign commits on behalf of the agent. When a commit is

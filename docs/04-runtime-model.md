@@ -69,6 +69,12 @@ The project configuration, repository map, approved context, decisions, validate
 
 Runtime state is agent-neutral. An adapter identity may be recorded for audit, but resuming an execution must not require the original agent or its conversation history.
 
+Execution state additively includes structured metrics, actor identities,
+review independence, enforcement references and reproducibility metadata.
+Older persisted executions remain loadable; facts absent from those records are
+initialized as `UNAVAILABLE` or `UNVERIFIED`, never reconstructed from logs.
+Wall time supplies timestamps and a monotonic clock supplies durations.
+
 Knowledge learned during execution remains task-local until the `promote-knowledge` workflow proposes a `MemoryCandidate`, obtains explicit approval and records a content-bound `KnowledgePromotion`.
 
 ## Universal intake and executable commands

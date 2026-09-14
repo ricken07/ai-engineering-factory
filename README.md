@@ -255,6 +255,15 @@ AIEF documentation is organized by use case and audience, not by file number. **
 
 See [`SECURITY.md`](SECURITY.md) for vulnerability reporting and the supported-version policy.
 
+## Research baseline observability
+
+Executions persist monotonic duration measurements, explicit availability for
+unknown metrics, actor provenance, review-independence status, provider-neutral
+enforcement assurance, reproducibility metadata and a fingerprinted evidence
+bundle. These contracts make a run auditable; they do not claim that AIEF
+improves quality, speed, effort, policy compliance or cost before controlled
+experiments are performed.
+
 ## Contributing
 
 Contributions are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, tests and contribution guidelines. See [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for community standards.

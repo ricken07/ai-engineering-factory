@@ -540,13 +540,21 @@ Developer intent
     → Versioned workflow
     → Effective context/profile
     → PolicyDecision
-    → Plan and gate
+    → Fingerprinted GovernedExecutionPlan
+    → EnforcementPoint(s) and gate
     → Controlled agentic modification
     → Deterministic validation
     → Review
     → Traceability/handoff
+    → EvidenceBundle
     → Commit, MR or merge per authorization
 ```
+
+The Runtime records what it observed, trusted and enforced. A policy decision
+is intent; an `EnforcementPoint` records the execution-specific mechanism and
+assurance. `ENFORCED` is limited to a path actually controlled by AIEF and
+requires evidence. Native-agent/provider restrictions outside that path remain
+`ENFORCEABLE`, `UNVERIFIED` or `UNAVAILABLE`.
 
 To install a project, see [22 — Project Installation Guide](22-project-installation-guide.md).
 For runtime commands and resumption, see [14 — Universal Factory Runtime](14-universal-runtime.md).

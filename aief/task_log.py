@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import json
@@ -9,6 +8,7 @@ import re
 import uuid
 
 from .knowledge import safe_task_id
+from .timing import Clock, SystemClock, timestamp
 
 EVENT_TYPES = {
     "request.created", "intent.resolved", "task.normalized", "workflow.started",
@@ -92,10 +92,12 @@ class TaskEventLog:
     """
 
     def __init__(self, project_root: Path, task_id: str, *,
-                 project_id: str | None = None, factory_version: str | None = None):
+                 project_id: str | None = None, factory_version: str | None = None,
+                 clock: Clock | None = None):
         self.task_id = task_id
         self.project_id = project_id or "local-project"
         self.factory_version = factory_version or "0.0.0"
+        self.clock = clock or SystemClock()
         self.path = (
             project_root / ".ai" / "runtime" / "tasks" /
             safe_task_id(task_id) / "events.jsonl"
@@ -109,7 +111,7 @@ class TaskEventLog:
             "event": {
                 "id": f"event-{uuid.uuid4().hex[:12]}",
                 "type": event_type,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": timestamp(self.clock),
             },
             "factory": {"version": self.factory_version},
             "project": {"id": self.project_id},

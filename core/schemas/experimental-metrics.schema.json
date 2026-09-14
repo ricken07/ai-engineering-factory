@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/experimental-metrics.schema.json",
+  "$defs": {
+    "measurement": {
+      "type": "object",
+      "required": ["value", "availability"],
+      "properties": {
+        "value": {"type": ["number", "integer", "string", "null"]},
+        "availability": {"enum": ["OBSERVED", "DERIVED", "UNAVAILABLE"]}
+      },
+      "additionalProperties": false
+    },
+    "duration": {
+      "type": "object",
+      "required": ["durationMs"],
+      "properties": {"durationMs": {"$ref": "#/$defs/measurement"}},
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["execution", "runtime", "validation", "gateWaiting", "agent", "review", "provider", "tokens", "cost"],
+  "properties": {
+    "execution": {
+      "type": "object",
+      "required": ["startedAt", "completedAt", "durationMs"],
+      "properties": {
+        "startedAt": {"type": ["string", "null"], "format": "date-time"},
+        "completedAt": {"type": ["string", "null"], "format": "date-time"},
+        "durationMs": {"$ref": "#/$defs/measurement"}
+      },
+      "additionalProperties": false
+    },
+    "runtime": {"$ref": "#/$defs/duration"},
+    "validation": {"$ref": "#/$defs/duration"},
+    "gateWaiting": {"$ref": "#/$defs/duration"},
+    "agent": {"$ref": "#/$defs/duration"},
+    "review": {"$ref": "#/$defs/duration"},
+    "provider": {"$ref": "#/$defs/duration"},
+    "tokens": {"$ref": "#/$defs/measurement"},
+    "cost": {"$ref": "#/$defs/measurement"}
+  },
+  "additionalProperties": false
+}

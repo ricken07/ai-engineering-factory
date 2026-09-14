@@ -1,1 +1,44 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://aief.dev/schemas/governed-execution-plan.schema.json","type":"object","required":["apiVersion","kind","metadata","task","execution","workflow","risk","autonomy","allowedActions","deniedActions","requiredGates","enforcementPoints","policyDecisionRef","fingerprint"],"properties":{"apiVersion":{"const":"aief.dev/v1alpha1"},"kind":{"const":"GovernedExecutionPlan"},"metadata":{"$ref":"common.schema.json#/$defs/metadata"},"task":{"type":"string"},"execution":{"type":"string"},"workflow":{"type":"object","required":["id","version"],"properties":{"id":{"type":"string"},"version":{"$ref":"common.schema.json#/$defs/semanticVersion"}},"additionalProperties":false},"contextFingerprints":{"$ref":"common.schema.json#/$defs/stringArray"},"risk":{"type":"object","required":["level"],"properties":{"level":{"$ref":"common.schema.json#/$defs/riskLevel"},"reasons":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false},"autonomy":{"type":"object","required":["requested","authorized"],"properties":{"requested":{"$ref":"common.schema.json#/$defs/autonomyLevel"},"authorized":{"$ref":"common.schema.json#/$defs/autonomyLevel"}},"additionalProperties":false},"allowedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"deniedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"requiredGates":{"$ref":"common.schema.json#/$defs/stringArray"},"repositories":{"$ref":"common.schema.json#/$defs/stringArray"},"scope":{"type":"object"},"policyDecisionRef":{"type":"string"},"enforcementPoints":{"type":"array","items":{"$ref":"#/$defs/enforcementPoint"}},"fingerprint":{"type":"string","pattern":"^[a-f0-9]{64}$"}},"additionalProperties":false,"$defs":{"enforcementPoint":{"type":"object","required":["id","action","decision","mechanism","status"],"properties":{"id":{"type":"string"},"action":{"type":"string"},"decision":{"enum":["denied","required-gate","allowed"]},"mechanism":{"type":"object","required":["type","capability"],"properties":{"type":{"enum":["runtime","adapter","native-agent","provider","workspace"]},"capability":{"type":"string"}},"additionalProperties":false},"status":{"type":"object","required":["enforceable"],"properties":{"enforceable":{"type":"boolean"},"evidenceRef":{"type":"string"}},"additionalProperties":false}},"additionalProperties":false}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/governed-execution-plan.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "task", "execution", "workflow", "risk", "autonomy", "allowedActions", "deniedActions", "requiredGates", "enforcementPoints", "policyDecisionRef", "policyDecision", "requirements", "fingerprint"],
+  "properties": {
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
+    "kind": {"const": "GovernedExecutionPlan"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "task": {"type": "string"},
+    "execution": {"type": "string"},
+    "workflow": {"type": "object", "required": ["id", "version"], "properties": {"id": {"type": "string"}, "version": {"$ref": "common.schema.json#/$defs/semanticVersion"}}, "additionalProperties": false},
+    "contextFingerprints": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "risk": {"type": "object", "required": ["level"], "properties": {"level": {"$ref": "common.schema.json#/$defs/riskLevel"}, "reasons": {"$ref": "common.schema.json#/$defs/stringArray"}}, "additionalProperties": false},
+    "autonomy": {"type": "object", "required": ["requested", "authorized"], "properties": {"requested": {"$ref": "common.schema.json#/$defs/autonomyLevel"}, "authorized": {"$ref": "common.schema.json#/$defs/autonomyLevel"}}, "additionalProperties": false},
+    "allowedActions": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "deniedActions": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "requiredGates": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "repositories": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "scope": {"type": "object"},
+    "policyDecisionRef": {"type": "string"},
+    "policyDecision": {"type": "string"},
+    "requirements": {"type": "object", "required": ["independentReviewRequired"], "properties": {"independentReviewRequired": {"type": "boolean"}}, "additionalProperties": false},
+    "enforcementPoints": {"type": "array", "items": {"$ref": "#/$defs/enforcementPoint"}},
+    "fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "enforcementPoint": {
+      "type": "object",
+      "required": ["id", "action", "decision", "mechanism", "status", "assurance", "evidenceRef"],
+      "properties": {
+        "id": {"type": "string"},
+        "action": {"type": "string"},
+        "decision": {"enum": ["denied", "required-gate", "allowed"]},
+        "mechanism": {"type": "object", "required": ["type", "capability"], "properties": {"type": {"enum": ["runtime", "adapter", "native-agent", "provider", "workspace"]}, "capability": {"type": "string"}}, "additionalProperties": false},
+        "status": {"type": "object", "required": ["enforceable"], "properties": {"enforceable": {"type": "boolean"}}, "additionalProperties": false},
+        "assurance": {"type": "object", "required": ["status"], "properties": {"status": {"enum": ["ENFORCED", "ENFORCEABLE", "UNAVAILABLE", "UNVERIFIED"]}}, "additionalProperties": false},
+        "evidenceRef": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

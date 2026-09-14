@@ -27,7 +27,7 @@ def parser() -> argparse.ArgumentParser:
         command=integration_sub.add_parser(name); command.add_argument("project",nargs="?",default="."); command.add_argument("--factory",default=".")
     sync=integration_sub.add_parser("sync"); sync.add_argument("agent",choices=["codex","claude-code"]); sync.add_argument("project",nargs="?",default="."); sync.add_argument("--factory",default="."); sync.add_argument("--scope",choices=["user","project"],default="project"); sync.add_argument("--execute",action="store_true")
     intake=sub.add_parser("intake"); intake.add_argument("request"); intake.add_argument("--project",default="."); intake.add_argument("--factory",default="."); intake.add_argument("--agent",choices=["codex","claude-code"]); intake.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); intake.add_argument("--expect-workflow"); intake.add_argument("--activation-confirmed",action="store_true"); intake.add_argument("--json",action="store_true")
-    run=sub.add_parser("run"); run.add_argument("request"); run.add_argument("--project",default="."); run.add_argument("--factory",default="."); run.add_argument("--agent",choices=["codex","claude-code"]); run.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); run.add_argument("--expect-workflow"); run.add_argument("--activation-confirmed",action="store_true")
+    run=sub.add_parser("run"); run.add_argument("request"); run.add_argument("--project",default="."); run.add_argument("--factory",default="."); run.add_argument("--agent",choices=["codex","claude-code"]); run.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); run.add_argument("--expect-workflow"); run.add_argument("--activation-confirmed",action="store_true"); run.add_argument("--agent-session"); run.add_argument("--model-identifier"); run.add_argument("--experiment-condition",choices=["L0","L1","L2","L3"]); run.add_argument("--repeat-index",type=int); run.add_argument("--environment-identifier")
     task=sub.add_parser("task"); task_sub=task.add_subparsers(dest="task_command",required=True); task_inspect=task_sub.add_parser("inspect"); task_inspect.add_argument("id"); task_inspect.add_argument("--project",default="."); task_inspect.add_argument("--factory",default="."); task_inspect.add_argument("--json",action="store_true")
     task_log=task_sub.add_parser("log"); task_log.add_argument("id"); task_log.add_argument("--project",default="."); task_log.add_argument("--factory",default="."); task_log.add_argument("--json",action="store_true")
     task_list=task_sub.add_parser("list"); task_list.add_argument("--ready",action="store_true"); task_list.add_argument("--project",default="."); task_list.add_argument("--factory",default="."); task_list.add_argument("--json",action="store_true")
@@ -84,7 +84,14 @@ def main(argv: list[str] | None = None) -> int:
             result = {key:value for key,value in result.items() if key != "path"} | {"taskFile": result["path"]}
             print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else yaml.safe_dump(result, sort_keys=False, allow_unicode=True))
         else:
-            execution = service.start(args.request, args.agent, args.intent, args.expect_workflow, args.activation_confirmed)
+            experiment = {
+                "modelIdentifier": args.model_identifier,
+                "condition": args.experiment_condition,
+                "repeatIndex": args.repeat_index,
+                "environmentIdentifier": args.environment_identifier,
+            }
+            execution = service.start(args.request, args.agent, args.intent, args.expect_workflow, args.activation_confirmed,
+                                      args.agent_session, experiment)
             task = TaskRegistry(service.project_root).load(execution.data["task"])
             print(yaml.safe_dump({"runtimeReceipt":"created","execution":execution.data["metadata"]["id"],"status":execution.data["status"],"intent":task["intent"]["type"],"mutating":task["intent"]["type"] in MUTATING,"workflow":execution.data["workflow"],"task":execution.data["task"],"nextPhase":execution.next_phase()["id"],"taskLog":str(service.project_root/".ai"/"runtime"/"tasks"/task["metadata"]["id"]/"events.jsonl")},sort_keys=False))
         return 0

@@ -106,6 +106,23 @@ same fact under a second name — removed during consolidation review (see
   error), the failure is silently absorbed: a normal Execution is never blocked
   by exporter unavailability. AIEF depends on no external backend to function.
 
+## Experimental timing contract
+
+`Execution.metrics` is the measurement source; event timestamps are not used to
+infer durations. UTC wall clock records `startedAt`/`completedAt`, while an
+injectable monotonic clock records elapsed milliseconds. The Runtime persists:
+
+- execution and per-phase timing;
+- accumulated AIEF-controlled Runtime operation time (including validation);
+- validation-command time as an explicit Runtime subset;
+- union of human gate-wait intervals, so simultaneous gates are not counted
+  twice.
+
+Agent, review and provider duration, tokens and cost remain `{value: null,
+availability: UNAVAILABLE}` unless directly observable. A measured zero is
+`OBSERVED` and is therefore distinct from an unknown value. Incomplete phases
+and legacy records without a monotonic start remain `UNAVAILABLE`.
+
 ## Security
 
 `TaskEventLog.append` redacts `payload` before writing:
