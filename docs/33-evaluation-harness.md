@@ -108,3 +108,22 @@ version/commit, project and starting repository commits, workflow version,
 context/policy/plan fingerprints, agent/model, adapter version, condition,
 repeat and environment. Unobserved values are `UNAVAILABLE`; autonomy is never
 misused as an inferred experimental condition.
+
+Example descriptor-producing Runtime invocation:
+
+```bash
+aief run "/implement TASK-42" \
+  --agent codex \
+  --agent-session "codex:run-003" \
+  --model-identifier "<observed-model-id>" \
+  --experiment-condition L2 \
+  --repeat-index 3 \
+  --environment-identifier "runner-linux-x86_64" \
+  --project "/absolute/project" \
+  --factory "/absolute/factory"
+```
+
+`agentIdentifier` and adapter version are Runtime observations;
+`repositoryStartingCommit` is captured from Git. Model identifier is recorded
+only when supplied from observable adapter/provider context. Omitting any
+unobservable value yields `UNAVAILABLE`, never an inferred substitute.

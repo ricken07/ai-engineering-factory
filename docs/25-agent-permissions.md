@@ -77,6 +77,19 @@ aief execution next 20260816T120000Z-example \
   --factory "/absolute/factory"
 ```
 
+Mutating phase submissions also carry the active lease owner:
+
+```bash
+aief execution complete-phase 20260816T120000Z-example \
+  --output "/absolute/project/.ai/runtime/executions/20260816T120000Z-example/output.yaml" \
+  --owner "claude-code:<session-id>" \
+  --project "/absolute/project" \
+  --factory "/absolute/factory"
+```
+
+The initial `--agent-session` label is only `OBSERVED`. The owner becomes a
+`TRUSTED` Runtime session only while the matching Execution lease is active.
+
 Avoid in the command submitted to Bash:
 
 ```bash

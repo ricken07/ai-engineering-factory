@@ -58,3 +58,9 @@ assurance and reviewer independence when trusted identities exist. They do not
 establish improvements in quality, reproducibility, policy compliance, human
 effort, delivery speed or cost, nor superiority over another framework or
 agent. Those remain experimental questions.
+
+Once the Research Baseline freeze commit is selected, behavior, policies and
+benchmark scenarios remain unchanged through the experimental campaign. A
+future experimental failure is evidence first, not automatic authorization to
+modify the subject. Infrastructure-only corrections must demonstrate that they
+do not alter the studied behavior and must be recorded separately.

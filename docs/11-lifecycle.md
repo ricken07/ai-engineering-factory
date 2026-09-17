@@ -42,3 +42,9 @@ overlapping open gates count as one waiting interval rather than double-counted
 human attention time.
 
 A task may span multiple repositories while remaining one functional task. Each repository may have independent branches, commits and change requests linked back to the same task/execution.
+
+The Project owns one canonical Execution State Store. Each repository used by
+an Execution has a `WorkspaceBinding` to a checkout or worktree. Handoff changes
+session ownership, not Task/Execution identity or workspace binding. A missing
+recorded workspace blocks resume; it is never replaced by the caller's current
+directory.

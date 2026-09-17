@@ -33,9 +33,12 @@ Before engineering work:
 10. Load project context, decisions and memory progressively after impact analysis.
 11. Resolve abstract capabilities through project-selected integrations and available MCP bindings.
 12. Create or resume agent-neutral state under `.ai/runtime/`.
-13. Never treat session observations as authoritative project knowledge.
-14. Preserve task evidence, bounded recovery and handoff state.
-15. Promote durable knowledge only through the approved Factory workflow.
+13. Pass an adapter session identifier, acquire the Execution lease with the
+    same owner before mutation, and pass that owner to mutating transitions;
+    the session label alone is not trusted.
+14. Never treat session observations as authoritative project knowledge.
+15. Preserve task evidence, bounded recovery and handoff state.
+16. Promote durable knowledge only through the approved Factory workflow.
 
 See `.ai/README.md` for the project AI configuration. Do not duplicate Factory workflows, profiles, provider instructions or stack commands here.
 

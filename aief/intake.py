@@ -7,6 +7,7 @@ import re
 import uuid
 import yaml
 from .yamlio import load_yaml
+from .project import runtime_root
 from .config import get_api_version
 
 
@@ -156,7 +157,7 @@ def normalize_task(request: dict[str, Any], resolution: dict[str, Any], factory:
 
 class TaskRegistry:
     def __init__(self, project: Path):
-        self.root = project / ".ai" / "runtime" / "tasks"
+        self.root = runtime_root(project) / "tasks"
 
     def save(self, task: dict[str, Any]) -> Path:
         from .knowledge import safe_task_id

@@ -159,8 +159,8 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [18 — Workspace & Git Safety](18-workspace-git-safety.md) | Safety boundary before implement phase. Impact scope precondition. Worktree vs. require-clean mode. Merge conflict handling. | Operators, developers |
-| [19 — Idempotence & Execution Leases](19-idempotence-execution-leases.md) | Execution ownership via leases. Replay-safe operation IDs. Prevents concurrent writes. Enables handoff between agents. | Operators, adapter developers |
+| [18 — Workspace & Git Safety](18-workspace-git-safety.md) | Safety boundary, canonical Project State Store, WorkspaceBinding, worktree/check-out strategies and drift handling. | Operators, developers |
+| [19 — Idempotence & Execution Leases](19-idempotence-execution-leases.md) | Execution-scoped ownership across worktrees/agents, replay-safe operation IDs and handoff. | Operators, adapter developers |
 
 **What you'll learn:**
 - How AIEF prevents unwanted Git state changes
@@ -176,9 +176,9 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | Document | Purpose | Audience |
 |----------|---------|----------|
 | [26 — Task Execution Log](26-task-execution-log.md) | Query and inspect the local task journal (events.jsonl) | Operators, debuggers |
-| [29 — Evidence Chain & Validation Replay](29-evidence-chain-and-replay.md) | Acceptance criteria in plan, evidence matrix in validation. Enables validation replay and review. | Developers, reviewers |
-| [32 — Runtime Observability](32-runtime-observability.md) | Minimal structured events, JSONL append-only storage, event envelope, redaction, security considerations | Operators, debuggers |
-| [33 — Evaluation Harness](33-evaluation-harness.md) | Three conformance levels: Runtime (12 deterministic scenarios), Adapter, Engineering Outcome. Testing AIEF and adapters. | Developers, QA |
+| [29 — Evidence Chain & Validation Replay](29-evidence-chain-and-replay.md) | Acceptance criteria, revision-bound validation, trusted review identity and fingerprinted EvidenceBundle. | Developers, reviewers |
+| [32 — Runtime Observability](32-runtime-observability.md) | Structured events and monotonic timing with explicit availability and redaction. | Operators, debuggers |
+| [33 — Evaluation Harness](33-evaluation-harness.md) | Conformance levels plus explicit experimental conditions L0–L3 and reproducibility metadata. | Developers, QA |
 
 **What you'll learn:**
 - How to debug a failed task

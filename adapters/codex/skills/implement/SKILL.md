@@ -11,6 +11,7 @@ with:
 
 ```bash
 aief run "<complete-user-request>" --agent codex \
+  --agent-session "codex:<session-id>" \
   --intent implement --expect-workflow implement-task \
   --project "<workspace-root>" --factory "<resolved-factory-home>"
 ```

@@ -47,6 +47,20 @@ repositories:
 
 `require-clean` requires every impacted repository to be clean. Preparation then creates a task branch only after explicit execution. `worktree` preserves the original repository and creates execution-owned worktrees under `.ai/runtime/worktrees/<execution-id>/`.
 
+## Workspace and state are separate
+
+`WorkspaceSnapshot` records an additive `workspaceBinding` per repository. Its
+`workspaceId` derives from Execution and repository identity, never from an
+absolute path. Strategy is `checkout` or `worktree` today (`container` and
+`remote` remain contract values only); base/current revision and branch are
+recorded. `physicalLocation` is explicitly `LOCAL_ONLY`.
+
+For linked worktrees of the Project repository, project discovery resolves the
+main checkout and its single `.ai/runtime` State Store. Starting AIEF in
+worktree B can locate an Execution created from worktree A, but resume continues
+against the Execution's recorded binding. There is no implicit rebind to B.
+Missing original workspace, stale branch or conflicts block verification.
+
 ## Runtime sequence
 
 ```text
@@ -95,6 +109,10 @@ In `worktree` mode, the Runtime plans one worktree per impacted repository from 
 ### Interruption or drift
 
 `workspace.yaml` records the base commit, original branch, task branch, paths and decision. On resume, `verify` detects branch drift and unmerged conflicts before the agent continues. Conversation memory is not used as evidence.
+
+If an execution-owned worktree is removed, verification reports
+`workspace-missing`. Execution state, policy artifacts, handoff, validation and
+evidence remain in the canonical State Store outside that worktree.
 
 ## Conservative rollback
 

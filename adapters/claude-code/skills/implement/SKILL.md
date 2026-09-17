@@ -11,6 +11,7 @@ mandatory Claude Code Runtime Protocol at
 
 ```bash
 aief run "<complete-user-request>" --agent claude-code \
+  --agent-session "claude-code:<session-id>" \
   --intent implement --expect-workflow implement-task \
   --project "<workspace-root>" --factory "<resolved-factory-home>"
 ```

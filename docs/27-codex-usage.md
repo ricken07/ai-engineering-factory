@@ -158,12 +158,18 @@ $implement <request>
 Codex Skill implement
   ↓
 aief run --agent codex --intent implement
+         --agent-session codex:<session-id>
          --expect-workflow implement-task
   ↓
 persistent Runtime receipt
   ↓
 execution next / complete-phase loop
 ```
+
+After the receipt, Codex acquires the Execution lease with
+`--owner codex:<session-id>` and supplies that owner to each mutating command.
+The session flag alone is `OBSERVED`; the matching active lease is the Runtime
+mechanism that establishes `TRUSTED` producer/reviewer identity.
 
 Before any deep code reading or modification, the output must
 contain a real receipt similar to:

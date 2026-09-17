@@ -12,6 +12,7 @@ from .knowledge import safe_task_id
 from .provider_runtime import ProviderResolutionError, resolve_task_provider
 from .validation import assert_schema
 from .yamlio import load_yaml
+from .project import runtime_root
 
 
 DEFAULT_CONFIG = {
@@ -82,7 +83,7 @@ class BacklogImportManager:
         self.project_root, self.factory, self.project, self.environment = project_root, factory, project, environment
 
     def _root(self, import_id: str) -> Path:
-        root = self.project_root / ".ai" / "runtime" / "backlog-imports" / safe_task_id(import_id)
+        root = runtime_root(self.project_root, self.project) / "backlog-imports" / safe_task_id(import_id)
         root.mkdir(parents=True, exist_ok=True)
         return root
 

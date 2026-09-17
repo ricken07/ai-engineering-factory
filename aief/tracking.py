@@ -10,6 +10,7 @@ from .intake import TaskRegistry
 from .knowledge import safe_task_id
 from .provider_runtime import ProviderResolutionError, resolve_task_provider
 from .task_log import TaskEventLog
+from .project import runtime_root
 from .validation import assert_schema
 from .yamlio import load_yaml
 
@@ -76,7 +77,7 @@ class TaskTrackingManager:
         )
 
     def _root(self, task_id: str) -> Path:
-        root = self.project_root/".ai"/"runtime"/"tasks"/safe_task_id(task_id); root.mkdir(parents=True,exist_ok=True); return root
+        root = runtime_root(self.project_root, self.project)/"tasks"/safe_task_id(task_id); root.mkdir(parents=True,exist_ok=True); return root
     def _write(self, task_id: str, name: str, data: dict[str, Any]) -> Path:
         path=self._root(task_id)/name; path.parent.mkdir(parents=True,exist_ok=True); path.write_text(yaml.safe_dump(data,sort_keys=False,allow_unicode=True),encoding="utf-8"); return path
     def _read(self, task_id: str, name: str) -> dict[str, Any]:

@@ -93,8 +93,8 @@ mechanism:
 transitions pass through `complete_phase`/`fail_phase`, which already emit
 `phase.completed`/`phase.failed`/`execution.*` with `payload.phase ==
 "validation"`. A separate `validation.*` event would duplicate exactly the
-same fact under a second name — removed during consolidation review (see
-`docs/34-release-readiness.md`).
+same fact under a second name, so the consolidated event contract intentionally
+uses the existing phase/execution transition.
 
 ## Export
 

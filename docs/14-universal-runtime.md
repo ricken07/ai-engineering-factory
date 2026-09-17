@@ -44,11 +44,21 @@ Understanding business meaning, inspecting code, choosing a coherent implementat
 │   └── state.yaml
 └── executions/<execution-id>/
     ├── execution.yaml
+    ├── policy-decision-<revision>.yaml
+    ├── governed-execution-plan-<revision>.yaml
+    ├── enforcement-*.yaml
+    ├── workspace.yaml
+    ├── validation.yaml
+    ├── review.yaml
+    ├── evidence-bundle.yaml
     ├── <phase-id>.yaml
     └── handoff.yaml
 ```
 
 These files are local runtime state by default. Durable traceability is promoted through configured integrations and governed workflows.
+Execution timing, actor identities, review independence and reproducibility
+metadata are fields of `execution.yaml`; experimental timing is not a separate
+invented file.
 
 ## Adapter protocol
 
@@ -72,6 +82,7 @@ title. For example, `/implement Feature 1.1` invokes:
 
 ```bash
 aief run "Feature 1.1" --agent claude-code \
+  --agent-session "claude-code:session-7" \
   --intent implement --expect-workflow implement-task \
   --project "$PROJECT_ROOT" --factory "$FACTORY_HOME"
 ```
@@ -127,7 +138,8 @@ Order is derived from `dependsOn`, never declared in a side file. See
 Create an execution from a command shortcut:
 
 ```bash
-aief run "/implement EGW-142" --agent codex --project . --factory /opt/factory/1.7.0
+aief run "/implement EGW-142" --agent codex \
+  --agent-session codex:session-42 --project . --factory /opt/factory/1.7.0
 ```
 
 Create the same workflow from natural language, once the developer has
@@ -135,7 +147,9 @@ explicitly agreed to route it through the Factory (`activation.mode: auto`,
 the default):
 
 ```bash
-aief run "Implémente EGW-142" --agent claude-code --activation-confirmed --project . --factory /opt/factory/1.7.0
+aief run "Implémente EGW-142" --agent claude-code \
+  --agent-session claude-code:session-7 --activation-confirmed \
+  --project . --factory /opt/factory/1.7.0
 ```
 
 Without `--activation-confirmed`, the same command fails closed with
@@ -148,15 +162,22 @@ Inspect the next phase and submit its schema-valid result:
 
 ```bash
 aief execution next <execution-id> --project . --factory /opt/factory/1.7.0
-aief execution complete-phase <execution-id> --output understanding.yaml --project . --factory /opt/factory/1.7.0
+aief execution lease acquire <execution-id> --owner codex:session-42 --ttl 300 --project . --factory /opt/factory/1.7.0
+aief execution complete-phase <execution-id> --output understanding.yaml --owner codex:session-42 --project . --factory /opt/factory/1.7.0
 ```
 
 Approve a waiting gate and create a handoff:
 
 ```bash
-aief execution approve <execution-id> --project . --factory /opt/factory/1.7.0
-aief execution handoff <execution-id> --project . --factory /opt/factory/1.7.0
+aief execution approve <execution-id> --owner codex:session-42 --project . --factory /opt/factory/1.7.0
+aief execution handoff <execution-id> --owner codex:session-42 --project . --factory /opt/factory/1.7.0
 ```
+
+The session argument alone is `OBSERVED`. Producer or reviewer activity is
+`TRUSTED` only when `--owner` matches the active Execution lease. Research
+runs additionally pass explicit `--experiment-condition`, `--repeat-index`,
+`--environment-identifier` and observable `--model-identifier`; condition is
+never inferred from autonomy.
 
 Re-evaluate tracking after impact analysis reveals new scope or risk:
 

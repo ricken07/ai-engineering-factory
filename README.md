@@ -249,7 +249,7 @@ AIEF documentation is organized by use case and audience, not by file number. **
 | [32 — Runtime Observability](docs/32-runtime-observability.md) | Operators, debuggers | You need to understand how to observe execution |
 | [33 — Evaluation Harness](docs/33-evaluation-harness.md) | QA, developers | You're testing AIEF or an adapter |
 
-**All 34 reference documents** are indexed, cross-referenced and organized in [`docs/INDEX.md`](docs/INDEX.md).
+**All 35 reference documents** are indexed, cross-referenced and organized in [`docs/INDEX.md`](docs/INDEX.md).
 
 ## Security
 
@@ -263,6 +263,22 @@ enforcement assurance, reproducibility metadata and a fingerprinted evidence
 bundle. These contracts make a run auditable; they do not claim that AIEF
 improves quality, speed, effort, policy compliance or cost before controlled
 experiments are performed.
+
+Linked Git worktrees share the canonical Project State Store in the main
+checkout. A worktree is only an Execution Workspace; its local path is not a
+Task or Execution identifier. Existing non-canonical Runtime state causes a
+fail-closed conflict instead of silent state selection.
+
+Claims are classified as follows:
+
+- **IMPLEMENTED:** Runtime validation records commands, outcomes, timestamps,
+  trusted Runtime verifier and repository revisions.
+- **CONDITIONAL:** independent review is provable only with distinct trusted
+  producer and reviewer identities.
+- **NOT SUPPORTED:** AIEF does not intercept every Git or process invocation
+  outside its represented Runtime path.
+- **EXPERIMENTALLY UNPROVEN:** improvements in quality, reproducibility,
+  compliance, effort, speed and cost require the L0–L3 experiments.
 
 ## Contributing
 

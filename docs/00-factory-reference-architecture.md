@@ -107,6 +107,11 @@ Java, Maven or Flutter. The project provides its local context with
 `.ai/project.yaml`, `.ai/repository-map.yaml`, decisions, memory and
 source repositories. The `.ai/runtime/` folder preserves the generated execution state and remains local.
 
+Linked Git worktrees resolve the same canonical Project State Store in the
+main checkout. An Execution Workspace may be a worktree or checkout, but it is
+not the Project or the state owner. Its stable binding derives from Execution
+and repository identity; an absolute path is only `LOCAL_ONLY` metadata.
+
 External systems like GitLab, GitHub, Jira or Confluence are called
 only when a capability requires it. The Runtime uses an abstract contract, for example `source-control → submit-change` or
 `task-provider → search-task`, then the adapter invokes the real provider's MCP:
@@ -344,6 +349,9 @@ stateDiagram-v2
 
 A resumption verifies execution identity, current phase, already-validated artifacts, any lease and workspace Git state. A divergence or
 unattributed local modification blocks the action rather than overwriting it.
+The Runtime resumes the recorded `WorkspaceBinding`; it never treats the
+caller's physical current directory as Execution identity or silently rebinds
+an Execution to another worktree.
 
 ## 11. Portable Commands
 
@@ -366,6 +374,7 @@ Agent-independent example:
 ```bash
 aief run "Implement the filtering feature" \
   --agent codex \
+  --agent-session codex:session-42 \
   --intent implement \
   --expect-workflow implement-task \
   --project . \

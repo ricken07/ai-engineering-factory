@@ -61,6 +61,14 @@ The project pins a Factory version. Multiple projects may use different Factory 
 
 Generated task and execution state is stored under `.ai/runtime/tasks/` and `.ai/runtime/executions/`. It is gitignored by default and retained according to project configuration. Durable traceability belongs in task systems, commits, change requests, approved context, decision records and validated project memory.
 
+For linked Git worktrees, project discovery resolves the main checkout while
+preserving the Project's relative location inside the repository. All linked
+worktrees therefore address the same canonical `.ai/runtime` State Store. A
+non-canonical worktree that already contains Task/Execution state fails closed
+with `StateStoreConflict`; AIEF never silently selects one fragment. Non-Git
+projects and Project roots containing separate child repositories retain their
+configured project-local Runtime root.
+
 ## What a project commits
 
 The project configuration, repository map, approved context, decisions, validated memory and integration lock belong in Git. In particular, `.ai/project.yaml` is part of the project contract and must be versioned.
@@ -68,6 +76,12 @@ The project configuration, repository map, approved context, decisions, validate
 `.ai/runtime/` remains local and must stay ignored. It contains generated Tasks, Executions, leases and phase artifacts; it is not a replacement for durable project documentation or the external change record.
 
 Runtime state is agent-neutral. An adapter identity may be recorded for audit, but resuming an execution must not require the original agent or its conversation history.
+
+An Execution Workspace and its State Store are different concepts. A
+`WorkspaceSnapshot.workspaceBinding` identifies an execution/repository pair;
+its absolute location is `LOCAL_ONLY` metadata, not Task or Execution identity.
+Resume uses the recorded binding and blocks on a missing workspace, branch
+drift or conflicts. It does not silently rebind to the caller's current path.
 
 Execution state additively includes structured metrics, actor identities,
 review independence, enforcement references and reproducibility metadata.

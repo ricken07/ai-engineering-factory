@@ -6,6 +6,7 @@ from typing import Any
 
 from .intake import TaskRegistry
 from .yamlio import load_yaml
+from .project import runtime_root
 
 # An Execution owns its Task from creation, including while it still sits at
 # `pending`: no second Execution should be opened for the same work. Only these
@@ -19,7 +20,7 @@ def task_executions(project_root: Path) -> dict[str, list[tuple[str, str]]]:
     Execution identifiers embed a UTC timestamp, so the sorted glob already
     yields them chronologically without reading any clock.
     """
-    root = project_root / ".ai" / "runtime" / "executions"
+    root = runtime_root(project_root) / "executions"
     executions: dict[str, list[tuple[str, str]]] = {}
     if not root.is_dir():
         return executions

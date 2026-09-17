@@ -8,6 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from .engineering import validate_engineering_configuration
+from .project import runtime_root
 from .yamlio import load_yaml
 
 
@@ -73,8 +74,10 @@ def validate_project(project_root: Path, factory_root: Path) -> list[ValidationI
             registry = registry.with_resource(schema["$id"], Resource.from_contents(schema))
         except Exception as exc:
             issues.append(ValidationIssue(str(path), str(exc)))
-    candidates = [project_root / ".ai" / "project.yaml", project_root / ".ai" / "repository-map.yaml"]
-    runtime = project_root / ".ai" / "runtime"
+    project_file = project_root / ".ai" / "project.yaml"
+    project_document = load_yaml(project_file) if project_file.is_file() else {}
+    candidates = [project_file, project_root / ".ai" / "repository-map.yaml"]
+    runtime = runtime_root(project_root, project_document)
     if runtime.is_dir():
         candidates.extend(sorted(
             path for path in runtime.rglob("*.yaml")

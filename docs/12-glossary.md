@@ -25,5 +25,12 @@
   identities, verification, gates, metrics and reproducibility metadata.
 - **Artifact**: output produced during execution.
 - **Handoff**: portable execution state between agents/sessions.
-- **Workspace**: local project/system view where an agent operates.
+- **Execution State Store**: canonical Project-owned local store for Task,
+  Execution, lease, handoff and research evidence state.
+- **Execution Workspace**: physical checkout, Git worktree, container or remote
+  location in which one Execution operates; never a state owner by itself.
+- **WorkspaceBinding**: stable Execution/repository binding with strategy,
+  revision and branch; its physical path is `LOCAL_ONLY` metadata and not its
+  identity.
+- **Workspace**: generic local/system view where an agent operates.
 - **Project memory**: durable validated project-wide knowledge.

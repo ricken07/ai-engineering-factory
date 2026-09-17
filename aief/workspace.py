@@ -92,7 +92,11 @@ class WorkspaceManager:
             git_root = Path(_run(path, ["rev-parse", "--show-toplevel"], self.runner)).resolve()
             if git_root != path:
                 raise ValueError(f"configured repository is not a Git root: {repository['id']}: {path}")
-            branch = _run(path, ["symbolic-ref", "--quiet", "--short", "HEAD"], self.runner)
+            try:
+                branch = _run(path, ["symbolic-ref", "--quiet", "--short", "HEAD"], self.runner)
+            except RuntimeError:
+                drift.append({"repository": identifier, "reason": "branch-detached"})
+                continue
             head = _run(path, ["rev-parse", "HEAD"], self.runner)
             status = _run(path, ["status", "--porcelain=v1", "--untracked-files=all"], self.runner)
             changes = [line for line in status.splitlines() if line]
@@ -102,6 +106,15 @@ class WorkspaceManager:
             task_branch = _task_branch(task_reference, repository.get("git", {}).get("taskBranchPrefix", prefix))
             item = {"path":str(path), "branch":branch, "clean":not changes, "headCommit":head, "baseCommit":base_commit,
                     "baseBranch":base_branch, "taskBranch":task_branch, "changes":changes, "conflicts":conflicts}
+            item["workspaceBinding"] = {
+                "workspaceId": f"{self.execution_root.name}:{repository['id']}",
+                "repositoryId": repository["id"],
+                "strategy": "worktree" if mode == "worktree" else "checkout",
+                "baseRevision": base_commit,
+                "currentRevision": head,
+                "branch": branch,
+                "physicalLocation": {"value": str(path), "portability": "LOCAL_ONLY"},
+            }
             repositories[repository["id"]] = item
             if conflicts:
                 blockers.append({"repository":repository["id"], "reason":"unmerged-conflicts"})
@@ -136,6 +149,8 @@ class WorkspaceManager:
                     raise FileExistsError(f"task branch already exists: {', '.join(collisions)}")
                 for operation in operations:
                     _run(Path(operation["cwd"]), operation["command"][1:], self.runner)
+                    binding = state["repositories"][operation["repository"]]["workspaceBinding"]
+                    binding.update({"branch": state["repositories"][operation["repository"]]["taskBranch"]})
                 state["decision"]["status"] = "ready"
             self.state_path.write_text(yaml.safe_dump(state, sort_keys=False, allow_unicode=True), encoding="utf-8")
             return state
@@ -157,6 +172,9 @@ class WorkspaceManager:
                     raise FileExistsError(f"worktree destination already exists: {destination}")
                 _run(Path(operation["cwd"]), operation["command"][1:], self.runner)
                 state["repositories"][operation["repository"]]["executionPath"] = operation["destination"]
+                binding = state["repositories"][operation["repository"]]["workspaceBinding"]
+                binding.update({"branch": state["repositories"][operation["repository"]]["taskBranch"],
+                                "physicalLocation": {"value": operation["destination"], "portability": "LOCAL_ONLY"}})
             state["decision"]["status"] = "ready"
             state["decision"]["isolated"] = True
         self.state_path.write_text(yaml.safe_dump(state, sort_keys=False, allow_unicode=True), encoding="utf-8")
@@ -167,12 +185,26 @@ class WorkspaceManager:
         drift: list[dict[str, str]] = []
         for identifier, repository in state["repositories"].items():
             path = Path(repository.get("executionPath", repository["path"]))
+            repository.setdefault("workspaceBinding", {
+                "workspaceId": f"{self.execution_root.name}:{identifier}",
+                "repositoryId": identifier,
+                "strategy": "worktree" if repository.get("executionPath") else "checkout",
+                "baseRevision": repository["baseCommit"],
+                "currentRevision": repository["headCommit"],
+                "branch": repository.get("taskBranch", repository["branch"]),
+                "physicalLocation": {"value": str(path), "portability": "LOCAL_ONLY"},
+            })
+            if not path.is_dir():
+                drift.append({"repository":identifier, "reason":"workspace-missing"})
+                continue
             branch = _run(path, ["symbolic-ref", "--quiet", "--short", "HEAD"], self.runner)
             expected_branch = repository["taskBranch"] if state["decision"].get("status") == "ready" else repository["branch"]
             if branch != expected_branch:
                 drift.append({"repository":identifier, "reason":"branch-changed"})
             if _run(path, ["ls-files", "--unmerged"], self.runner):
                 drift.append({"repository":identifier, "reason":"unmerged-conflicts"})
+            head = _run(path, ["rev-parse", "HEAD"], self.runner)
+            repository["workspaceBinding"]["currentRevision"] = head
             if not repository.get("executionPath") and state["decision"].get("status") != "ready":
                 head = _run(path, ["rev-parse", "HEAD"], self.runner)
                 if head != repository["baseCommit"]:

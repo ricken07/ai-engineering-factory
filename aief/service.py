@@ -11,7 +11,7 @@ from functools import wraps
 
 from .compiler import compile_workflow
 from .intake import INTENT_WORKFLOWS, TaskRegistry, create_request, enforce_activation, normalize_task, resolve_intent
-from .project import find_project, load_project
+from .project import find_project, load_project, runtime_root
 from .runtime import Execution
 from .timing import Clock, SystemClock, timestamp
 from .identity import actor_identity, declared_actor, review_independence, trusted_session_actor
@@ -147,7 +147,7 @@ class RuntimeService:
         return execution
 
     def execution(self, execution_id: str) -> Execution:
-        root = self.project_root / ".ai" / "runtime" / "executions" / execution_id
+        root = runtime_root(self.project_root, getattr(self, "project", None)) / "executions" / execution_id
         if not root.is_dir():
             raise FileNotFoundError(f"execution not found: {execution_id}")
         return Execution.load(root, getattr(self, "clock", None))
@@ -827,7 +827,7 @@ class RuntimeService:
         return {"task":TaskRegistry(self.project_root).load(task_id),"decision":decision,"tracking":tracking}
 
     def resume_tracking_executions(self, task_id: str) -> list[str]:
-        resumed=[]; root=self.project_root/".ai"/"runtime"/"executions"
+        resumed=[]; root=runtime_root(self.project_root, self.project)/"executions"
         for path in root.glob("*/execution.yaml") if root.is_dir() else []:
             execution=Execution.load(path.parent, self.clock)
             if execution.data.get("task") == task_id and execution.data.get("blockingReason",{}).get("type") == "external-tracking-required":

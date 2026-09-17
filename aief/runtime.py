@@ -5,6 +5,7 @@ import uuid, yaml
 from .knowledge import create_task_memory
 from .yamlio import load_yaml
 from .config import get_api_version
+from .project import runtime_root
 from .identity import actor_identity, trusted_session_actor
 from .timing import Clock, SystemClock, observed_duration, timestamp, unavailable_metric
 
@@ -44,7 +45,7 @@ class Execution:
                clock: Clock | None = None, agent_session: str | None = None) -> "Execution":
         clock = clock or SystemClock()
         identifier = f"{clock.now():%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
-        root = project / ".ai" / "runtime" / "executions" / identifier
+        root = runtime_root(project) / "executions" / identifier
         root.mkdir(parents=True)
         create_task_memory(project, task)
         phases = [{"id": p["id"], "skill": p["skill"], "status": "pending", "artifacts": [],

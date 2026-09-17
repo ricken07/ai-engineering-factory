@@ -267,10 +267,15 @@ The correct form is:
 ```bash
 aief execution complete-phase <id> \
   --output "/absolute/project/.ai/runtime/executions/<id>/phase-output.yaml" \
+  --owner "claude-code:<session-id>" \
   --project "/absolute/project" \
   --factory "/absolute/factory" \
   --json
 ```
+
+The owner must match an active Execution lease. `--agent-session` on the
+initial `aief run` is only an observed adapter label until that matching lease
+exists.
 
 The detailed Codex journey, including `$implement` diagnostics, is described
 in [`27-codex-usage.md`](27-codex-usage.md).

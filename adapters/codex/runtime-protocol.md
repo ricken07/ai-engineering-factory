@@ -22,6 +22,7 @@ adapter must not simulate workflow orchestration in conversation.
    ```bash
    aief run "<complete-user-request>" \
      --agent codex \
+     --agent-session "codex:<session-id>" \
      --intent "<canonical-intent>" \
      --expect-workflow "<expected-workflow>" \
      --project "<workspace-root>" \
@@ -33,6 +34,20 @@ adapter must not simulate workflow orchestration in conversation.
    yes to the Activation Gate question. Never pass it speculatively, and
    never pass it for `activation.mode: manual` (free text never reaches this
    protocol under that mode). A native Skill never needs this flag.
+
+   `--agent-session` is adapter-observed and does not establish trust. After
+   the receipt, acquire the Execution lease with the same owner before any
+   mutating phase:
+
+   ```bash
+   aief execution lease acquire "<execution-id>" \
+     --owner "codex:<session-id>" --ttl 300 \
+     --project "<workspace-root>" --factory "<resolved-factory-home>"
+   ```
+
+   Only an active matching lease binds later producer/reviewer activity to a
+   `TRUSTED` session. A free identifier is `OBSERVED`; an artifact-only
+   identity is `UNVERIFIED`.
 
 5. Treat the command as successful only when stdout contains a concrete
    `runtimeReceipt`, `execution`, `intent`, `workflow` and `nextPhase`. Verify
@@ -69,6 +84,7 @@ For the returned execution ID:
    ```bash
    aief execution complete-phase "<execution-id>" \
      --output "<absolute-artifact-path>" \
+     --owner "codex:<session-id>" \
      --project "<absolute-workspace-root>" \
      --factory "<absolute-factory-home>" \
      --json
@@ -77,6 +93,18 @@ For the returned execution ID:
    `--output` is mandatory. Do not pass artifact content through shell
    redirection, interpolation or a heredoc.
 7. Repeat from `execution next`; never skip or reorder a phase locally.
+
+For handoff, call `aief execution handoff <execution-id> --owner
+"codex:<session-id>"`; this persists the handoff and releases the lease. The
+receiving session acquires the same Execution with its own owner. Two distinct
+trusted identities yield `INDEPENDENT`; the same trusted identity yields
+`NOT_INDEPENDENT`; insufficient identity yields `UNVERIFIED`.
+
+For research runs, the initial command also supplies
+`--experiment-condition L0|L1|L2|L3`, `--repeat-index`,
+`--environment-identifier` and, when observable, `--model-identifier`.
+Experimental condition is explicit and is never inferred from autonomy or the
+Workflow.
 
 For `analyze-impact`, persist every impacted project repository in
 `details.repositories` using the exact identifiers from `.ai/project.yaml`.

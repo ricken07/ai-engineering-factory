@@ -19,7 +19,26 @@
           "headCommit": {"type":"string"}, "baseCommit": {"type": "string"}, "baseBranch": {"type": "string"},
           "taskBranch": {"type": "string"},
           "changes": {"type": "array", "items": {"type": "string"}},
-          "conflicts": {"type": "array", "items": {"type": "string"}}
+          "conflicts": {"type": "array", "items": {"type": "string"}},
+          "workspaceBinding": {
+            "type": "object",
+            "required": ["workspaceId", "repositoryId", "strategy", "baseRevision", "currentRevision", "branch", "physicalLocation"],
+            "properties": {
+              "workspaceId": {"type": "string"},
+              "repositoryId": {"type": "string"},
+              "strategy": {"enum": ["worktree", "checkout", "container", "remote"]},
+              "baseRevision": {"type": "string"},
+              "currentRevision": {"type": "string"},
+              "branch": {"type": "string"},
+              "physicalLocation": {
+                "type": "object",
+                "required": ["value", "portability"],
+                "properties": {"value": {"type": "string"}, "portability": {"const": "LOCAL_ONLY"}},
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
         }, "additionalProperties": false
       }
     },

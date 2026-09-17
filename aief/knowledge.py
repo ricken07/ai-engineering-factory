@@ -4,6 +4,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 import json, re, yaml
+from .project import runtime_root
 
 def safe_task_id(task: str) -> str:
     value = re.sub(r"[^A-Za-z0-9._-]+", "-", task).strip("-.")
@@ -14,7 +15,7 @@ def statement_hash(statement: str, target: str) -> str:
     return sha256(json.dumps({"statement":statement,"target":target}, sort_keys=True).encode()).hexdigest()
 
 def create_task_memory(project: Path, task: str) -> Path:
-    root = project / ".ai" / "runtime" / "tasks" / safe_task_id(task)
+    root = runtime_root(project) / "tasks" / safe_task_id(task)
     root.mkdir(parents=True, exist_ok=True)
     path = root / "state.yaml"
     if not path.exists():

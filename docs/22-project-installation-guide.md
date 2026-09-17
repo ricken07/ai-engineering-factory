@@ -740,9 +740,15 @@ not modify any files.
 aief run \
   "Analyze the current architecture without modifying the code." \
   --agent codex \
+  --agent-session "codex:diagnostic-session" \
   --project "$PROJECT_ROOT" \
   --factory "$AIEF_HOME"
 ```
+
+For mutating diagnostics, acquire the returned Execution lease with
+`--owner codex:diagnostic-session` and pass that owner to every mutating
+Execution command. The session flag alone records an observed label; it does
+not authenticate or trust the actor.
 
 Then test a limited local modification, on a clean workspace or a worktree prepared by the Factory:
 

@@ -9,6 +9,7 @@ import uuid
 
 from .knowledge import safe_task_id
 from .timing import Clock, SystemClock, timestamp
+from .project import runtime_root
 
 EVENT_TYPES = {
     "request.created", "intent.resolved", "task.normalized", "workflow.started",
@@ -99,7 +100,7 @@ class TaskEventLog:
         self.factory_version = factory_version or "0.0.0"
         self.clock = clock or SystemClock()
         self.path = (
-            project_root / ".ai" / "runtime" / "tasks" /
+            runtime_root(project_root) / "tasks" /
             safe_task_id(task_id) / "events.jsonl"
         )
 

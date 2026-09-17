@@ -20,6 +20,10 @@ evidence exists.
 - Agents must not suppress failing tests merely to obtain a successful pipeline.
 - Artifact-authored actor labels never authenticate their author or prove
   independent review.
+- A linked worktree never owns an independent Runtime State Store. Discovery
+  fails closed if legacy state is found outside the canonical Project store.
+- Absolute workspace paths are local metadata and never security, Task or
+  Execution identity.
 
 ## Provider permissions
 

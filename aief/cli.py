@@ -3,7 +3,7 @@ import argparse, json
 from pathlib import Path
 import yaml
 from .yamlio import load_yaml
-from .project import find_project, initialize, load_project
+from .project import find_project, initialize, load_project, runtime_root
 from .validation import validate_package, validate_project
 from .policy import resolve_policy
 from .adapter_install import adapter_plan, install_adapter
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
             execution = service.start(args.request, args.agent, args.intent, args.expect_workflow, args.activation_confirmed,
                                       args.agent_session, experiment)
             task = TaskRegistry(service.project_root).load(execution.data["task"])
-            print(yaml.safe_dump({"runtimeReceipt":"created","execution":execution.data["metadata"]["id"],"status":execution.data["status"],"intent":task["intent"]["type"],"mutating":task["intent"]["type"] in MUTATING,"workflow":execution.data["workflow"],"task":execution.data["task"],"nextPhase":execution.next_phase()["id"],"taskLog":str(service.project_root/".ai"/"runtime"/"tasks"/task["metadata"]["id"]/"events.jsonl")},sort_keys=False))
+            print(yaml.safe_dump({"runtimeReceipt":"created","execution":execution.data["metadata"]["id"],"status":execution.data["status"],"intent":task["intent"]["type"],"mutating":task["intent"]["type"] in MUTATING,"workflow":execution.data["workflow"],"task":execution.data["task"],"nextPhase":execution.next_phase()["id"],"taskLog":str(runtime_root(service.project_root, service.project)/"tasks"/task["metadata"]["id"]/"events.jsonl")},sort_keys=False))
         return 0
     if args.command == "task":
         project_root=find_project(Path(args.project))
