@@ -252,7 +252,7 @@ The **README** provides:
 
 This **INDEX** provides:
 - Organized navigation by task and use case
-- All 34 reference documents
+- All 35 reference documents
 - Cross-references between related docs
 - Where to start based on your role
 
