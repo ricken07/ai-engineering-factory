@@ -8,6 +8,7 @@ import json
 import os
 
 import yaml
+from .config import get_api_version
 
 
 class LeaseConflict(RuntimeError):
@@ -31,13 +32,14 @@ class ExecutionLease:
     def read(self) -> dict[str, Any] | None:
         return yaml.safe_load(self.path.read_text(encoding="utf-8")) if self.path.is_file() else None
 
-    def acquire(self, owner: str, ttl_seconds: int = 300) -> dict[str, Any]:
+    def acquire(self, owner: str, ttl_seconds: int = 300, factory: Path | None = None) -> dict[str, Any]:
         if not owner.strip(): raise ValueError("lease owner is required")
         current = self.read()
         now = _now()
         if current and datetime.fromisoformat(current["expiresAt"]) > now and current["owner"] != owner:
             raise LeaseConflict(f"execution is leased by {current['owner']} until {current['expiresAt']}")
-        lease = {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"ExecutionLease",
+        api_version = get_api_version(factory) if factory else "aief.dev/v1alpha1"
+        lease = {"apiVersion": api_version,"kind":"ExecutionLease",
                  "metadata":{"id":f"lease-{self.path.parent.name}"},"execution":self.path.parent.name,
                  "owner":owner,"acquiredAt":now.isoformat(),"expiresAt":(now+timedelta(seconds=ttl_seconds)).isoformat(),"status":"active"}
         payload = yaml.safe_dump(lease, sort_keys=False).encode()
@@ -76,7 +78,7 @@ class OperationJournal:
         encoded=json.dumps({"kind":kind,"payload":payload},sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
         return hashlib.sha256(encoded).hexdigest()
 
-    def execute(self, operation_id: str, kind: str, payload: dict[str, Any], action: Callable[[], Any]) -> tuple[Any, bool]:
+    def execute(self, operation_id: str, kind: str, payload: dict[str, Any], action: Callable[[], Any], factory: Path | None = None) -> tuple[Any, bool]:
         if not operation_id or "/" in operation_id or ".." in operation_id: raise ValueError("invalid operationId")
         path=self.root/f"{operation_id}.yaml"; fingerprint=self.fingerprint(kind,payload)
         if path.is_file():
@@ -84,7 +86,8 @@ class OperationJournal:
             if existing["fingerprint"] != fingerprint: raise IdempotencyConflict(f"operationId {operation_id} was already used with different input")
             if existing["status"] == "completed": return existing["result"], True
             if existing["status"] == "running": raise IdempotencyConflict(f"operationId {operation_id} is already running")
-        pending={"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"RuntimeOperation","metadata":{"id":operation_id},
+        api_version = get_api_version(factory) if factory else "aief.dev/v1alpha1"
+        pending={"apiVersion": api_version,"kind":"RuntimeOperation","metadata":{"id":operation_id},
                  "execution":self.root.parent.name,"operationId":operation_id,"operationKind":kind,
                  "fingerprint":fingerprint,"status":"running","startedAt":_now().isoformat()}
         encoded=yaml.safe_dump(pending,sort_keys=False).encode()

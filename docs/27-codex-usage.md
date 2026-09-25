@@ -1,40 +1,40 @@
-# 27 — Utiliser la Factory avec Codex
+# 27 — Using Factory with Codex
 
-Ce guide décrit le parcours Codex complet, depuis l'installation de l'adapter
-jusqu'au diagnostic d'une exécution. Le guide général d'installation reste
+This guide describes the complete Codex journey, from adapter installation
+to execution diagnosis. The general installation guide is still
 [`22-project-installation-guide.md`](22-project-installation-guide.md).
 
-## 1. Syntaxe à retenir
+## 1. Syntax to Remember
 
-Codex et Claude Code n'utilisent pas la même syntaxe native :
-
-```text
-Codex       $implement Feature 1.2 — Distinguer répondu/évalué/correct
-Claude      /implement Feature 1.2 — Distinguer répondu/évalué/correct
-```
-
-Dans Codex, `/implement` est invalide. Le préfixe `/` est réservé aux commandes
-intégrées proposées par l'interface Codex. Les Skills Factory s'invoquent avec
-`$`, ou simplement en langage naturel :
+Codex and Claude Code do not use the same native syntax:
 
 ```text
-$fix Corrige le mapping du statut FAILED.
-
-Implémente Feature 1.2 en respectant le workflow Factory.
+Codex       $implement Feature 1.2 — Distinguish answered/evaluated/correct
+Claude      /implement Feature 1.2 — Distinguish answered/evaluated/correct
 ```
 
-Les deux formulations doivent produire la même chaîne
-`Task → Workflow → Execution`. La commande native précise seulement l'intention.
+In Codex, `/implement` is invalid. The `/` prefix is reserved for commands
+built into the Codex interface. Factory Skills are invoked with
+`$`, or simply in natural language:
 
-## 2. Préparer le poste
+```text
+$fix Fix the status mapping.
 
-Définir le chemin absolu de la Factory dans le profil du shell :
+Implement Feature 1.2 respecting the Factory workflow.
+```
+
+Both formulations must produce the same
+`Task → Workflow → Execution`. The native command only clarifies the intent.
+
+## 2. Prepare the Workstation
+
+Define the absolute path to the Factory in the shell profile:
 
 ```bash
 export GAD_AI_FACTORY_HOME="/absolute/path/to/ai-engineering-factory"
 ```
 
-Vérifier ensuite le CLI et la Factory :
+Then verify the CLI and the Factory:
 
 ```bash
 printenv GAD_AI_FACTORY_HOME
@@ -42,19 +42,19 @@ aief --help
 test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
 ```
 
-La configuration du shell sert à l'onboarding et à la résolution initiale.
-Pendant un workflow, l'adapter doit résoudre cette valeur une fois puis fournir
-aux commandes `aief` un chemin absolu littéral.
+Shell configuration serves onboarding and initial resolution.
+During a workflow, the adapter must resolve this value once then provide
+`aief` commands with a literal absolute path.
 
-## 3. Installer l'adapter Codex
+## 3. Install the Codex Adapter
 
-Prévisualiser d'abord l'installation :
+First preview the installation:
 
 ```bash
 aief setup-adapter codex --factory "$GAD_AI_FACTORY_HOME"
 ```
 
-Puis créer les liens gérés par la Factory :
+Then create the links managed by the Factory:
 
 ```bash
 aief setup-adapter codex \
@@ -62,23 +62,23 @@ aief setup-adapter codex \
   --execute
 ```
 
-Les Skills sont exposés dans `~/.agents/skills/`. Vérifier au minimum :
+Skills are exposed in `~/.agents/skills/`. Verify at minimum:
 
 ```bash
 test -f "$HOME/.agents/skills/implement/SKILL.md"
 ls -la "$HOME/.agents/skills/implement"
 ```
 
-Le lien doit cibler
-`<FACTORY_HOME>/adapters/codex/skills/implement`. Les projets ne copient pas les
-Skills et les adapters ne recopient pas les workflows du Core.
+The link must target
+`<FACTORY_HOME>/adapters/codex/skills/implement`. Projects do not copy
+Skills and adapters do not recopy Core workflows.
 
-Codex découvre les Skills au démarrage. Après une installation ou une mise à
-jour, fermer complètement la session en cours puis en ouvrir une nouvelle.
+Codex discovers Skills at startup. After installation or update,
+close the current session completely then open a new one.
 
-## 4. Préparer le projet
+## 4. Prepare the Project
 
-Depuis la racine contenant `.ai/project.yaml`, vérifier les fichiers suivants :
+From the root containing `.ai/project.yaml`, verify the following files:
 
 ```text
 AGENTS.md
@@ -88,7 +88,7 @@ AGENTS.md
 .codex/rules/factory.rules
 ```
 
-Pour un projet qui n'a pas encore les fichiers Codex :
+For a project that does not yet have Codex files:
 
 ```bash
 mkdir -p .codex/rules
@@ -98,10 +98,10 @@ cp "$GAD_AI_FACTORY_HOME/templates/project/.codex/rules/factory.rules" \
   .codex/rules/factory.rules
 ```
 
-Reviewer et commiter ces fichiers avec la configuration projet. Ne jamais y
-placer de token, mot de passe ou endpoint secret.
+Review and commit these files with project configuration. Never
+place tokens, passwords or secret endpoints in them.
 
-Pour un projet sans task manager ou MCP, vérifier également :
+For a project without task manager or MCP, also verify:
 
 ```yaml
 integrations: {}
@@ -109,64 +109,70 @@ taskTracking:
   mode: local
 ```
 
-`local` conserve toutes les exigences de traçabilité dans `.ai/runtime`, y
-compris lorsque la policy calcule `required`. `external` exige au contraire un
-`task-provider` et une référence liée. Codex ne doit jamais décider lui-même de
-changer ce mode.
+`local` keeps all traceability requirements in `.ai/runtime`, even
+when policy calculates `required`. `external` instead requires a
+`task-provider` and a linked reference. Codex must never decide on its own to
+change this mode.
 
-Codex ne charge la configuration `.codex/` d'un projet qu'après établissement
-de la confiance pour ce repository. Accepter cette confiance uniquement après
-inspection du repository, de `AGENTS.md`, de `.codex/config.toml` et des règles.
+Codex loads a project's `.codex/` configuration only after establishing
+trust for that repository. Accept this trust only after
+inspecting the repository, `AGENTS.md`, `.codex/config.toml` and the rules.
 
-## 5. Démarrer Codex
+## 5. Start Codex
 
-Toujours démarrer depuis la racine du workspace Factory :
+Always start from the root of the Factory workspace:
 
 ```bash
 cd "/absolute/path/to/project"
 codex
 ```
 
-Dans la session, parcourir les Skills disponibles avec `/skills`, puis lancer
-une première analyse non mutante :
+In the session, browse available Skills with `/skills`, then launch
+a first non-mutating analysis:
 
 ```text
-$analyze Analyse l'architecture actuelle sans modifier le code.
+$analyze Analyze the current architecture without modifying the code.
 ```
 
-Les intentions disponibles sont :
+Available intents are:
 
-| Intention | Invocation Codex | Workflow Factory |
+| Intent | Codex invocation | Factory workflow |
 | --- | --- | --- |
-| Analyse | `$analyze ...` | `analyze-task` |
-| Implémentation | `$implement ...` | `implement-task` |
-| Correction | `$fix ...` | `fix-bug` |
+| Analysis | `$analyze ...` | `analyze-task` |
+| Implementation | `$implement ...` | `implement-task` |
+| Fix | `$fix ...` | `fix-bug` |
 | Refactoring | `$refactor ...` | `refactor-code` |
 | Tests | `$test ...` | `add-tests` |
 | Review | `$review ...` | `review-change` |
 | Documentation | `$document ...` | `update-documentation` |
-| Capitalisation | `$promote ...` | `promote-knowledge` |
+| Capitalization | `$promote ...` | `promote-knowledge` |
 
-## 6. Ce que doit faire l'adapter
+## 6. What the Adapter Must Do
 
-Pour `$implement`, le Skill Codex appelle le Runtime commun avec l'intention et
-le workflow attendus :
+For `$implement`, the Codex Skill calls the common Runtime with the intent and
+expected workflow:
 
 ```text
-$implement <demande>
+$implement <request>
   ↓
 Codex Skill implement
   ↓
 aief run --agent codex --intent implement
+         --agent-session codex:<session-id>
          --expect-workflow implement-task
   ↓
-reçu Runtime persistant
+persistent Runtime receipt
   ↓
-boucle execution next / complete-phase
+execution next / complete-phase loop
 ```
 
-Avant toute lecture approfondie du code ou modification, la sortie doit
-contenir un reçu réel similaire à :
+After the receipt, Codex acquires the Execution lease with
+`--owner codex:<session-id>` and supplies that owner to each mutating command.
+The session flag alone is `OBSERVED`; the matching active lease is the Runtime
+mechanism that establishes `TRUSTED` producer/reviewer identity.
+
+Before any deep code reading or modification, the output must
+contain a real receipt similar to:
 
 ```yaml
 runtimeReceipt: created
@@ -178,17 +184,17 @@ nextPhase: understand
 taskLog: <project>/.ai/runtime/tasks/<task-id>/events.jsonl
 ```
 
-`Successfully loaded skill` indique seulement que Codex a chargé le fichier
-`SKILL.md`. Ce message ne prouve pas que la Task ou l'Execution existe. Sans
-reçu Runtime, l'agent doit s'arrêter avant de modifier le code.
+`Successfully loaded skill` only indicates that Codex loaded the
+`SKILL.md` file. This message does not prove the Task or Execution exists. Without
+a Runtime receipt, the agent must stop before modifying code.
 
-Les Skills internes du Core ne sont pas des Skills natifs Codex. L'adapter ne
-doit donc jamais tenter `$understand`, `$analyze-impact` ou `$create-plan`. Il
-lit les contrats renvoyés par `aief execution next`.
+The Core's internal Skills are not Codex native Skills. The adapter must
+never attempt `$understand`, `$analyze-impact` or `$create-plan`. It
+reads the contracts returned by `aief execution next`.
 
-## 7. Permissions Codex
+## 7. Codex Permissions
 
-La baseline projet utilise :
+The project baseline uses:
 
 ```toml
 approval_policy = "on-request"
@@ -198,10 +204,9 @@ sandbox_mode = "workspace-write"
 network_access = false
 ```
 
-Les règles de `.codex/rules/factory.rules` autorisent les inspections
-déterministes, demandent une confirmation pour les actions gouvernées et
-interdisent les commandes Git destructrices. Vérifier les décisions avant
-adoption :
+The rules in `.codex/rules/factory.rules` authorize deterministic inspections,
+request confirmation for governed actions and forbid destructive Git commands. Verify decisions before
+adoption:
 
 ```bash
 codex execpolicy check --pretty \
@@ -213,11 +218,10 @@ codex execpolicy check --pretty \
   -- aief execution approve exec-example
 ```
 
-Le résultat attendu est respectivement `forbidden` puis `prompt`. Une
-approbation native Codex ne remplace jamais un gate humain Factory.
+The expected result is `forbidden` then `prompt` respectively. A
+native Codex approval never replaces a Factory human gate.
 
-Les appels Runtime générés par l'adapter doivent contenir des arguments
-littéraux :
+Runtime calls generated by the adapter must contain literal arguments:
 
 ```bash
 aief execution next <execution-id> \
@@ -226,13 +230,13 @@ aief execution next <execution-id> \
   --json
 ```
 
-Ne pas utiliser `$(pwd)`, `${GAD_AI_FACTORY_HOME}`, `cd ... &&`, une
-redirection ou un pipe dans ces commandes. Ces constructions empêchent
-l'analyse statique fiable et provoquent des demandes de permission inutiles.
+Do not use `$(pwd)`, `${GAD_AI_FACTORY_HOME}`, `cd ... &&`, a
+redirection or a pipe in these commands. These constructions prevent
+reliable static analysis and cause unnecessary permission requests.
 
-## 8. Vérifier l'exécution
+## 8. Verify Execution
 
-Dans un autre terminal, inspecter l'état persistant :
+In another terminal, inspect the persistent state:
 
 ```bash
 aief task log <task-id> \
@@ -244,20 +248,20 @@ aief execution inspect <execution-id> \
   --factory "/absolute/path/to/factory"
 ```
 
-Le journal sous `.ai/runtime/tasks/<task-id>/events.jsonl` doit montrer
-l'intention, le workflow, les phases, les décisions de policy, les gates et les
-validations. La conversation Codex n'est pas la source de vérité.
+The journal under `.ai/runtime/tasks/<task-id>/events.jsonl` must show
+intent, workflow, phases, policy decisions, gates and
+validations. The Codex conversation is not the source of truth.
 
-## 9. Dépannage
+## 9. Troubleshooting
 
 ### `Unrecognized command '/implement'`
 
-Ce comportement est normal dans Codex : utiliser `$implement`, pas
+This behavior is normal in Codex: use `$implement`, not
 `/implement`.
 
-### `$implement` n'est pas proposé ou chargé
+### `$implement` is not offered or loaded
 
-Vérifier :
+Verify:
 
 ```bash
 test -f "$HOME/.agents/skills/implement/SKILL.md"
@@ -265,30 +269,30 @@ ls -la "$HOME/.agents/skills/implement"
 test -f "$GAD_AI_FACTORY_HOME/adapters/codex/runtime-protocol.md"
 ```
 
-Si nécessaire, réinstaller l'adapter avec `setup-adapter ... --execute`, fermer
-Codex, puis relancer une nouvelle session depuis la racine du projet.
+If necessary, reinstall the adapter with `setup-adapter ... --execute`, close
+Codex, then restart a new session from the project root.
 
-### Le Skill est chargé mais aucune Execution n'existe
+### The Skill is loaded but no Execution exists
 
-Arrêter toute modification. Vérifier `aief`, `GAD_AI_FACTORY_HOME`,
-`.ai/project.yaml` et la version de Factory demandée. Le Skill doit obtenir un
-`runtimeReceipt`; une affirmation conversationnelle ne suffit pas.
+Stop any modification. Verify `aief`, `GAD_AI_FACTORY_HOME`,
+`.ai/project.yaml` and the requested Factory version. The Skill must obtain a
+`runtimeReceipt`; a conversational assertion is not enough.
 
-### La configuration `.codex/` semble ignorée
+### The `.codex/` configuration appears to be ignored
 
-Vérifier que Codex a déclaré le repository de confiance, que la session a été
-démarrée à la bonne racine et qu'elle a été relancée après la modification de
-la configuration.
+Verify that Codex declared the repository as trusted, that the session was
+started at the correct root and that it was restarted after configuration
+modification.
 
-### Codex demande une permission à chaque commande Factory
+### Codex requests permission for every Factory command
 
-Vérifier les règles projet, puis contrôler que l'adapter utilise des chemins
-absolus littéraux. Une commande contenant `$(pwd)` ou `${...}` ne correspond
-pas proprement aux règles déterministes.
+Verify project rules, then confirm that the adapter uses literal
+absolute paths. A command containing `$(pwd)` or `${...}` does not
+match deterministic rules properly.
 
-### `PROVIDER_NOT_CONFIGURED` alors qu'aucun task manager n'est souhaité
+### `PROVIDER_NOT_CONFIGURED` when no task manager is desired
 
-Vérifier `.ai/project.yaml`. La configuration attendue est :
+Verify `.ai/project.yaml`. The expected configuration is:
 
 ```yaml
 taskTracking:
@@ -296,26 +300,25 @@ taskTracking:
 integrations: {}
 ```
 
-Après modification et review, demander à Codex de reprendre la même Execution.
-L'adapter appelle `aief execution next`; le Runtime réévalue la décision locale
-et retire l'ancien blocage. Ne jamais modifier manuellement les fichiers sous
+After review and modification, ask Codex to resume the same Execution.
+The adapter calls `aief execution next`; the Runtime reevaluates the local decision
+and removes the old blockage. Never manually modify files under
 `.ai/runtime`.
 
-Si le blocage suivant devient `workspace-preparation-required`, la
-configuration de tracking est correcte : Codex doit maintenant préparer le
-worktree via `aief workspace prepare ... --execute`, après l'autorisation
-native attendue.
+If the next blockage becomes `workspace-preparation-required`, the
+tracking configuration is correct: Codex must now prepare the
+worktree via `aief workspace prepare ... --execute`, after the
+expected native authorization.
 
 ### `url is not supported for stdio`
 
-Le bloc `gitlab` contient probablement à la fois une ancienne configuration
-HTTP (`url`) et une configuration STDIO (`command`). Supprimer le doublon et
-conserver une seule définition `mcp_servers.gitlab`. Les configurations
-utilisateur (`~/.codex/config.toml`) et projet (`.codex/config.toml`) portant le
-même nom peuvent être fusionnées par Codex et produire cette erreur.
+The `gitlab` block probably contains both an old
+HTTP configuration (`url`) and a STDIO configuration (`command`). Remove the duplicate and
+keep a single `mcp_servers.gitlab` definition. Codex can merge user (` ~/.codex/config.toml`) and project (`.codex/config.toml`) configurations bearing the
+same name, producing this error.
 
-Pour l'authentification OAuth GitLab avec les versions Codex concernées par
-`Authorization server issuer mismatch`, le bloc attendu est :
+For GitLab OAuth authentication with Codex versions affected by
+`Authorization server issuer mismatch`, the expected block is:
 
 ```toml
 [mcp_servers.gitlab]
@@ -323,47 +326,47 @@ command = "npx"
 args = ["-y", "mcp-remote@0.1.26", "https://gitlab.com/api/v4/mcp", "--static-oauth-client-metadata", '{"scope":"mcp"}']
 ```
 
-La version `mcp-remote` est figée pour rendre le démarrage reproductible. Avec
-ce transport, ne pas lancer `codex mcp login gitlab` : le navigateur OAuth est
-ouvert par le pont au démarrage de Codex.
+The `mcp-remote` version is frozen to make startup reproducible. With
+this transport, do not run `codex mcp login gitlab`: the OAuth browser is
+opened by the bridge at Codex startup.
 
-### `404 Not Found` avec GitLab MCP
+### `404 Not Found` with GitLab MCP
 
-L'URL `https://gitlab.com/api/v4/mcp` est l'URL officielle. Sur GitLab.com, un
-`404` après l'authentification indique généralement que le serveur MCP n'est
-pas activé pour un groupe racine auquel l'utilisateur appartient. Un Owner doit
-activer GitLab Duo, les fonctionnalités beta/expérimentales et l'accès MCP sur
-le groupe racine. L'activation dans un sous-groupe seul ne suffit pas.
+The URL `https://gitlab.com/api/v4/mcp` is the official URL. On GitLab.com, a
+`404` after authentication usually indicates that the MCP server is
+not enabled for a root group the user belongs to. An Owner must
+enable GitLab Duo, beta/experimental features and MCP access on
+the root group. Enabling in a subgroup alone is not sufficient.
 
-### Cache OAuth MCP obsolète
+### Stale OAuth MCP Cache
 
-Si une ancienne autorisation est réutilisée, nettoyer uniquement le cache du
-pont puis relancer Codex :
+If old authorization is being reused, clean only the bridge's
+cache then restart Codex:
 
 ```bash
 rm -rf ~/.mcp-auth/mcp-remote*
 ```
 
-## 10. Checklist minimale
+## 10. Minimal Checklist
 
-- [ ] `GAD_AI_FACTORY_HOME` pointe vers la version attendue.
-- [ ] `aief` est disponible dans le `PATH`.
-- [ ] `~/.agents/skills/implement/SKILL.md` existe.
-- [ ] La session Codex a été redémarrée après installation des Skills.
-- [ ] Codex est lancé depuis la racine contenant `.ai/project.yaml`.
-- [ ] `taskTracking.mode` correspond au système de traçabilité réellement voulu.
-- [ ] En mode `external`, un `task-provider` est configuré ; en mode `local`,
-      `.ai/runtime` est disponible et ignoré par Git.
-- [ ] Le repository et sa configuration `.codex/` ont été inspectés puis
-      déclarés de confiance.
-- [ ] `$analyze` crée un reçu Runtime et ne modifie pas le code.
-- [ ] `$implement` résout `implement-task` et commence par `understand`.
-- [ ] Les logs apparaissent dans `.ai/runtime/tasks/<task-id>/events.jsonl`.
-- [ ] `/implement` n'est jamais utilisé dans Codex.
+- [ ] `GAD_AI_FACTORY_HOME` points to the expected version.
+- [ ] `aief` is available in `PATH`.
+- [ ] `~/.agents/skills/implement/SKILL.md` exists.
+- [ ] Codex session was restarted after Skill installation.
+- [ ] Codex is launched from the root containing `.ai/project.yaml`.
+- [ ] `taskTracking.mode` matches the traceability system actually desired.
+- [ ] In `external` mode, a `task-provider` is configured; in `local` mode,
+      `.ai/runtime` is available and ignored by Git.
+- [ ] Repository and its `.codex/` configuration have been inspected then
+      declared as trusted.
+- [ ] `$analyze` creates a Runtime receipt and does not modify code.
+- [ ] `$implement` resolves `implement-task` and begins with `understand`.
+- [ ] Logs appear in `.ai/runtime/tasks/<task-id>/events.jsonl`.
+- [ ] `/implement` is never used in Codex.
 
-## 11. Références officielles OpenAI
+## 11. Official OpenAI References
 
-- Skills Codex : <https://developers.openai.com/codex/skills>
-- Configuration Codex : <https://developers.openai.com/codex/config-basic>
-- Règles de commandes : <https://developers.openai.com/codex/rules>
-- Instructions `AGENTS.md` : <https://developers.openai.com/codex/guides/agents-md>
+- Codex Skills: <https://developers.openai.com/codex/skills>
+- Codex Configuration: <https://developers.openai.com/codex/config-basic>
+- Command Rules: <https://developers.openai.com/codex/rules>
+- `AGENTS.md` Instructions: <https://developers.openai.com/codex/guides/agents-md>

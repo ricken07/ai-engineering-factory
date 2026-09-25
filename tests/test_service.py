@@ -26,7 +26,7 @@ def test_runtime_service_creates_schema_valid_execution_and_handoff(tmp_path: Pa
     initialize(Path("templates/project"), project)
     execution = RuntimeService(project, Path(".")).start("/implement EGW-142", "codex")
     assert not list(validator("execution.schema.json").iter_errors(execution.data))
-    handoff = yaml.safe_load(execution.handoff().read_text())
+    handoff = yaml.safe_load(execution.handoff(Path(".")).read_text())
     assert not list(validator("handoff.schema.json").iter_errors(handoff))
     assert execution.next_phase()["id"] == "understand"
 
@@ -42,19 +42,21 @@ def test_task_log_traces_workflow_and_structured_phase_decisions(tmp_path: Path)
     service.complete_phase(execution_id, output)
     events = service.task_events("DEMO-42")
 
-    assert [item["event"] for item in events] == [
-        "task.normalized", "workflow.started", "phase.prepared", "phase.completed"
+    assert [item["event"]["type"] for item in events] == [
+        "request.created", "intent.resolved", "task.normalized", "workflow.started",
+        "phase.started", "phase.completed",
     ]
-    assert events[1]["execution"] == execution_id
-    assert events[1]["data"]["workflow"]["id"] == "analyze-task"
-    assert events[-1]["data"]["artifact"] == "understand.yaml"
-    assert events[-1]["summary"] == output["summary"]
+    assert events[3]["execution"]["id"] == execution_id
+    assert events[3]["payload"]["workflow"]["id"] == "analyze-task"
+    assert events[-1]["payload"]["artifact"] == "understand.yaml"
+    assert events[-1]["payload"]["summary"] == output["summary"]
+    assert all(item["task"]["id"] == "DEMO-42" for item in events)
     assert (project / ".ai/runtime/tasks/DEMO-42/events.jsonl").is_file()
 
 
 def test_gate_persists_phase_output_before_waiting(tmp_path: Path):
     workflow = {"metadata":{"id":"demo","version":"1.0.0"},"phases":[{"id":"plan","skill":"create-plan","gate":{"id":"before-implementation","type":"human-approval"}}]}
-    execution = __import__("aief.runtime", fromlist=["Execution"]).Execution.create(tmp_path, workflow, "TASK-1")
+    execution = __import__("aief.runtime", fromlist=["Execution"]).Execution.create(tmp_path, Path("."), workflow, "TASK-1")
     assert execution.advance({"summary":"approved scope"}) == "waiting-approval"
     assert (execution.root / "plan.yaml").is_file()
     assert execution.advance(approved=True) == "completed"
@@ -76,7 +78,7 @@ def test_runtime_reassesses_and_persists_tracking(tmp_path: Path):
     project = tmp_path / "project"
     initialize(Path("templates/project"), project)
     service = RuntimeService(project, Path("."))
-    intake = service.intake("Ajoute une capacité de paiement")
+    intake = service.intake("Ajoute une capacité de paiement", confirmed=True)
     task_id = intake["task"]["metadata"]["id"]
     result = service.reassess_tracking(task_id, {"risk":"high","repositories":["api","app"],"changeTypes":["source-code"]})
     assert result["decision"]["level"] == "required"
@@ -177,7 +179,7 @@ def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
     project_data["repositories"].append({"id":"secondary","path":".","role":"application","profiles":["generic"],"responsibilities":[],"dependencies":[],"criticalDomains":[]})
     (project/".ai/project.yaml").write_text(yaml.safe_dump(project_data,sort_keys=False))
     service=RuntimeService(project,Path("."))
-    execution=service.start("Corrige un problème de paiement")
+    execution=service.start("Corrige un problème de paiement",confirmed=True)
     for phase in execution.data["phases"]:
         if phase["skill"] == "analyze-impact": break
         phase["status"]="completed"
@@ -195,7 +197,7 @@ def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
 
 def test_mutating_workflow_rejects_impact_without_repositories_before_advancing(tmp_path: Path):
     project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
-    execution=service.start("Implémente une évolution locale")
+    execution=service.start("Implémente une évolution locale",confirmed=True)
     for phase in execution.data["phases"]:
         if phase["skill"] == "analyze-impact": break
         phase["status"]="completed"
@@ -212,7 +214,7 @@ def test_mutating_workflow_rejects_impact_without_repositories_before_advancing(
 
 def test_impact_rejects_unknown_repository_identifier(tmp_path: Path):
     project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
-    execution=service.start("Implémente une évolution locale")
+    execution=service.start("Implémente une évolution locale",confirmed=True)
     for phase in execution.data["phases"]:
         if phase["skill"] == "analyze-impact": break
         phase["status"]="completed"
@@ -227,7 +229,7 @@ def test_task_registry_rejects_duplicate_yaml_keys(tmp_path: Path):
     project=tmp_path/"project"; initialize(Path("templates/project"),project)
     task_root=project/".ai/runtime/tasks/local-duplicate"; task_root.mkdir(parents=True)
     (task_root/"task.yaml").write_text(
-        "apiVersion: factory.gaddigital.io/v1alpha1\nkind: Task\nmetadata: {id: local-duplicate}\n"
+        "apiVersion: aief.dev/v1alpha1\nkind: Task\nmetadata: {id: local-duplicate}\n"
         "objective: {summary: demo}\nscope: {repositories: [main]}\nscope: {repositories: []}\n",
         encoding="utf-8",
     )
@@ -244,7 +246,7 @@ def test_implementation_phase_is_blocked_until_workspace_is_prepared(tmp_path: P
     subprocess.run(["git","config","user.name","Factory Test"],cwd=project,check=True)
     subprocess.run(["git","add","."],cwd=project,check=True)
     subprocess.run(["git","commit","-m","baseline"],cwd=project,check=True,capture_output=True)
-    service=RuntimeService(project,Path(".")); execution=service.start("Refactore le composant local")
+    service=RuntimeService(project,Path(".")); execution=service.start("Refactore le composant local",confirmed=True)
     task=TaskRegistry(project).load(execution.data["task"]); task["scope"]={"repositories":["main"]}; TaskRegistry(project).save(task)
     service.reassess_tracking(task["metadata"]["id"],{"risk":"low","repositories":["main"],"changeTypes":["refactoring"]})
     for phase in execution.data["phases"]:

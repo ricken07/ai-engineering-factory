@@ -15,6 +15,11 @@ aief execution lease release <execution-id> --owner codex:session-42
 
 The acquisition uses atomic file creation. Another owner is rejected until the lease is released or expires. The active lease is persisted as `lease.yaml` under the Execution directory and validates against `ExecutionLease`.
 
+The lease is Execution-scoped because linked worktrees resolve the same
+canonical Project State Store. Its identity is the Execution ID, not the
+current directory or worktree path. Independent Executions, including two for
+the same Task, have independent leases.
+
 When a lease exists, mutating calls must present the matching owner. Existing projects without an acquired lease remain compatible, while adapters are expected to acquire one before engineering execution.
 
 ## Replay-safe transitions
@@ -56,6 +61,11 @@ aief execution lease acquire <execution-id> --owner codex:session-42
 
 Conversation state is never used to establish ownership or decide whether an operation already completed.
 
+Changing agent or worktree path does not move state: the receiver resolves the
+same canonical Project, reads the persisted handoff, then acquires the released
+Execution lease. The Execution keeps its existing workspace binding; a missing
+or wrong workspace blocks instead of being silently rebound.
+
 ## Failure behavior
 
 - active lease owned by another session: `BLOCK`;
@@ -68,3 +78,9 @@ Conversation state is never used to establish ownership or decide whether an ope
 - contradictory repeated approval: `FAIL`.
 
 This increment intentionally does not add distributed scheduling, background workers, automatic agent routing or cross-machine locking.
+
+Lease-bound owner identities are the Runtime's trusted session mechanism for
+producer/reviewer comparison. A free-form owner supplied without an active,
+matching lease is only observed, not trusted. Timing accumulators are persisted
+with Execution state; replayed operations and repeated gate decisions do not
+add their historical duration a second time.

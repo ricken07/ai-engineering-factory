@@ -1,10 +1,10 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Project
 metadata:
   id: replace-me
   name: Replace Me
 factory:
-  version: 1.15.0
+  version: 1.0.0
   homeEnv: GAD_AI_FACTORY_HOME
 workspace:
   strategy: monorepo
@@ -13,6 +13,14 @@ workspaceSafety:
   mode: require-clean
   baseBranch: main
   taskBranchPrefix: aief
+activation:
+  # auto: a native command (/implement, $implement, ...) always runs directly;
+  #   free text asks the developer for explicit confirmation before routing
+  #   through the Factory, and is handled directly by the agent otherwise.
+  # manual: the Factory is off by default; a native command still activates it,
+  #   but only for that single execution; free text never routes through the
+  #   Factory.
+  mode: auto
 repositories:
   - id: main
     path: .

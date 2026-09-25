@@ -17,7 +17,7 @@ def _project(tmp_path: Path) -> Path:
 
 def _task(project: Path, identifier: str, **fields) -> None:
     TaskRegistry(project).save({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "Task",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "Task",
         "metadata": {"id": identifier}, "source": {"type": "local"}, "nature": "change",
         "intent": {"type": "implement", "confidence": "high"},
         "objective": {"summary": f"Objective of {identifier}"},
@@ -29,7 +29,7 @@ def _execution(project: Path, identifier: str, task: str, status: str) -> None:
     root = project / ".ai" / "runtime" / "executions" / identifier
     root.mkdir(parents=True, exist_ok=True)
     (root / "execution.yaml").write_text(yaml.safe_dump({
-        "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "Execution",
+        "apiVersion": "aief.dev/v1alpha1", "kind": "Execution",
         "metadata": {"id": identifier}, "project": "local-project", "task": task,
         "workflow": {"id": "implement-task", "version": "1.0.0"},
         "status": status, "phases": [], "artifacts": [],

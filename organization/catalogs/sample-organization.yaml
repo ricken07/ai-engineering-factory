@@ -1,0 +1,14 @@
+apiVersion: aief.dev/v1alpha1
+kind: OrganizationCatalog
+metadata:
+  id: sample-organization
+  name: Sample Organization Engineering Catalog
+  version: 1.0.0
+extends:
+  - factory-default@1.0.0
+practiceRefs:
+  - sample-organization-guidelines@1.0.0
+profileBindings: {}
+policy:
+  maximumAutonomy: L3
+  requiredGates: [organization-change-review]

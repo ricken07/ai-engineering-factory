@@ -1,27 +1,27 @@
-# 28 — GitLab Issues et Issue Board
+# 28 — GitLab Issues and Issue Board
 
-## Cible
+## Goal
 
-GitLab Issues peut porter les Tasks durables tandis qu'un Issue Board fournit
-une vue de pilotage. Le Core ne connaît ni GitLab ni les noms de ses outils : il
-demande exclusivement la capability `task-provider`.
+GitLab Issues can carry durable Tasks while an Issue Board provides a
+governance view. The Core knows neither GitLab nor its tool names: it
+requests only the `task-provider` capability.
 
 ```text
-Task locale ou référence GitLab
+Local Task or GitLab reference
   → task-provider
   → Integration Resolver
-  → mapping d'opération vérifié
+  → verified operation mapping
   → GitLab MCP
   → GitLab Issue
-  → labels de workflow
+  → workflow labels
   → Issue Board
 ```
 
-## Périmètre du MCP GitLab natif
+## Native GitLab MCP Scope
 
-Le catalogue central mappe uniquement les opérations actuellement vérifiées :
+The central catalog maps only currently verified operations:
 
-| Factory | Outil GitLab MCP |
+| Factory | GitLab MCP Tool |
 | --- | --- |
 | `get-task` | `get_issue` |
 | `search-task` | `search` |
@@ -30,17 +30,16 @@ Le catalogue central mappe uniquement les opérations actuellement vérifiées :
 | `link-task` | `link_work_items` |
 | `link-change` | `link_work_items` |
 
-`update-task` n'est pas annoncé par le provider natif. Une tentative de le
-résoudre retourne `CAPABILITY_UNSUPPORTED`. Il n'existe aucun fallback REST
-silencieux.
+`update-task` is not announced by the native provider. Attempting to
+resolve it returns `CAPABILITY_UNSUPPORTED`. There is no silent REST fallback.
 
-Pour supporter ultérieurement `update-task`, l'organisation doit fournir un
-provider/gateway MCP gouverné qui implémente explicitement l'opération. Les
-Skills Core restent inchangés.
+To support `update-task` later, the organization must provide a
+governed MCP provider/gateway that explicitly implements the operation. Core
+Skills remain unchanged.
 
-## Configuration projet
+## Project Configuration
 
-Le projet active seulement les capabilities et son modèle de Task :
+The project activates only capabilities and its Task model:
 
 ```yaml
 integrations:
@@ -50,7 +49,7 @@ integrations:
 
 taskTracking:
   mode: external
-  namespace: Gad-Digital-IT/products/emi-ai
+  namespace: example-organization/emmany
   referenceFormat: container-iid
   workflowStates:
     - workflow::backlog
@@ -62,38 +61,37 @@ taskTracking:
     - workflow::backlog
 ```
 
-`namespace`, les labels et le format de référence sont du contexte projet. URL,
-transport et authentification MCP restent dans le catalogue organisationnel et
-les adapters.
+`namespace`, labels and reference format are project context. URL,
+transport and MCP authentication remain in the organization catalog and
+adapters.
 
-## Références polyrepo
+## Polyrepo References
 
-Une référence `#42` est ambiguë dans un workspace polyrepo. Utiliser :
-
-```text
-Gad-Digital-IT/products/emi-ai/app#42
-```
-
-ou l'URL complète :
+A `#42` reference is ambiguous in a polyrepo workspace. Use:
 
 ```text
-https://gitlab.com/Gad-Digital-IT/products/emi-ai/app/-/issues/42
+example-organization/emmany/egw-api#42
 ```
 
-Le Runtime conserve la référence complète comme identité canonique.
+or the full URL:
 
-## Création et board
+```text
+https://gitlab.com/example-organization/emmany/egw-api/-/issues/42
+```
 
-Une `ExternalTaskProposal` peut sélectionner le projet GitLab cible et les
-labels :
+The Runtime preserves the complete reference as canonical identity.
+
+## Creation and Board
+
+An `ExternalTaskProposal` can select the target GitLab project and labels:
 
 ```yaml
 kind: ExternalTaskProposal
 sourceTask: local-...
-title: Corriger le contrat Homework
+title: Fix the Homework contract
 description: ...
 acceptanceCriteria: [...]
-repositories: [emi-ai-api, emi-ai-app]
+repositories: [egw-api, egw-app]
 risk: high
 target:
   container: app
@@ -102,17 +100,17 @@ labels:
   - component::backend
 ```
 
-Le Runtime ajoute le namespace et les `defaultLabels`. La création reste
-interdite avant la recherche de doublons et le human gate. Une Issue créée avec
-`workflow::backlog` apparaît dans la liste correspondante du board.
+The Runtime adds the namespace and `defaultLabels`. Creation remains
+forbidden before duplicate search and human gate. An Issue created with
+`workflow::backlog` appears in the corresponding board list.
 
-## Authentification
+## Authentication
 
-Le MCP officiel GitLab utilise OAuth. Claude Code peut utiliser directement le
-transport HTTP natif. Avec certaines versions de Codex CLI, `codex mcp login
-gitlab` échoue avec une erreur `Authorization server issuer mismatch`.
+The official GitLab MCP uses OAuth. Claude Code can use the native HTTP
+transport directly. With certain Codex CLI versions, `codex mcp login gitlab`
+fails with `Authorization server issuer mismatch`.
 
-Dans ce cas, utiliser le pont OAuth STDIO `mcp-remote` :
+In that case, use the OAuth STDIO bridge `mcp-remote`:
 
 ```toml
 [mcp_servers.gitlab]
@@ -120,26 +118,25 @@ command = "npx"
 args = ["-y", "mcp-remote@0.1.26", "https://gitlab.com/api/v4/mcp", "--static-oauth-client-metadata", '{"scope":"mcp"}']
 ```
 
-La version est volontairement figée afin d'éviter une mise à jour implicite
-d'une dépendance tierce sur le chemin d'authentification. Le navigateur
-s'ouvre au démarrage de Codex ; `codex mcp login gitlab` n'est pas nécessaire
-avec cette configuration.
+The version is deliberately pinned to prevent implicit updates to a third-party
+dependency on the authentication path. The browser opens at Codex startup;
+`codex mcp login gitlab` is not needed with this configuration.
 
-Il ne doit exister qu'une seule définition `mcp_servers.gitlab`. Ne mélangez
-jamais `url`/`bearer_token_env_var` (HTTP Bearer) et `command`/`args` (STDIO)
-dans le même bloc. Une configuration utilisateur dans `~/.codex/config.toml`
-et une configuration projet dans `.codex/config.toml` portant le même nom
-peuvent également être fusionnées par Codex.
+There must be only one `mcp_servers.gitlab` definition. Never mix
+`url`/`bearer_token_env_var` (HTTP Bearer) and `command`/`args` (STDIO) in
+the same block. A user configuration in `~/.codex/config.toml` and a
+project configuration in `.codex/config.toml` with the same name can also be
+merged by Codex.
 
-Après modification, vérifier depuis la racine du projet :
+After modification, verify from the project root:
 
 ```bash
 codex mcp list
 codex
 ```
 
-Le token GitLab n'est pas écrit dans le projet. Avec OAuth `mcp-remote`, il est
-conservé dans le cache d'authentification local du pont MCP.
+The GitLab token is not written to the project. With OAuth `mcp-remote`, it is
+kept in the MCP bridge's local authentication cache.
 
 ## Validation
 
@@ -149,5 +146,5 @@ aief integrations doctor "$PROJECT_ROOT" --factory "$AIEF_HOME"
 aief validate "$PROJECT_ROOT" --factory "$AIEF_HOME"
 ```
 
-Avant la première mutation, vérifier en lecture seule la version MCP, une Issue
-existante, une recherche de work items et les labels du namespace.
+Before the first mutation, verify read-only the MCP version, an existing Issue,
+work item search and namespace labels.

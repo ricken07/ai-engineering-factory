@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/runtime-event.schema.json",
+  "type": "object",
+  "required": ["event", "factory", "project", "task", "payload"],
+  "properties": {
+    "event": {
+      "type": "object",
+      "required": ["id", "type", "timestamp"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {
+          "enum": [
+            "request.created", "intent.resolved", "task.normalized", "workflow.started",
+            "phase.started", "phase.completed", "phase.failed",
+            "policy.evaluated", "policy.reclassified",
+            "gate.requested", "gate.approved", "gate.rejected",
+            "workspace.prepared", "workspace.blocked",
+            "integration.resolved", "integration.failed",
+            "execution.completed", "execution.failed", "execution.cancelled"
+          ]
+        },
+        "timestamp": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "factory": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {"version": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {"id": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "task": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {"id": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {"id": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

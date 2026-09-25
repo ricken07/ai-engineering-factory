@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/project.schema.json",
+  "$id": "https://aief.dev/schemas/project.schema.json",
   "type": "object",
   "required": [
     "apiVersion",
@@ -12,7 +12,7 @@
   ],
   "properties": {
     "apiVersion": {
-      "const": "factory.gaddigital.io/v1alpha1"
+      "const": "aief.dev/v1alpha1"
     },
     "kind": {
       "const": "Project"
@@ -62,6 +62,17 @@
         "mode": {"type":"string", "enum":["require-clean", "worktree"], "default":"require-clean"},
         "baseBranch": {"type":"string", "default":"main"},
         "taskBranchPrefix": {"type":"string", "default":"aief"}
+      },
+      "additionalProperties": false
+    },
+    "activation": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "manual"],
+          "default": "auto"
+        }
       },
       "additionalProperties": false
     },
@@ -149,7 +160,11 @@
     },
     "policyRefs": {
       "$ref": "common.schema.json#/$defs/stringArray"
-    }
+    },
+    "policy": {"$ref":"#/$defs/policyConstraint"}
+  },
+  "$defs": {
+    "policyConstraint": {"type":"object","properties":{"risk":{"$ref":"common.schema.json#/$defs/riskLevel"},"maximumAutonomy":{"$ref":"common.schema.json#/$defs/autonomyLevel"},"allowedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"deniedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"requiredGates":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false}
   },
   "additionalProperties": false
 }

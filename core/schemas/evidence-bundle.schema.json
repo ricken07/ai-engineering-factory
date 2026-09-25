@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/evidence-bundle.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "task", "execution", "references", "governance", "identity", "verification", "gates", "metrics", "reproducibility", "finalArtifacts", "fingerprint"],
+  "properties": {
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
+    "kind": {"const": "EvidenceBundle"},
+    "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
+    "task": {"type": "string"},
+    "execution": {"type": "string"},
+    "references": {"type": "array", "items": {"type": "object"}},
+    "governance": {"type": "object"},
+    "identity": {"type": "object"},
+    "verification": {"type": "object"},
+    "gates": {"type": "array"},
+    "metrics": {"$ref": "experimental-metrics.schema.json"},
+    "reproducibility": {"type": "object"},
+    "finalArtifacts": {"type": "array", "items": {"type": "string"}},
+    "fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

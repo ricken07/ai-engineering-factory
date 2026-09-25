@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aief.dev/schemas/actor-identity.schema.json",
+  "type": "object",
+  "required": ["id", "type", "source", "assurance"],
+  "properties": {
+    "id": {"type": ["string", "null"]},
+    "type": {"enum": ["agent", "runtime", "human", "provider"]},
+    "source": {"enum": ["runtime-session", "adapter", "authenticated-human", "runtime", "provider", "artifact"]},
+    "assurance": {"enum": ["DECLARED", "OBSERVED", "TRUSTED", "UNVERIFIED"]},
+    "session": {"type": "string"},
+    "adapter": {"type": "string"},
+    "execution": {"type": "string"},
+    "model": {"type": "string"},
+    "role": {"type": "string"}
+  },
+  "additionalProperties": false
+}

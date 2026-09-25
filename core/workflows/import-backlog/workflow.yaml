@@ -1,4 +1,4 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Workflow
 metadata:
   id: import-backlog

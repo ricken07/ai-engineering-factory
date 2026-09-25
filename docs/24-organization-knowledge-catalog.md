@@ -1,84 +1,69 @@
-# 24 — Ajouter la connaissance de l’organisation
+# 24 — Adding Organization Knowledge
 
-## Objectif
+## Purpose
 
-La connaissance organisationnelle doit être écrite une fois, versionnée,
-gouvernée par des contrats Factory et composée avec les conventions propres à
-chaque projet et repository.
+Organizational knowledge must be written once, versioned, governed by Factory contracts, and composed with conventions specific to each project and repository.
 
 ```text
-Repository documentaire organisationnel
-  → catalogue épinglé dans Factory/organization/catalogs
-  → manifestes Practice
-  → Profiles et activations explicites
+Organization documentation repository
+  → catalog pinned in Factory/organization/catalogs
+  → Practice manifests
+  → Profiles and explicit activations
   → Project / Repository / Task specializations
   → EffectiveEngineeringContext
   → Core Skill
-  → Claude Code ou Codex
+  → Claude Code or Codex
 ```
 
-Les fichiers sous `organization/catalogs/` et `organization/practices/` sont
-des extensions optionnelles. Ils ne constituent pas une organisation implicite
-de la Factory. Pour créer un catalogue propre à une organisation, partir du
-modèle [`templates/organization/catalog.yaml`](../templates/organization/catalog.yaml)
-et du manifeste `Practice` présenté plus bas, puis le sélectionner
-explicitement dans le projet.
+Files under `organization/catalogs/` and `organization/practices/` are optional extensions. They do not constitute an implicit organization of the Factory. To create a catalog specific to an organization, start with the template [`templates/organization/catalog.yaml`](../templates/organization/catalog.yaml) and the `Practice` manifest presented below, then select it explicitly in the project.
 
-Le Core reste agnostique : il définit seulement le contrat `Practice` et les
-catégories de contexte consommées par les Skills.
+The Core remains agnostic: it only defines the `Practice` contract and the context categories consumed by Skills.
 
-Ce catalogue de connaissances ne doit pas être confondu avec le catalogue des
-intégrations. Les conventions et pratiques vivent sous `organization/`; les
-providers GitLab, GitHub, Jira ou Confluence vivent sous `integrations/`.
-L'organisation gouverne les deux, mais un projet ne fait qu'en sélectionner les
-éléments autorisés. Le modèle MCP complet est défini dans
-[`13-agent-adapters-and-mcp.md`](13-agent-adapters-and-mcp.md).
+This knowledge catalog must not be confused with the integrations catalog. Conventions and practices live under `organization/`; providers GitLab, GitHub, Jira or Confluence live under `integrations/`. The organization governs both, but a project only selects the elements it is authorized to use. The complete MCP model is defined in [`13-agent-adapters-and-mcp.md`](13-agent-adapters-and-mcp.md).
 
-## Sources et responsabilités
+## Sources and Responsibilities
 
-| Niveau | Responsabilité |
+| Level | Responsibility |
 | --- | --- |
-| Dépôt guidelines | Contenu humain de référence et historique éditorial |
-| `organization/catalogs/` | Révision exacte de la source installée avec la Factory |
-| Manifeste `Practice` | Version, catégorie, enforcement, applicabilité et override |
-| `OrganizationCatalog` | Liste des Practices, héritage et bindings par Profile |
-| Profile | Détection et connaissance technique, sans préférence d’organisation |
-| Projet | Sélection explicite des catalogues et conventions propres au projet |
-| Repository | Activation liée à son rôle et spécialisation locale |
-| Task | Contrainte temporaire gouvernée, jamais mémoire globale |
+| Guidelines repository | Human reference content and editorial history |
+| `organization/catalogs/` | Exact revision of the source installed with Factory |
+| `Practice` manifest | Version, category, enforcement, applicability and override |
+| `OrganizationCatalog` | List of Practices, inheritance and bindings by Profile |
+| Profile | Detection and technical knowledge, with no organization preference |
+| Project | Explicit selection of catalogs and conventions specific to the project |
+| Repository | Activation tied to its role and local specialization |
+| Task | Governed temporary constraint, never global memory |
 
-## Pourquoi utiliser un sous-module
+## Why Use a Submodule
 
-Un chemin absolu tel que `/Users/.../gd-extensions/guidelines` varie selon le
-poste, échappe au catalogue sécurisé et rend le contexte non reproductible. Une
-copie manuelle diverge rapidement de la source.
+An absolute path such as `/Users/.../gd-extensions/guidelines` varies by workstation, escapes the secure catalog, and makes the context non-reproducible. A manual copy quickly diverges from the source.
 
-Le sous-module conserve :
+The submodule preserves:
 
-- une source Git autonome ;
-- un commit exact dans chaque version de Factory ;
-- une installation reproductible ;
-- des mises à jour explicites et reviewables ;
-- un fingerprint de contenu stable dans l’EffectiveEngineeringContext.
+- an autonomous Git source;
+- an exact commit in each Factory version;
+- reproducible installation;
+- explicit and reviewable updates;
+- a stable content fingerprint in EffectiveEngineeringContext.
 
-Installation :
+Installation:
 
 ```bash
 git clone --recurse-submodules <FACTORY_REPOSITORY_URL> <FACTORY_HOME>
 ```
 
-Clone existant :
+Existing clone:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-## Déclarer un catalogue configurable
+## Declaring a Configurable Catalog
 
-Une Factory peut embarquer plusieurs catalogues sans en imposer un globalement :
+A Factory can embed multiple catalogs without imposing one globally:
 
 ```yaml
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: OrganizationCatalog
 metadata:
   id: example-organization
@@ -92,11 +77,9 @@ profileBindings:
   java: [example-java-guidelines@1.0.0]
 ```
 
-Le catalogue `factory-default` constitue un socle optionnel. Une organisation
-peut l’étendre, sélectionner plusieurs catalogues compatibles ou fournir un
-catalogue entièrement indépendant.
+The `factory-default` catalog is an optional foundation. An organization can extend it, select multiple compatible catalogs, or provide an entirely independent catalog.
 
-Le projet choisit explicitement :
+The project chooses explicitly:
 
 ```yaml
 engineering:
@@ -105,16 +88,14 @@ engineering:
     - example-organization@1.0.0
 ```
 
-Le Runtime résout les parents, vérifie les versions, refuse les cycles et inclut
-la provenance des catalogues dans le fingerprint du contexte effectif.
+The Runtime resolves parents, verifies versions, rejects cycles, and includes catalog provenance in the effective context fingerprint.
 
-## Transformer un document en Practice
+## Converting a Document into a Practice
 
-Un Markdown seul n’est pas chargé par le Runtime. Il doit être exposé par un
-manifeste YAML situé sous `organization/` :
+Markdown alone is not loaded by the Runtime. It must be exposed by a YAML manifest located under `organization/`:
 
 ```yaml
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Practice
 metadata:
   id: organization-api-guidelines
@@ -134,17 +115,13 @@ override:
 tags: [java, spring, api]
 ```
 
-Le chemin du document est relatif au manifeste et doit rester à l’intérieur de
-`organization/`. Le Runtime rejette les documents absents ou les chemins qui
-échappent à ce catalogue.
+The document path is relative to the manifest and must remain within `organization/`. The Runtime rejects missing documents or paths that escape this catalog.
 
-## Choisir l’enforcement
+## Choosing Enforcement
 
 ### `mandatory`
 
-Règle applicable automatiquement et non surchargeable. À réserver aux
-invariants réellement universels : secrets, sécurité, obligations réglementaires
-ou baseline qualité organisationnelle.
+Rule applied automatically and not overrideable. Reserved for truly universal invariants: secrets, security, regulatory obligations, or organizational quality baseline.
 
 ```yaml
 enforcement: mandatory
@@ -153,8 +130,7 @@ override: {allowed: false}
 
 ### `default`
 
-Pratique héritée lorsqu’un Profile la référence. Elle peut être spécialisée
-uniquement si `override.allowed` vaut `true`.
+Practice inherited when a Profile references it. Can be specialized only if `override.allowed` is `true`.
 
 ```yaml
 enforcement: default
@@ -163,19 +139,16 @@ override: {allowed: true}
 
 ### `optional`
 
-Pratique disponible mais activée explicitement. C’est le bon choix pour une
-architecture ou un rôle qui ne concerne pas tous les repositories d’une stack :
-API contractuelle, APP en couches, architecture hexagonale ou event-driven.
+Practice available but activated explicitly. Good choice for an architecture or role that does not concern all repositories in a stack: contractual API, layered APP, hexagonal or event-driven architecture.
 
 ```yaml
 enforcement: optional
 override: {allowed: false}
 ```
 
-## Binding par Profile sans coupler les Profiles
+## Profile Binding Without Coupling Profiles
 
-Les Profiles restent indépendants des organisations. C’est le catalogue qui
-associe une pratique générale à une technologie :
+Profiles remain independent of organizations. The catalog associates a general practice with a technology:
 
 ```yaml
 # organization/catalogs/example-organization.yaml
@@ -186,11 +159,9 @@ profileBindings:
     - example-spring-guidelines@1.0.0
 ```
 
-Une architecture propre aux repositories `*-api` ou `*-app` ne doit pas être
-activée par le seul Profile Spring : les deux rôles utilisent la même stack.
-Elle doit rester `optional` et être sélectionnée au niveau repository.
+An architecture specific to `*-api` or `*-app` repositories must not be activated by the Spring Profile alone: both roles use the same stack. It must remain `optional` and be selected at the repository level.
 
-## Activation par projet et repository
+## Project and Repository Activation
 
 ```yaml
 engineering:
@@ -213,13 +184,11 @@ repositories:
           mode: enable
 ```
 
-Le suffixe `@version` fait échouer explicitement la résolution si la Factory
-installée expose une autre version de la pratique.
+The `@version` suffix explicitly fails resolution if the installed Factory exposes a different version of the practice.
 
-### Organisation uniquement au niveau d’un projet
+### Organization Only at Project Level
 
-Un projet qui ne dépend d’aucun catalogue organisationnel peut désactiver cette
-couche sans désactiver ses propres conventions :
+A project that depends on no organizational catalog can disable this layer without disabling its own conventions:
 
 ```yaml
 engineering:
@@ -232,13 +201,11 @@ engineering:
       ref: .ai/context/architecture.md
 ```
 
-Dans ce cas, seules les pratiques locales explicites et les documents de
-contexte projet sont transmis aux Skills. Aucun catalogue organisationnel
-n’est chargé implicitement.
+In this case, only explicit local practices and project context documents are sent to Skills. No organizational catalog is loaded implicitly.
 
-## Ajouter une convention propre au projet
+## Adding Project-Specific Convention
 
-Les conventions locales restent dans `.ai/context/` et complètent le catalogue :
+Local conventions stay in `.ai/context/` and complement the catalog:
 
 ```yaml
 repositories:
@@ -251,7 +218,7 @@ repositories:
           ref: .ai/context/repositories/product-app-conventions.md
 ```
 
-Une spécialisation autorisée d’une pratique existante utilise `override` :
+An authorized specialization of an existing practice uses `override`:
 
 ```yaml
 engineering:
@@ -261,33 +228,29 @@ engineering:
       ref: .ai/context/java-development-specialization.md
 ```
 
-Avec `inheritance.strategy: merge`, le contenu organisationnel est conservé et
-la spécialisation locale est ajoutée. Avec `replace`, seul le document local est
-fourni. Une pratique `mandatory` ou protégée reste non surchargeable.
+With `inheritance.strategy: merge`, organizational content is preserved and local specialization is added. With `replace`, only the local document is provided. A `mandatory` or protected practice remains non-overrideable.
 
-## Chargement progressif
+## Progressive Loading
 
-Chaque Core Skill demande uniquement les catégories utiles :
+Each Core Skill requests only the useful categories:
 
 ```yaml
 engineeringContext:
   requires: [architecture, convention, security, testing]
 ```
 
-Le Runtime filtre ensuite par Profile, Skill, projet et repository. Un guide
-Java n’est pas envoyé à Flutter ; une pratique de review n’est pas chargée
-pendant `understand-task`.
+The Runtime then filters by Profile, Skill, project, and repository. A Java guide is not sent to Flutter; a review practice is not loaded during `understand-task`.
 
-## Mise à jour du catalogue
+## Updating the Catalog
 
-1. modifier et reviewer le dépôt documentaire source ;
-2. idéalement créer un tag de guidelines ;
-3. mettre à jour le sous-module sur une branche Factory ;
-4. incrémenter la version des Practices dont le contenu ou la gouvernance change ;
-5. mettre à jour les références `@version` des projets concernés ;
-6. exécuter `aief validate` et les tests de contexte ;
-7. publier une nouvelle version de Factory ;
-8. mettre à niveau les projets explicitement.
+1. modify and review the source documentation repository;
+2. optionally create a guidelines tag;
+3. update the submodule on a Factory branch;
+4. increment the version of Practices whose content or governance changes;
+5. update the `@version` references of affected projects;
+6. run `aief validate` and context tests;
+7. publish a new Factory version;
+8. upgrade projects explicitly.
 
 ```bash
 git -C organization/catalogs/guidelines fetch --tags
@@ -297,21 +260,20 @@ aief validate .
 pytest -q
 ```
 
-Ne suivez jamais silencieusement la branche principale du dépôt documentaire
-depuis une installation déjà publiée.
+Never silently follow the main branch of the documentation repository from an already-published installation.
 
-## Contrôles avant publication
+## Pre-Publication Checks
 
-- [ ] identifiant de Practice unique et stable ;
-- [ ] identifiant et version de catalogue stables ;
-- [ ] héritage de catalogue sans cycle ;
-- [ ] version cohérente avec le contenu ;
-- [ ] catégorie consommée par les Skills attendus ;
-- [ ] profiles et skills d’applicabilité minimaux ;
-- [ ] enforcement justifié ;
-- [ ] override explicitement autorisé ou interdit ;
-- [ ] document résolu sous `organization/` ;
-- [ ] sous-module épinglé sur un commit connu ;
-- [ ] activation repository testée ;
-- [ ] contexte effectif inspecté et fingerprinté ;
-- [ ] aucune règle projet dupliquée dans le catalogue organisationnel.
+- [ ] unique and stable Practice identifier;
+- [ ] stable catalog identifier and version;
+- [ ] catalog inheritance without cycles;
+- [ ] version consistent with content;
+- [ ] category consumed by expected Skills;
+- [ ] minimal profiles and skills applicability;
+- [ ] enforcement justified;
+- [ ] override explicitly allowed or forbidden;
+- [ ] document resolved under `organization/`;
+- [ ] submodule pinned on a known commit;
+- [ ] repository activation tested;
+- [ ] effective context inspected and fingerprinted;
+- [ ] no project rules duplicated in organizational catalog.

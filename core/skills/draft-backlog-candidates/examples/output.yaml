@@ -4,7 +4,7 @@ evidence:
   - "specifications/payment-callbacks.md: epic and task extracted from the acceptance-criteria section"
 unknowns: []
 candidates:
-  - apiVersion: factory.gaddigital.io/v1alpha1
+  - apiVersion: aief.dev/v1alpha1
     kind: ExternalTaskProposal
     metadata: {id: cand-payment-callbacks-epic}
     sourceImport: import-specifications-1a2b3c4d
@@ -16,7 +16,7 @@ candidates:
     repositories: []
     risk: medium
     labels: [payments]
-  - apiVersion: factory.gaddigital.io/v1alpha1
+  - apiVersion: aief.dev/v1alpha1
     kind: ExternalTaskProposal
     metadata: {id: cand-payment-callbacks-task-1}
     sourceImport: import-specifications-1a2b3c4d

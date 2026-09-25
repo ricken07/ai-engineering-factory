@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/adapter.schema.json",
+  "$id": "https://aief.dev/schemas/adapter.schema.json",
   "type": "object",
   "required": [
     "apiVersion",
@@ -11,7 +11,7 @@
   ],
   "properties": {
     "apiVersion": {
-      "const": "factory.gaddigital.io/v1alpha1"
+      "const": "aief.dev/v1alpha1"
     },
     "kind": {
       "const": "AgentAdapter"

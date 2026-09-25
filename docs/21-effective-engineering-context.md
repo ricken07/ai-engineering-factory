@@ -18,6 +18,12 @@ Organization mandatory/default practices
 
 The most local layer wins only when the referenced practice allows it. A mandatory practice cannot be disabled or overridden by Project, Repository or Task.
 
+## Isolation from unreferenced organization catalogs
+
+Resolving a project's context only requires the organization catalogs that project actually selects (`engineering.organizationCatalogs`, transitively through `extends`). A Practice document that belongs to a catalog the project does not reference — for example one backed by an external source that is not checked out in a given environment — never blocks resolution. Every organization Practice manifest is still parsed and checked for structural validity (unique id, document path confined to `organization/`) regardless of which catalogs are selected, but the referenced document's presence on disk is only enforced at the point a practice is actually selected by a resolved catalog. A project that never opts into a broken or unavailable catalog is unaffected by it; a project that does select it still fails closed with the same explicit `practice document is missing` error.
+
+Whole-package validation (`aief validate --package`, used when publishing the Factory itself) is intentionally not scoped this way: it checks that every Practice manifest shipped in the package resolves to a real document, since that is a packaging defect independent of any one project's usage.
+
 ## Progressive loading
 
 Each Core Skill declares the categories it consumes:

@@ -7,6 +7,19 @@ import re
 import uuid
 import yaml
 from .yamlio import load_yaml
+from .project import runtime_root
+from .config import get_api_version
+
+
+class ActivationRequired(RuntimeError):
+    """A natural-language request needs explicit human confirmation before the
+    Factory activates (`activation.mode: auto`, the default)."""
+
+
+class ActivationDeclined(RuntimeError):
+    """A natural-language request was submitted while Factory activation is
+    disabled (`activation.mode: manual`); only a native command activates it,
+    and only for its own execution."""
 
 
 INTENT_WORKFLOWS = {
@@ -40,12 +53,13 @@ def _identifier(prefix: str) -> str:
     return f"{prefix}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
 
 
-def create_request(text: str, agent: str | None = None) -> dict[str, Any]:
+def create_request(text: str, factory: Path | None = None, agent: str | None = None) -> dict[str, Any]:
     if not text.strip():
         raise ValueError("request text must not be empty")
     match = COMMAND.match(text)
+    api_version = get_api_version(factory) if factory else "aief.dev/v1alpha1"
     data: dict[str, Any] = {
-        "apiVersion": "factory.gaddigital.io/v1alpha1",
+        "apiVersion": api_version,
         "kind": "Request",
         "metadata": {"id": _identifier("request")},
         "text": text.strip(),
@@ -60,7 +74,7 @@ def create_request(text: str, agent: str | None = None) -> dict[str, Any]:
     return data
 
 
-def resolve_intent(request: dict[str, Any]) -> dict[str, Any]:
+def resolve_intent(request: dict[str, Any], factory: Path | None = None) -> dict[str, Any]:
     text = request["text"].lower()
     if request.get("command") in INTENT_WORKFLOWS:
         intent, confidence, source = request["command"], "high", "explicit-command"
@@ -77,8 +91,9 @@ def resolve_intent(request: dict[str, Any]) -> dict[str, Any]:
             intent, confidence, source = "analyze", "ambiguous", "conservative-fallback"
             reason = "no unique mutating intent was established; analysis is the safe default"
     reference = REFERENCE.search(request.get("arguments") or request["text"])
+    api_version = get_api_version(factory) if factory else "aief.dev/v1alpha1"
     return {
-        "apiVersion": "factory.gaddigital.io/v1alpha1",
+        "apiVersion": api_version,
         "kind": "IntentResolution",
         "metadata": {"id": _identifier("intent")},
         "request": request["metadata"]["id"],
@@ -93,7 +108,32 @@ def resolve_intent(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def normalize_task(request: dict[str, Any], resolution: dict[str, Any]) -> dict[str, Any]:
+def enforce_activation(resolution: dict[str, Any], mode: str, confirmed: bool) -> None:
+    """Gate Factory routing for non-command requests per `activation.mode`.
+
+    A native command (`source: explicit-command`) always activates the
+    Factory for its own execution, regardless of `mode`. Only natural-language
+    requests are gated: `manual` never routes them through the Factory;
+    `auto` (the default) requires explicit human confirmation first.
+    """
+    if resolution["source"] == "explicit-command":
+        return
+    if mode == "manual":
+        raise ActivationDeclined(
+            "activation.mode is 'manual': natural-language requests are not routed "
+            "through the Factory. Use a native command to activate it for this "
+            "execution, or handle this request directly without the Factory."
+        )
+    if mode == "auto" and not confirmed:
+        raise ActivationRequired(
+            "activation.mode is 'auto': ask the human whether this natural-language "
+            "request should be routed through the Factory. Retry with confirmed=True "
+            "only after an explicit yes; otherwise handle the request directly "
+            "without the Factory."
+        )
+
+
+def normalize_task(request: dict[str, Any], resolution: dict[str, Any], factory: Path | None = None) -> dict[str, Any]:
     reference = resolution.get("taskReference")
     task_id = reference or _identifier("local")
     intent = resolution["intent"]
@@ -101,8 +141,9 @@ def normalize_task(request: dict[str, Any], resolution: dict[str, Any]) -> dict[
     source: dict[str, str] = {"type": "issue", "reference": reference} if reference else {"type": "local"}
     if reference and ("/-/issues/" in reference or ("/" in reference and "#" in reference)):
         source["provider"]="gitlab"
+    api_version = get_api_version(factory) if factory else "aief.dev/v1alpha1"
     return {
-        "apiVersion": "factory.gaddigital.io/v1alpha1",
+        "apiVersion": api_version,
         "kind": "Task",
         "metadata": {"id": task_id},
         "source": source,
@@ -116,7 +157,7 @@ def normalize_task(request: dict[str, Any], resolution: dict[str, Any]) -> dict[
 
 class TaskRegistry:
     def __init__(self, project: Path):
-        self.root = project / ".ai" / "runtime" / "tasks"
+        self.root = runtime_root(project) / "tasks"
 
     def save(self, task: dict[str, Any]) -> Path:
         from .knowledge import safe_task_id

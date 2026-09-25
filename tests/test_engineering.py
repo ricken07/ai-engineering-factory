@@ -6,7 +6,8 @@ import yaml
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from aief.engineering import EngineeringContextError, PracticeConflict, resolve_engineering_context
+from aief.engineering import EngineeringContextError, PracticeConflict, load_practices, resolve_engineering_context
+from aief.validation import validate_project
 
 
 ROOT = Path(__file__).parents[1]
@@ -37,15 +38,13 @@ def test_organization_catalog_selection_changes_effective_practices():
     data=project()
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
     identifiers=practice_ids(context)
-    assert "gad-java-development-guidelines" not in identifiers
-    assert "gad-api-guidelines" not in identifiers
-    assert "gad-app-architecture" not in identifiers
+    assert "sample-organization-guidelines" not in identifiers
 
-    data["engineering"]["organizationCatalogs"]=["gad-digital@1.0.0"]
-    data["repositories"][0]["engineering"]={"practices":{"gad-api-guidelines@1.0.0":{"mode":"enable"}}}
+    data["engineering"]["organizationCatalogs"]=["sample-organization@1.0.0"]
+    data["repositories"][0]["engineering"]={"practices":{"sample-organization-guidelines@1.0.0":{"mode":"enable"}}}
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
-    assert {"gad-api-guidelines","gad-java-development-guidelines"} <= practice_ids(context)
-    assert [item["id"] for item in context["organizationCatalogs"]] == ["factory-default","gad-digital"]
+    assert "sample-organization-guidelines" in practice_ids(context)
+    assert [item["id"] for item in context["organizationCatalogs"]] == ["factory-default","sample-organization"]
 
 
 def test_project_can_use_only_local_knowledge_without_organization_catalog():
@@ -146,3 +145,96 @@ def test_impact_analysis_loads_architecture_and_security_but_not_review_or_testi
     assert context["categories"] == ["architecture","security"]
     assert "project-architecture" in practice_ids(context) and "secret-management" in practice_ids(context)
     assert "organization-code-review" not in practice_ids(context) and "testing-baseline" not in practice_ids(context)
+
+
+def test_java_spring_profiles_receive_relevant_practices_and_flutter_is_isolated():
+    api_context = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-api", "implement-change")
+    app_context = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-app", "implement-change")
+    assert {"java-coding-conventions", "spring-conventions"} <= practice_ids(api_context)
+    assert practice_ids(app_context).isdisjoint({"java-coding-conventions", "spring-conventions", "hexagonal-architecture"})
+
+
+def test_optional_practice_can_be_explicitly_disabled_without_conflict():
+    data = project()
+    baseline = resolve_engineering_context(ROOT, PROJECT_ROOT, data, "egw-api", "implement-change")
+    assert "api-design" in practice_ids(baseline)
+    data["engineering"]["practices"]["api-design"] = {"mode": "disable"}
+    context = resolve_engineering_context(ROOT, PROJECT_ROOT, data, "egw-api", "implement-change")
+    assert "api-design" not in practice_ids(context)
+    assert any(item == {"practice": "api-design", "action": "disable", "source": "project"} for item in context["resolutions"])
+
+
+def test_same_effective_context_is_produced_regardless_of_calling_agent():
+    import inspect
+    assert "agent" not in inspect.signature(resolve_engineering_context).parameters
+    claude = yaml.safe_load((ROOT / "adapters/claude-code/adapter.yaml").read_text())
+    codex = yaml.safe_load((ROOT / "adapters/codex/adapter.yaml").read_text())
+    assert claude["mappings"]["skills"]["implement-change"] == codex["mappings"]["skills"]["implement-change"]
+    assert claude["mappings"]["workflows"]["implement-task"] == codex["mappings"]["workflows"]["implement-task"]
+    first = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-api", "implement-change")
+    second = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-api", "implement-change")
+    assert first == second
+
+
+def test_progressive_loading_returns_far_fewer_practices_than_the_full_catalog():
+    catalog, _ = load_practices(ROOT, ["factory-default@1.0.0"])
+    context = resolve_engineering_context(ROOT, PROJECT_ROOT, project(), "egw-api", "implement-change")
+    organization_sourced = {item["id"] for item in context["practices"] if item["source"] == "organization"}
+    assert 0 < len(organization_sourced) < len(catalog)
+    assert "organization-code-review" in catalog and "organization-code-review" not in organization_sourced
+
+
+def test_missing_document_in_unreferenced_catalog_does_not_break_a_referenced_sibling(tmp_path):
+    organization = tmp_path / "organization"
+    (organization / "catalogs").mkdir(parents=True)
+    (organization / "practices" / "good").mkdir(parents=True)
+    (organization / "practices" / "broken").mkdir(parents=True)
+    (organization / "practices" / "good" / "practice.md").write_text("# Good practice\n")
+    (organization / "practices" / "good" / "practice.yaml").write_text(yaml.safe_dump({
+        "apiVersion": "aief.dev/v1alpha1", "kind": "Practice",
+        "metadata": {"id": "good-practice", "name": "Good", "version": "1.0.0"},
+        "category": "convention", "enforcement": "default",
+        "document": {"path": "practice.md"}, "override": {"allowed": True},
+    }))
+    (organization / "practices" / "broken" / "practice.yaml").write_text(yaml.safe_dump({
+        "apiVersion": "aief.dev/v1alpha1", "kind": "Practice",
+        "metadata": {"id": "broken-practice", "name": "Broken", "version": "1.0.0"},
+        "category": "convention", "enforcement": "optional",
+        "document": {"path": "missing.md"}, "override": {"allowed": True},
+    }))
+    (organization / "catalogs" / "good-catalog.yaml").write_text(yaml.safe_dump({
+        "apiVersion": "aief.dev/v1alpha1", "kind": "OrganizationCatalog",
+        "metadata": {"id": "good-catalog", "name": "Good", "version": "1.0.0"},
+        "extends": [], "practiceRefs": ["good-practice@1.0.0"],
+    }))
+    (organization / "catalogs" / "broken-catalog.yaml").write_text(yaml.safe_dump({
+        "apiVersion": "aief.dev/v1alpha1", "kind": "OrganizationCatalog",
+        "metadata": {"id": "broken-catalog", "name": "Broken", "version": "1.0.0"},
+        "extends": [], "practiceRefs": ["broken-practice@1.0.0"],
+    }))
+
+    selected, catalogs = load_practices(tmp_path, ["good-catalog@1.0.0"])
+    assert set(selected) == {"good-practice"}
+    assert [item["metadata"]["id"] for item in catalogs] == ["good-catalog"]
+
+    with pytest.raises(EngineeringContextError, match="practice document is missing: broken-practice"):
+        load_practices(tmp_path, ["broken-catalog@1.0.0"])
+
+
+def test_duplicate_practice_id_is_still_rejected_even_when_unreferenced(tmp_path):
+    organization = tmp_path / "organization" / "practices"
+    (tmp_path / "organization" / "catalogs").mkdir(parents=True)
+    for folder in ("first", "second"):
+        (organization / folder).mkdir(parents=True)
+        (organization / folder / "practice.yaml").write_text(yaml.safe_dump({
+            "apiVersion": "aief.dev/v1alpha1", "kind": "Practice",
+            "metadata": {"id": "dup", "name": "Dup", "version": "1.0.0"},
+            "category": "convention", "enforcement": "optional",
+            "document": {"path": "missing.md"}, "override": {"allowed": True},
+        }))
+    with pytest.raises(EngineeringContextError, match="duplicate organization practice: dup"):
+        load_practices(tmp_path, [])
+
+
+def test_validate_project_succeeds_for_project_using_only_factory_default():
+    assert validate_project(PROJECT_ROOT, ROOT) == []

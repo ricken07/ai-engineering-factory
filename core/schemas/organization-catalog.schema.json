@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/organization-catalog.schema.json",
+  "$id": "https://aief.dev/schemas/organization-catalog.schema.json",
   "type": "object",
   "required": ["apiVersion", "kind", "metadata", "practiceRefs"],
   "properties": {
-    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
     "kind": {"const": "OrganizationCatalog"},
     "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
     "extends": {"$ref": "common.schema.json#/$defs/stringArray"},
@@ -12,7 +12,8 @@
     "profileBindings": {
       "type": "object",
       "additionalProperties": {"$ref": "common.schema.json#/$defs/stringArray"}
-    }
+    },
+    "policy": {"type":"object","properties":{"risk":{"$ref":"common.schema.json#/$defs/riskLevel"},"maximumAutonomy":{"$ref":"common.schema.json#/$defs/autonomyLevel"},"allowedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"deniedActions":{"$ref":"common.schema.json#/$defs/stringArray"},"requiredGates":{"$ref":"common.schema.json#/$defs/stringArray"}},"additionalProperties":false}
   },
   "additionalProperties": false
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/policy-decision.schema.json",
+  "$id": "https://aief.dev/schemas/policy-decision.schema.json",
   "type": "object",
   "required": [
     "apiVersion",
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "apiVersion": {
-      "const": "factory.gaddigital.io/v1alpha1"
+      "const": "aief.dev/v1alpha1"
     },
     "kind": {
       "const": "PolicyDecision"
@@ -90,7 +90,9 @@
     },
     "matchedRules": {
       "$ref": "common.schema.json#/$defs/stringArray"
-    }
+    },
+    "provenance": {"type":"array","items":{"type":"object","required":["source","risk","maximumAutonomy"],"properties":{"source":{"type":"string"},"risk":{"$ref":"common.schema.json#/$defs/riskLevel"},"maximumAutonomy":{"$ref":"common.schema.json#/$defs/autonomyLevel"}},"additionalProperties":false}},
+    "fingerprint": {"type":"string","pattern":"^[a-f0-9]{64}$"}
   },
   "additionalProperties": false
 }

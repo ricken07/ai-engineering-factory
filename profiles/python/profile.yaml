@@ -1,0 +1,21 @@
+apiVersion: aief.dev/v1alpha1
+kind: Profile
+metadata:
+  id: python
+  name: Python
+  version: 0.1.0
+extends:
+- generic
+discovery:
+  files:
+  - pyproject.toml
+  - requirements.txt
+  - setup.py
+  - Pipfile
+commands: {}
+practices:
+- python-language-conventions
+policyRefs: []
+standardRefs:
+- validation
+- implementation

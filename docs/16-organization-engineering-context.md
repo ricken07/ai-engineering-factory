@@ -20,7 +20,7 @@ Core contracts
 Each practice consists of a YAML manifest and a Markdown document:
 
 ```yaml
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Practice
 metadata: {id: java-coding-conventions, version: 1.0.0}
 category: convention

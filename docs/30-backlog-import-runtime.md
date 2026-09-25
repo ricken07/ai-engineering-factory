@@ -41,7 +41,7 @@ standalone document, supplied with `--config`, answering the organization
 questions a backlog import must resolve before drafting starts:
 
 ```yaml
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: BacklogImportConfig
 metadata: {id: specifications-import}
 granularity: task

@@ -27,13 +27,13 @@ def service(tmp_path: Path, autonomy="L2"):
 
 
 def local_task(runtime: RuntimeService, text="Corrige le problème de callback MTN"):
-    intake=runtime.intake(text); identifier=intake["task"]["metadata"]["id"]
+    intake=runtime.intake(text,confirmed=True); identifier=intake["task"]["metadata"]["id"]
     runtime.reassess_tracking(identifier,{"risk":"high","repositories":["api","app"],"changeTypes":["functional-change"],"domains":["payment"]})
     return identifier
 
 
 def proposal(identifier):
-    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"ExternalTaskProposal","metadata":{"id":f"proposal-{identifier}"},"sourceTask":identifier,"title":"Fix MTN callback mapping","description":"FAILED callbacks remain PENDING.","acceptanceCriteria":["FAILED maps to FAILED"],"repositories":["api"],"risk":"high"}
+    return {"apiVersion":"aief.dev/v1alpha1","kind":"ExternalTaskProposal","metadata":{"id":f"proposal-{identifier}"},"sourceTask":identifier,"title":"Fix MTN callback mapping","description":"FAILED callbacks remain PENDING.","acceptanceCriteria":["FAILED maps to FAILED"],"repositories":["api"],"risk":"high"}
 
 
 def test_tracking_policy_optional_recommended_and_required():
@@ -47,7 +47,7 @@ def test_tracking_policy_optional_recommended_and_required():
 def test_local_tracking_satisfies_required_policy_without_provider(tmp_path):
     project=tmp_path/"project"; initialize(ROOT/"templates/project",project)
     runtime=RuntimeService(project,ROOT,{})
-    intake=runtime.intake("Implémente une évolution critique locale")
+    intake=runtime.intake("Implémente une évolution critique locale",confirmed=True)
     tracking=runtime.tracking.assess(
         intake["task"]["metadata"]["id"],
         {"risk":"critical","repositories":["main"],"changeTypes":["source-code"]},
@@ -67,7 +67,7 @@ def test_external_tracking_still_requires_provider_link(tmp_path):
 
 def test_switch_to_local_tracking_resumes_external_tracking_block(tmp_path):
     runtime=service(tmp_path); identifier=local_task(runtime)
-    execution=runtime.start("Corrige un autre problème local")
+    execution=runtime.start("Corrige un autre problème local",confirmed=True)
     execution.data["task"]=identifier
     execution.block({"type":"external-tracking-required","message":"external tracking required"})
     project_data=yaml.safe_load((runtime.project_root/".ai/project.yaml").read_text())
@@ -100,6 +100,9 @@ def test_provider_resolution_errors_are_explicit(tmp_path):
 
 def test_gitlab_native_provider_exposes_only_verified_task_operations(tmp_path):
     project=tmp_path/"project"; initialize(ROOT/"templates/project",project)
+    # Provider resolution intentionally verifies native adapter installation.
+    # Keep this fixture hermetic instead of depending on ~/.codex/config.toml.
+    (project/".codex/config.toml").write_text("[mcp_servers.gitlab]\nurl = 'https://gitlab.example/mcp'\n")
     data=yaml.safe_load((project/".ai/project.yaml").read_text())
     data["integrations"]={"task-provider":{"provider":"gitlab"}}
     data["taskTracking"]={"mode":"external"}
@@ -140,7 +143,7 @@ def test_unavailable_provider_resolution_is_persisted_without_fallback(tmp_path)
 
 def test_duplicate_search_requires_human_link_and_resumes_execution(tmp_path):
     runtime=service(tmp_path); identifier=local_task(runtime)
-    execution=runtime.start("Corrige un autre problème local")
+    execution=runtime.start("Corrige un autre problème local",confirmed=True)
     # Rebind this execution to the tracked task and position it before implementation.
     execution.data["task"]=identifier
     for phase in execution.data["phases"]:

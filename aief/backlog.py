@@ -7,10 +7,12 @@ from typing import Any, Callable
 import re
 import yaml
 
+from .config import get_api_version
 from .knowledge import safe_task_id
 from .provider_runtime import ProviderResolutionError, resolve_task_provider
 from .validation import assert_schema
 from .yamlio import load_yaml
+from .project import runtime_root
 
 
 DEFAULT_CONFIG = {
@@ -36,7 +38,7 @@ def _resolve_config(factory: Path, config_path: str | None) -> dict[str, Any]:
             raise ValueError("config document must have kind: BacklogImportConfig")
         assert_schema(factory, "backlog-import-config.schema.json", supplied)
     else:
-        supplied = {"apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "BacklogImportConfig", "metadata": {"id": "default"}}
+        supplied = {"apiVersion": get_api_version(factory), "kind": "BacklogImportConfig", "metadata": {"id": "default"}}
     overrides = {key: value for key, value in supplied.items() if key not in {"apiVersion", "kind", "metadata"}}
     config = {**supplied, **{**DEFAULT_CONFIG, **overrides}}
     assert_schema(factory, "backlog-import-config.schema.json", config)
@@ -81,7 +83,7 @@ class BacklogImportManager:
         self.project_root, self.factory, self.project, self.environment = project_root, factory, project, environment
 
     def _root(self, import_id: str) -> Path:
-        root = self.project_root / ".ai" / "runtime" / "backlog-imports" / safe_task_id(import_id)
+        root = runtime_root(self.project_root, self.project) / "backlog-imports" / safe_task_id(import_id)
         root.mkdir(parents=True, exist_ok=True)
         return root
 
@@ -108,7 +110,7 @@ class BacklogImportManager:
         resolved_source = source_path if source_path.is_absolute() else (self.project_root / source_path)
         files = _discover_sources(resolved_source, config["allowedSourceExtensions"])
         plan = {
-            "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "BacklogImportPlan", "metadata": {"id": import_id},
+            "apiVersion": get_api_version(self.factory), "kind": "BacklogImportPlan", "metadata": {"id": import_id},
             "source": source, "provider": provider, "config": config, "status": "discovering",
             "openQuestions": [], "sourceFiles": files, "candidates": [],
         }
@@ -208,7 +210,7 @@ class BacklogImportManager:
         provider = resolution["provider"]["id"]
         status = "waiting-approval" if approval_required else "pending"
         data = {
-            "apiVersion": "factory.gaddigital.io/v1alpha1", "kind": "ExternalOperation", "metadata": {"id": operation_id},
+            "apiVersion": get_api_version(self.factory), "kind": "ExternalOperation", "metadata": {"id": operation_id},
             "task": f"{import_id}:{candidate_id}", "provider": provider, "capability": "task-provider", "operation": operation,
             "status": status, "approval": {"required": approval_required, "status": "pending" if approval_required else "not-required"},
             "input": {**input_data, "operationId": operation_id},

@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/workspace-snapshot.schema.json",
+  "$id": "https://aief.dev/schemas/workspace-snapshot.schema.json",
   "type": "object",
   "required": ["apiVersion", "kind", "metadata", "capturedAt", "repositories", "decision"],
   "properties": {
-    "apiVersion": {"const": "factory.gaddigital.io/v1alpha1"},
+    "apiVersion": {"const": "aief.dev/v1alpha1"},
     "kind": {"const": "WorkspaceSnapshot"},
     "metadata": {"$ref": "common.schema.json#/$defs/metadata"},
     "capturedAt": {"type": "string", "format": "date-time"},
@@ -19,7 +19,26 @@
           "headCommit": {"type":"string"}, "baseCommit": {"type": "string"}, "baseBranch": {"type": "string"},
           "taskBranch": {"type": "string"},
           "changes": {"type": "array", "items": {"type": "string"}},
-          "conflicts": {"type": "array", "items": {"type": "string"}}
+          "conflicts": {"type": "array", "items": {"type": "string"}},
+          "workspaceBinding": {
+            "type": "object",
+            "required": ["workspaceId", "repositoryId", "strategy", "baseRevision", "currentRevision", "branch", "physicalLocation"],
+            "properties": {
+              "workspaceId": {"type": "string"},
+              "repositoryId": {"type": "string"},
+              "strategy": {"enum": ["worktree", "checkout", "container", "remote"]},
+              "baseRevision": {"type": "string"},
+              "currentRevision": {"type": "string"},
+              "branch": {"type": "string"},
+              "physicalLocation": {
+                "type": "object",
+                "required": ["value", "portability"],
+                "properties": {"value": {"type": "string"}, "portability": {"const": "LOCAL_ONLY"}},
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
         }, "additionalProperties": false
       }
     },

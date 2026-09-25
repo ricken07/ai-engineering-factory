@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 import os
 
+from .config import get_api_version
 from .integration_manager import target_path
 from .mcp import load_provider, project_bindings
 
@@ -53,4 +54,4 @@ def resolve_task_provider(factory: Path, project_root: Path, project: dict[str, 
         paths = [target_path(agent, project_root, "project"), target_path(agent, project_root, "user")]
         configured = any(path.is_file() and provider in path.read_text(encoding="utf-8") for path in paths)
         if not configured: raise ProviderResolutionError("MCP_NOT_CONFIGURED", f"provider {provider} is not configured for adapter {agent}")
-    return {"apiVersion":"factory.gaddigital.io/v1alpha1","kind":"IntegrationResolution","metadata":{"id":f"task-provider-{provider}"},"capability":"task-provider","provider":{"id":provider,"version":manifest["metadata"]["version"]},"status":"available","operations":sorted(capabilities["task-provider"]),"mcp":{"status":"available","transport":transport["type"],"toolHints":mcp.get("toolHints",[]),**({"operationMappings":operation_mappings} if operation_mappings else {})}}
+    return {"apiVersion":get_api_version(factory),"kind":"IntegrationResolution","metadata":{"id":f"task-provider-{provider}"},"capability":"task-provider","provider":{"id":provider,"version":manifest["metadata"]["version"]},"status":"available","operations":sorted(capabilities["task-provider"]),"mcp":{"status":"available","transport":transport["type"],"toolHints":mcp.get("toolHints",[]),**({"operationMappings":operation_mappings} if operation_mappings else {})}}

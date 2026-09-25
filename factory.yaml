@@ -1,9 +1,9 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Factory
 metadata:
   id: ai-engineering-factory
   name: AI Engineering Factory
-  version: 1.15.0
+  version: 1.0.0
 core:
   schemas: core/schemas
   policies: core/policies

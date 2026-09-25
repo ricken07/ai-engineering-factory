@@ -3,7 +3,7 @@ import argparse, json
 from pathlib import Path
 import yaml
 from .yamlio import load_yaml
-from .project import find_project, initialize, load_project
+from .project import find_project, initialize, load_project, runtime_root
 from .validation import validate_package, validate_project
 from .policy import resolve_policy
 from .adapter_install import adapter_plan, install_adapter
@@ -26,8 +26,8 @@ def parser() -> argparse.ArgumentParser:
     for name in ("doctor","lock"):
         command=integration_sub.add_parser(name); command.add_argument("project",nargs="?",default="."); command.add_argument("--factory",default=".")
     sync=integration_sub.add_parser("sync"); sync.add_argument("agent",choices=["codex","claude-code"]); sync.add_argument("project",nargs="?",default="."); sync.add_argument("--factory",default="."); sync.add_argument("--scope",choices=["user","project"],default="project"); sync.add_argument("--execute",action="store_true")
-    intake=sub.add_parser("intake"); intake.add_argument("request"); intake.add_argument("--project",default="."); intake.add_argument("--factory",default="."); intake.add_argument("--agent",choices=["codex","claude-code"]); intake.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); intake.add_argument("--expect-workflow"); intake.add_argument("--json",action="store_true")
-    run=sub.add_parser("run"); run.add_argument("request"); run.add_argument("--project",default="."); run.add_argument("--factory",default="."); run.add_argument("--agent",choices=["codex","claude-code"]); run.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); run.add_argument("--expect-workflow")
+    intake=sub.add_parser("intake"); intake.add_argument("request"); intake.add_argument("--project",default="."); intake.add_argument("--factory",default="."); intake.add_argument("--agent",choices=["codex","claude-code"]); intake.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); intake.add_argument("--expect-workflow"); intake.add_argument("--activation-confirmed",action="store_true"); intake.add_argument("--json",action="store_true")
+    run=sub.add_parser("run"); run.add_argument("request"); run.add_argument("--project",default="."); run.add_argument("--factory",default="."); run.add_argument("--agent",choices=["codex","claude-code"]); run.add_argument("--intent",choices=["analyze","implement","fix","refactor","test","review","document","promote"]); run.add_argument("--expect-workflow"); run.add_argument("--activation-confirmed",action="store_true"); run.add_argument("--agent-session"); run.add_argument("--model-identifier"); run.add_argument("--experiment-condition",choices=["L0","L1","L2","L3"]); run.add_argument("--repeat-index",type=int); run.add_argument("--environment-identifier")
     task=sub.add_parser("task"); task_sub=task.add_subparsers(dest="task_command",required=True); task_inspect=task_sub.add_parser("inspect"); task_inspect.add_argument("id"); task_inspect.add_argument("--project",default="."); task_inspect.add_argument("--factory",default="."); task_inspect.add_argument("--json",action="store_true")
     task_log=task_sub.add_parser("log"); task_log.add_argument("id"); task_log.add_argument("--project",default="."); task_log.add_argument("--factory",default="."); task_log.add_argument("--json",action="store_true")
     task_list=task_sub.add_parser("list"); task_list.add_argument("--ready",action="store_true"); task_list.add_argument("--project",default="."); task_list.add_argument("--factory",default="."); task_list.add_argument("--json",action="store_true")
@@ -51,7 +51,7 @@ def parser() -> argparse.ArgumentParser:
     backlog_approval=backlog_sub.add_parser("operation-approval"); backlog_approval.add_argument("id"); backlog_approval.add_argument("operation"); backlog_approval.add_argument("decision",choices=["approve","reject"]); backlog_approval.add_argument("--project",default="."); backlog_approval.add_argument("--factory",default="."); backlog_approval.add_argument("--json",action="store_true")
     backlog_complete_op=backlog_sub.add_parser("complete-operation"); backlog_complete_op.add_argument("id"); backlog_complete_op.add_argument("operation"); backlog_complete_op.add_argument("--result",required=True); backlog_complete_op.add_argument("--project",default="."); backlog_complete_op.add_argument("--factory",default="."); backlog_complete_op.add_argument("--json",action="store_true")
     execution=sub.add_parser("execution"); execution_sub=execution.add_subparsers(dest="execution_command",required=True)
-    for name in ("inspect","next","handoff"):
+    for name in ("inspect","next","handoff","evidence","metrics"):
         command=execution_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default="."); command.add_argument("--json",action="store_true")
         if name == "handoff": command.add_argument("--owner")
     complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--operation-id"); complete.add_argument("--owner"); complete.add_argument("--project",default="."); complete.add_argument("--factory",default="."); complete.add_argument("--json",action="store_true")
@@ -80,13 +80,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in {"intake", "run"}:
         service = RuntimeService(Path(args.project), Path(args.factory))
         if args.command == "intake":
-            result = service.intake(args.request, args.agent, args.intent, args.expect_workflow)
+            result = service.intake(args.request, args.agent, args.intent, args.expect_workflow, args.activation_confirmed)
             result = {key:value for key,value in result.items() if key != "path"} | {"taskFile": result["path"]}
             print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else yaml.safe_dump(result, sort_keys=False, allow_unicode=True))
         else:
-            execution = service.start(args.request, args.agent, args.intent, args.expect_workflow)
+            experiment = {
+                "modelIdentifier": args.model_identifier,
+                "condition": args.experiment_condition,
+                "repeatIndex": args.repeat_index,
+                "environmentIdentifier": args.environment_identifier,
+            }
+            execution = service.start(args.request, args.agent, args.intent, args.expect_workflow, args.activation_confirmed,
+                                      args.agent_session, experiment)
             task = TaskRegistry(service.project_root).load(execution.data["task"])
-            print(yaml.safe_dump({"runtimeReceipt":"created","execution":execution.data["metadata"]["id"],"status":execution.data["status"],"intent":task["intent"]["type"],"mutating":task["intent"]["type"] in MUTATING,"workflow":execution.data["workflow"],"task":execution.data["task"],"nextPhase":execution.next_phase()["id"],"taskLog":str(service.project_root/".ai"/"runtime"/"tasks"/task["metadata"]["id"]/"events.jsonl")},sort_keys=False))
+            print(yaml.safe_dump({"runtimeReceipt":"created","execution":execution.data["metadata"]["id"],"status":execution.data["status"],"intent":task["intent"]["type"],"mutating":task["intent"]["type"] in MUTATING,"workflow":execution.data["workflow"],"task":execution.data["task"],"nextPhase":execution.next_phase()["id"],"taskLog":str(runtime_root(service.project_root, service.project)/"tasks"/task["metadata"]["id"]/"events.jsonl")},sort_keys=False))
         return 0
     if args.command == "task":
         project_root=find_project(Path(args.project))
@@ -143,6 +150,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.execution_command=="replay-validation":
             data=service.replay_validation(args.id)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+        if args.execution_command=="evidence":
+            data=service.evidence_bundle(args.id)
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+        if args.execution_command=="metrics":
+            data=service.metrics(args.id)
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="complete-phase":
             output=load_yaml(Path(args.output))
             if not isinstance(output,dict): raise ValueError("phase output must be an object")
@@ -167,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
             for path in install_adapter(factory,args.agent,target,args.copy): print(f"Installed {path}")
         else:
             for source,destination in adapter_plan(factory,args.agent,target): print(f"PLAN {source} -> {destination}")
-        return 0
+            return 0
     if args.command == "mcp-config":
         project_root=find_project(Path(args.project)); bindings=resolve_bindings(Path(args.factory).resolve(),load_project(project_root))
         print(render_codex(bindings) if args.agent=="codex" else json.dumps(render_claude(bindings),indent=2)); return 0

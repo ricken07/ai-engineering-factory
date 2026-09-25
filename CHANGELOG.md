@@ -1,160 +1,18 @@
 # Changelog
 
-## 1.15.0 — Task Ordering & Derived Readiness
+## 1.0.0 — First release
 
-- Added `parent` and `dependsOn` to `Task`, so a declared dependency survives in the Runtime state model instead of only in the external tracker.
-- Kept the two relations distinct: `parent` is hierarchy and never blocks, `dependsOn` is precedence and both orders and blocks.
-- Derived every Task state from its most recent Execution rather than storing a second, driftable status.
-- Derived readiness (`ready`, `blocked`, `active`, `done`) from state and unsatisfied dependencies; a failed or cancelled Execution leaves the Task retryable.
-- Blocked on unknown `dependsOn` references instead of silently dropping them, and rejected dependency cycles the same way `backlog apply` does.
-- Exposed `readiness: blocked` alongside `state: running` so an ordering violation is visible rather than hidden.
-- Added the `TaskBacklog` contract and `aief task list [--ready]`, a dependency-ordered projection computed at read time and never persisted.
-- Introduced no scheduler, daemon, database or distributed lock, per `docs/19-idempotence-execution-leases.md`.
-- Added `docs/31-task-ordering-and-readiness.md`.
-- Fixed `VERSION`, which still reported `1.11.0` while `pyproject.toml` and `factory.yaml` reported `1.14.0`.
-- Removed leftover Task and Execution state from `templates/project/.ai/runtime/`, which `aief init` was copying into every new project despite the template's own `.gitignore` excluding it.
-
-## 1.14.0 — Backlog Import Runtime
-
-- Extended `ExternalTaskProposal` into a neutral backlog candidate model: `type`, `parent`, `dependsOn`, `sourceImport`, with `sourceTask` now optional.
-- Added `BacklogImportConfig` and `BacklogImportPlan` contracts for organization-rules-driven, previewable backlog import.
-- Added the `import-backlog` Core Workflow and its `draft-backlog-candidates`/`assess-backlog-duplicates` Skills.
-- Added `BacklogImportManager`, mirroring Task Tracking's idempotent `ExternalOperation` lifecycle scoped per import candidate instead of per Task.
-- Topologically ordered `apply` so parent candidates are created before children, deferring a child whose parent has not yet resolved to a reference.
-- Applied the existing `< L3 autonomy → approval required` gate to every prepared create/link operation; no bulk approval that skips duplicate search or the gate.
-- Added deterministic CLI primitives: `aief backlog import|complete-draft|complete-duplicate-search|preview|apply|operation-approval|complete-operation|inspect`.
-- Added `docs/30-backlog-import-runtime.md` describing the shipped runtime.
-
-## 1.11.0 — Effective Engineering Context Resolver
-
-- Completed the inheritance chain `Organization → Profiles → Project → Repository → Task`.
-- Added task-local practice selection, overrides and protected mandatory-practice enforcement.
-- Added structured Task objective, scope, classification and constraints to the effective context.
-- Added profile version/source resolution and practice document provenance with SHA-256 hashes.
-- Added a stable context fingerprint for audit and multi-agent handoff verification.
-- Made profile practice reference resolution deterministic while preserving declaration order.
-- Enabled progressive architecture/security context for impact and risk analysis.
-- Kept per-Skill category filtering so unrelated organization knowledge is not loaded.
-
-## 1.10.0 — Dynamic Policy Re-evaluation
-
-- Added deterministic risk derivation from domains, change types and repository blast radius.
-- Re-evaluated policy automatically after `analyze-impact` and `create-plan`.
-- Applied most-restrictive-wins across prior risk, project autonomy limits and newly discovered constraints.
-- Persisted versioned, schema-valid `PolicyDecision` artifacts with matched rules and effective permissions.
-- Added pre-phase policy gates so sensitive implementation and submission cannot begin before approval.
-- Inherited repository `criticalDomains` during policy evaluation.
-- Recalculated task scope, tracking, autonomy and execution state from new evidence.
-
-## 1.9.0 — Idempotence & Execution Leases
-
-- Added atomic, expiring ownership leases shared by all agent adapters.
-- Added replay-safe `complete-phase` and gate approval operations using stable operation IDs and input fingerprints.
-- Made repeated external-operation approvals idempotent while rejecting contradictory decisions.
-- Added atomic Execution state replacement to avoid partially written state files.
-- Added explicit lease acquire, renew, status and release commands.
-- Made handoff release ownership so another agent can safely resume.
-
-## 1.8.0 — Workspace & Git Safety Runtime
-
-- Added deterministic Git inspection for impacted mono-repo and poly-repo workspaces.
-- Blocked implementation when developer changes, conflicts, or unresolved workspace preparation are detected.
-- Added explicit task-branch preparation and optional isolated Git worktrees.
-- Added persisted `WorkspaceSnapshot` artifacts and drift verification.
-- Rejected force push, hard reset, clean, branch deletion, and change-discard operations at the Runtime boundary.
-- Added `aief workspace inspect|prepare|verify|status` and safety-focused tests.
-
-## 1.7.0 — Task Tracking & Provider Resolution Runtime
-
-- Interpreted the Core task-tracking policy deterministically with most-restrictive-wins semantics.
-- Added TaskTrackingDecision, IntegrationResolution, ExternalTaskSearch, ExternalTaskProposal and ExternalOperation contracts.
-- Added strict provider, operation, MCP endpoint, adapter and authentication resolution without fallback.
-- Added duplicate-search preparation and structured hybrid duplicate assessment.
-- Added human-gated existing-task linking and autonomy-gated external-task creation.
-- Added stable operation IDs, completed-result reuse and same-key retry after transient failures.
-- Added canonical external references while preserving local Task identity.
-- Automatically re-evaluated tracking after impact analysis and blocked before implementation when unresolved.
-- Automatically resumed blocked Executions after successful link/create.
-- Added deterministic CLI primitives and agent adapter protocol documentation.
-
-## 1.6.0 — Organization engineering context
-
-- Added a versioned organization catalog of standards and practices outside the agnostic Core.
-- Added Practice and EffectiveEngineeringContext contracts.
-- Evolved profiles into assemblers through version-aware `practiceRefs`.
-- Added project and repository `inherit`, `enable`, `disable` and `override` configuration.
-- Added mandatory/default/optional enforcement and fail-closed conflict detection.
-- Added deterministic hierarchy resolution with project/repository document path protection.
-- Added per-Skill category filtering and direct document content delivery.
-- Persisted effective contexts as agent-neutral Execution artifacts.
-- Integrated effective testing/security context into profile-driven validation.
-- Added CLI inspection, semantic project validation, examples and documentation.
-
-## 1.5.0 — Profile-driven Runtime validation
-
-- Connected `validate-change` phases to impacted repositories and their configured profiles.
-- Added deterministic profile validation planning for mono- and poly-repository workspaces.
-- Replaced shell command strings with argv arrays and `shell=False` execution.
-- Added fail-closed workspace, repository, profile, phase and autonomy checks.
-- Added structured ValidationReport evidence with per-command stdout, stderr and exit code.
-- Made remote continuous integration optional rather than a mandatory local-validation capability.
-- Added CLI planning and explicit execution for profile validation.
-- Added missing-executable handling and stopped workflow execution on validation failure.
-
-## 1.4.0 — Universal Runtime foundation
-
-- Added agent-neutral Request and IntentResolution contracts.
-- Added command and natural-language intake with conservative non-mutating fallback.
-- Added normalized local/external Tasks and a persistent Task registry.
-- Added deterministic Workflow/Skill compilation and capability discovery.
-- Aligned Execution and Handoff persistence with their JSON Schemas.
-- Added schema validation for every phase output before state advancement.
-- Fixed approval gates so phase evidence is persisted before waiting.
-- Added runtime CLI commands for intake, start, inspection, phase completion, approval and handoff.
-- Added deterministic task-tracking evaluation and provider-neutral search/create/link promotion contracts.
-- Documented the shared adapter protocol and representative use cases.
-
-## 0.1.0 — Initial foundation
-
-- Agnostic Core contracts and schemas.
-- Policy model and policy resolution rules.
-- Engineering standards.
-- Reusable workflows and skills.
-- Technology profiles as extensions.
-- Integration capability contracts and provider mappings.
-- Claude Code and Codex adapters.
-- Project bootstrap template.
-- Emmany poly-repository example.
-# 1.3.0
-
-- Split integration contracts, provider manifests and technical MCP definitions.
-- Added explicit and shorthand-compatible project provider bindings.
-- Added on-demand capability/operation resolution.
-- Added deterministic, secret-free `integration-lock.yaml` generation.
-- Added `integrations doctor`, `lock` and safe dry-run `sync` commands.
-- Added project/user MCP scopes and strict native configuration overwrite protection.
-
-# 1.2.0
-
-- Added user-level Codex and Claude Code adapter skills with native invocation conventions.
-- Added safe adapter installation planning and symlink/copy execution.
-- Added provider-neutral MCP binding contracts and GitHub, GitLab, Jira and Confluence bindings.
-- Added native Codex TOML and Claude JSON MCP configuration rendering.
-- Stabilized project bootstraps and added `.ai/README.md` to the project template.
-- Documented onboarding, session bootstrap, task execution, gates and MCP least privilege.
-
-# 1.1.0
-
-- Added explicit task-memory, memory-candidate and knowledge-promotion contracts.
-- Added controlled `promote-knowledge` workflow with approval-bound durable writes.
-- Added agent-neutral task runtime state and multi-agent handoff foundations.
-- Expanded the project template with structured memory, runtime and retention configuration.
-- Documented knowledge authority, freshness conflicts, progressive loading and retention.
-
-# 1.0.0
-
-- Added installable CLI, exhaustive contract validation, tests and CI.
-- Added deterministic policy resolution and resumable workflow execution.
-- Added executable profile/integration capability resolution.
-- Added conformant Codex and Claude Code command adapters.
-- Stabilized Core Skills with agent instructions, output schemas and examples.
+- Established an agent-agnostic core based on contracts, schemas and deterministic policies.
+- Added reusable workflows, skills, technology profiles and agent adapters.
+- Added request intake, task registry and resumable execution runtime.
+- Added capability, integration, provider and MCP binding resolution.
+- Added profile-driven validation with structured reports and blocking checks.
+- Added inherited engineering contexts, mandatory practices and traceability.
+- Added task tracking, duplicate detection and controlled external operations.
+- Added workspace and Git safety, including drift detection and protection against destructive operations.
+- Added idempotence, execution leases, controlled recovery and handoff between agents.
+- Added dynamic policy re-evaluation and the most-restrictive-constraint rule.
+- Added runtime governance, replayable evidence, observability and scenario evaluation.
+- Added backlog import with dependencies, parent-child relationships and idempotent operations.
+- Added task ordering and the `ready`, `blocked`, `active` and `done` readiness states.
+- Added documentation, consistency checks, tests and the associated CLI commands.

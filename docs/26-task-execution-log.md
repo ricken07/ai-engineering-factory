@@ -1,86 +1,78 @@
-# 26 — Journal d’exécution par Task
+# 26 — Task Execution Log
 
-Chaque demande normalisée possède un journal append-only local :
+Each normalized request has a local append-only log:
 
 ```text
 .ai/runtime/tasks/<task-id>/events.jsonl
 ```
 
-Le journal décrit le parcours observable de la demande indépendamment de la
-conversation Claude/Codex :
+The log describes the observable journey of the request independent of
+Claude/Codex conversation. The complete event envelope contract, type list,
+and security guarantees (redaction, opt-in) are described in
+[`32-runtime-observability.md`](32-runtime-observability.md); this document
+focuses on operational querying of a Task’s log.
 
-```text
-task.normalized
-workflow.started
-phase.prepared
-phase.completed
-policy.reclassified
-gate.approved
-workspace.inspect / prepare / verify / rollback
-validation.completed / failed
-```
+Each event carries an `event.id`/`event.type`/`event.timestamp`, the
+`project`, `task`, and `execution` ids when an Execution already exists. Decisions
+are traced by their result, stated reasons and produced artifact in `payload`.
+The log contains no private reasoning, secrets, or complete conversation transcripts.
 
-Chaque événement contient un timestamp UTC, la Task, l’Execution, l’agent, la
-phase, le statut et des données structurées minimales. Les décisions sont
-tracées par leur résultat, leurs raisons déclarées et l’artifact produit. Le
-journal ne contient ni raisonnement privé, ni secret, ni transcription complète
-de conversation.
-
-Exemple :
+Example:
 
 ```json
-{"event":"policy.reclassified","task":"EGW-142","execution":"exec-142","status":"decided","data":{"risk":"high","authorizedAutonomy":"L2","requiredGates":["before-implementation"]}}
+{"event":{"id":"event-abc123","type":"policy.reclassified","timestamp":"2026-09-02T10:00:00Z"},"factory":{"version":"1.15.0"},"project":{"id":"emmany"},"task":{"id":"EGW-142"},"execution":{"id":"exec-142"},"payload":{"status":"decided","risk":"high","authorizedAutonomy":"L2","requiredGates":["before-implementation"]}}
 ```
 
-Consultation :
+Query:
 
 ```bash
 aief task log <task-id> --project . --factory "$GAD_AI_FACTORY_HOME"
 aief task log <task-id> --project . --factory "$GAD_AI_FACTORY_HOME" --json
 ```
 
-Le dossier `.ai/runtime/` reste gitignoré. Pour une trace durable, le workflow
-`record-traceability` publie uniquement le résumé validé vers le provider
-configuré. Le journal local facilite diagnostic, reprise et handoff, mais ne
-remplace pas GitLab, GitHub ou Jira comme système de delivery.
+The `.ai/runtime/` folder remains gitignored. For durable traceability, the
+`record-traceability` workflow publishes only the validated summary to the
+configured provider. The local log facilitates diagnostics, resumption and handoff, but does not
+replace GitLab, GitHub or Jira as a delivery system.
 
-## Vérifier une exécution `/implement`
+## Verifying an `/implement` Execution
 
-Une exécution conforme doit commencer au minimum par :
+A conforming execution must begin with at least:
 
 ```text
+request.created
+intent.resolved
 task.normalized
 workflow.started
-phase.prepared (understand)
+phase.started (understand)
 ```
 
-Puis chaque phase doit produire une trajectoire observable :
+Then each phase must produce an observable trajectory:
 
 ```text
-phase.prepared
+phase.started
 phase.completed
 ```
 
-Avant la première modification source, le journal doit montrer les phases
-préalables terminées et la préparation de `implement-change`. Si un fichier est
-modifié alors que le dernier événement est `workflow.started`, ou si le
-workflow est `analyze-task`, la modification n’est pas attribuable à une
-Execution Factory conforme.
+Before the first source modification, the log must show preceding phases completed
+and `implement-change` preparation. If a file is modified while the last event is
+`workflow.started`, or if the workflow is `analyze-task`, the modification cannot be
+attributed to a conforming Factory Execution.
 
-## Après une mise à niveau
+## After an Upgrade
 
-Les journaux ne sont pas reconstruits rétroactivement. Une Task créée avant
-l’introduction de cette fonctionnalité peut donc retourner une liste vide. Les
-nouvelles Tasks sont journalisées dès `task.normalized`.
+Logs are not reconstructed retroactively. A Task created before this feature
+was introduced may return an empty list. New Tasks are logged starting at
+`task.normalized`.
 
-Après modification d’un Skill ou du Runtime, quitter complètement la session
-agent et en ouvrir une nouvelle. Vérifier ensuite le `runtimeReceipt` et le
-champ `taskLog` avant de laisser l’agent poursuivre. La procédure détaillée se
-trouve dans [`23-first-steps.md`](23-first-steps.md).
+After modifying a Skill or the Runtime, exit the agent session completely and
+open a new one. Then verify the `runtimeReceipt` and `taskLog` field before
+letting the agent continue. The detailed procedure is in
+[`23-first-steps.md`](23-first-steps.md).
 
-## Résolution des Core Skills
+## Core Skill Resolution
 
-`aief execution next` retourne un contrat résolu :
+`aief execution next` returns a resolved contract:
 
 ```yaml
 skillContract:
@@ -91,17 +83,16 @@ skillContract:
   outputSchema: <factory>/core/skills/understand-task/output.schema.json
 ```
 
-Claude/Codex lit ces fichiers puis produit l’artifact attendu. Il ne doit pas
-appeler un hypothétique `Skill(understand)` : seuls les points d’entrée publics
-`implement`, `fix`, `review`, etc. sont des Skills natifs de l’adapter.
+Claude/Codex reads these files then produces the expected artifact. It must not
+call a hypothetical `Skill(understand)`: only the public entry points
+`implement`, `fix`, `review`, etc. are native Adapter Skills.
 
-Pour `analyze-impact`, l'événement `phase.completed` ne doit apparaître qu'après
-validation de `details.repositories`. Cette liste est automatiquement propagée
-vers la Task et l'Execution. Une correction manuelle de `task.yaml`,
-`execution.yaml` ou d'un artifact terminé invalide la traçabilité et doit être
-refusée.
+For `analyze-impact`, the `phase.completed` event must appear only after
+`details.repositories` validation. This list is automatically propagated to the
+Task and Execution. Manual correction of `task.yaml`, `execution.yaml` or a
+completed artifact invalidates traceability and must be rejected.
 
-Toutes les commandes suivantes conservent explicitement `--project` et
-`--factory`. Une erreur `Factory manifest not found` provoque un arrêt fermé ;
-elle ne doit jamais être contournée avec un lien ou une copie de `factory.yaml`
-dans le workspace projet.
+All following commands explicitly preserve `--project` and
+`--factory`. A `Factory manifest not found` error triggers a clean shutdown;
+it must never be worked around with a link or copy of `factory.yaml` in the
+project workspace.

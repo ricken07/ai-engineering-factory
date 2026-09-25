@@ -37,6 +37,14 @@ The default dry run shows every planned link. Installation refuses to overwrite 
 
 Codex uses `$implement TASK-123`; Claude Code uses `/implement TASK-123`. The adapter skill resolves the same `implement-task` workflow, creates or resumes the same task runtime state and enforces the same PolicyDecision.
 
+Both adapters must pass a stable `--agent-session`, then acquire the returned
+Execution lease with the same `--owner` before mutation. The session argument
+alone is `OBSERVED`, not trusted. Only an active matching lease makes producer
+or reviewer activity `TRUSTED`; artifact-only identity is `UNVERIFIED`.
+Handoff releases the current lease and the receiving adapter acquires the same
+Execution with a new owner. The complete command sequence is normative in each
+adapter's `runtime-protocol.md`.
+
 ## Governance and sources of truth
 
 Provider knowledge must not enter `core/`. The Core knows abstractions such as

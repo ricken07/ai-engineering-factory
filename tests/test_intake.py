@@ -1,6 +1,17 @@
 from pathlib import Path
 
-from aief.intake import TaskRegistry, create_request, normalize_task, resolve_intent
+import pytest
+import yaml
+
+from aief.intake import (
+    ActivationDeclined,
+    ActivationRequired,
+    TaskRegistry,
+    create_request,
+    enforce_activation,
+    normalize_task,
+    resolve_intent,
+)
 from aief.project import initialize
 from aief.service import RuntimeService
 
@@ -14,13 +25,13 @@ def test_explicit_and_natural_requests_share_the_same_workflow():
 
 
 def test_gitlab_issue_url_and_qualified_reference_are_preserved():
-    url="https://gitlab.com/Gad-Digital-IT/products/emi-ai/app/-/issues/42"
+    url="https://gitlab.com/example-organization/emmany/egw-api/-/issues/42"
     url_resolution=resolve_intent(create_request(f"/implement {url}"))
     url_task=normalize_task(create_request(f"/implement {url}"),url_resolution)
     assert url_resolution["taskReference"] == url
     assert url_task["source"] == {"type":"issue","reference":url,"provider":"gitlab"}
 
-    qualified="Gad-Digital-IT/products/emi-ai/app#42"
+    qualified="example-organization/emmany/egw-api#42"
     qualified_task=normalize_task(create_request(f"Corrige {qualified}"),resolve_intent(create_request(f"Corrige {qualified}")))
     assert qualified_task["source"]["reference"] == qualified
     assert qualified_task["source"]["provider"] == "gitlab"
@@ -71,3 +82,52 @@ def test_adapter_expected_workflow_fails_closed(tmp_path):
     import pytest
     with pytest.raises(RuntimeError, match="expected workflow fix-bug"):
         service.intake("Feature 1.1", intent="implement", expected_workflow="fix-bug")
+
+
+def test_native_command_always_activates_regardless_of_mode():
+    command = resolve_intent(create_request("/implement EGW-1"))
+    enforce_activation(command, "auto", confirmed=False)
+    enforce_activation(command, "manual", confirmed=False)
+
+
+def test_auto_mode_requires_confirmation_for_natural_language():
+    natural = resolve_intent(create_request("Corrige le bug EGW-1"))
+    with pytest.raises(ActivationRequired, match="activation.mode is 'auto'"):
+        enforce_activation(natural, "auto", confirmed=False)
+    enforce_activation(natural, "auto", confirmed=True)
+
+
+def test_manual_mode_never_routes_natural_language_even_when_confirmed():
+    natural = resolve_intent(create_request("Corrige le bug EGW-1"))
+    with pytest.raises(ActivationDeclined, match="activation.mode is 'manual'"):
+        enforce_activation(natural, "manual", confirmed=False)
+    with pytest.raises(ActivationDeclined, match="activation.mode is 'manual'"):
+        enforce_activation(natural, "manual", confirmed=True)
+
+
+def test_service_reads_activation_mode_from_project_yaml(tmp_path):
+    project = tmp_path / "project"
+    initialize(Path("templates/project"), project)
+    project_file = project / ".ai/project.yaml"
+    data = yaml.safe_load(project_file.read_text())
+    assert data["activation"]["mode"] == "auto"
+    data["activation"]["mode"] = "manual"
+    project_file.write_text(yaml.safe_dump(data, sort_keys=False))
+
+    service = RuntimeService(project, Path("."))
+    with pytest.raises(ActivationDeclined):
+        service.intake("Corrige le bug EGW-1")
+    result = service.intake("/fix EGW-1")
+    assert result["intent"]["workflow"] == "fix-bug"
+
+
+def test_service_default_auto_mode_blocks_unconfirmed_natural_language_and_accepts_confirmed(tmp_path):
+    project = tmp_path / "project"
+    initialize(Path("templates/project"), project)
+    service = RuntimeService(project, Path("."))
+
+    with pytest.raises(ActivationRequired):
+        service.intake("Corrige le bug EGW-1")
+
+    result = service.intake("Corrige le bug EGW-1", confirmed=True)
+    assert result["intent"]["workflow"] == "fix-bug"

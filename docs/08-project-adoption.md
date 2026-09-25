@@ -2,11 +2,19 @@
 
 ## 1. Install/pin the Factory
 
-Install the required Factory version on the workstation, for example:
+The Factory itself carries no organization- or project-specific content —
+cloning it installs only `core/`, `profiles/`, `adapters/` and
+`integrations/`. The organization's single reference is a published Git tag,
+pinned once for every team member and every project (see
+[`09-governance.md`](09-governance.md#versioning)); for example:
 
 ```text
 ~/.gad/ai-engineering-factory/0.1.0/
 ```
+
+If the organization also maintains its own engineering practices, it defines
+and hosts that catalog separately, in its own repository — never committed
+into the Factory itself. See [`organization/README.md`](../organization/README.md).
 
 ## 2. Copy the project template
 

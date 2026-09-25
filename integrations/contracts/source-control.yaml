@@ -1,4 +1,4 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: IntegrationContract
 metadata: {id: source-control, name: Source Control, version: 1.0.0}
 operations: [inspect-status, create-branch, commit, push, get-diff, submit-change, get-change, comment-change, merge]

@@ -56,6 +56,13 @@ Context documents describe accepted project, architecture, domain and convention
 
 Runtime is gitignored by default. A project may publish task summaries and evidence to its task or change provider. Retention is configured by the project and cleanup must never remove the only durable copy of required evidence.
 
+In a linked Git worktree, this tree resolves to the canonical Project State
+Store in the main checkout; it is not recreated per worktree. Execution-owned
+worktrees live below that store, but are only workspaces. Deleting one cannot
+delete its sibling Execution directory, handoff or EvidenceBundle. If a legacy
+linked worktree already owns a separate non-empty `.ai/runtime`, discovery
+blocks and requires explicit preservation/migration.
+
 ## Versioning and merge conflicts
 
 Version the durable project truth: `.ai/project.yaml`, the repository map, approved context, decisions, validated memory and the integration lock. Keep `.ai/runtime/` ignored because it is generated, local execution state.

@@ -2,6 +2,8 @@
 
 This directory contains versioned organization standards and practices. Every YAML manifest is machine-readable; its adjacent Markdown document contains the knowledge supplied to agents after deterministic resolution.
 
+The Factory itself is agnostic of any single organization: nothing in `core/` references a specific company, and a project may select zero organization catalogs at all (`organizationCatalogs: []`). This directory ships two catalogs purely as illustration — `factory-default` (generic conventions any project can use as-is) and `sample-organization` (a second, independent catalog demonstrating that a project may compose more than one at once; not to be confused with the `example-organization` placeholder id in `templates/organization/catalog.yaml`, which a company copies and renames to start its own). Neither is required, and neither carries any real organization's proprietary content. A company adopting the Factory maintains its own catalog separately (see `templates/organization/`) rather than committing its practices into this repository.
+
 `mandatory` practices cannot be disabled or overridden. `default` practices are inherited when selected by a binding in an active organization catalog and may be specialized when explicitly allowed. `optional` practices require explicit enablement.
 
 The Core never imports a concrete catalog directly. Projects select versioned
@@ -9,11 +11,14 @@ The Core never imports a concrete catalog directly. Projects select versioned
 technical Profiles. The Runtime constructs a repository- and Skill-specific
 `EffectiveEngineeringContext` from only the selected catalogs.
 
-External organization knowledge is pinned under `catalogs/` as a Git submodule.
-Factory `Practice` manifests remain outside that submodule and provide the
+A company maintaining its own, private organization catalog outside this
+repository may pin it as a Git submodule under its own installation of the
+Factory (or reference it by any other version-controlled path); this
+repository does not ship one itself. `Practice` manifests always provide the
 governance metadata, applicability, enforcement and version consumed by the
-Runtime. Clone installations with `--recurse-submodules` and never reference an
-absolute developer-machine path from a Project.
+Runtime, whether their document lives alongside them or in a separately
+maintained location. Never reference an absolute developer-machine path from
+a Project.
 
 ## Integration governance
 

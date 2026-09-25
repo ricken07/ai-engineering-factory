@@ -1,8 +1,7 @@
-# 25 — Permissions projet pour Claude Code et Codex
+# 25 — Agent Permissions for Claude Code and Codex
 
-Les fichiers de permissions natifs rendent l’exécution quotidienne de la
-Factory fluide sans désactiver le contrôle humain. Ils sont livrés par le
-template projet :
+Native permission files make Factory daily execution smooth without disabling human control. They are provided by the project
+template:
 
 ```text
 .claude/settings.json
@@ -10,50 +9,45 @@ template projet :
 .codex/rules/factory.rules
 ```
 
-Ils ne remplacent jamais les policies de la Factory. Une action n’est possible
-que si les trois couches l’autorisent :
+They never replace Factory policies. An action is possible only if all three layers authorize it:
 
 ```text
-PolicyDecision Factory
+Factory PolicyDecision
         ∩
-permission native Claude/Codex
+native Claude/Codex permission
         ∩
-sandbox et droits du système
+sandbox and system rights
         ↓
-action effectivement autorisée
+action actually authorized
 ```
 
-Une permission native peut donc empêcher une action autorisée par la Factory,
-mais elle ne doit jamais élargir l’autonomie calculée par la Factory.
+A native permission can thus prevent an action authorized by the Factory,
+but it must never expand the autonomy calculated by the Factory.
 
-## 1. Classification commune
+## 1. Common Classification
 
-| Classe | Exemples | Comportement |
+| Class | Examples | Behavior |
 | --- | --- | --- |
-| Autorisé | lecture, `aief validate`, inspection d’Execution, état Git | sans confirmation répétitive |
-| Confirmation | gate, création de ticket, commit/push, mutation de branche/worktree, validation exécutée hors sandbox | demander à l’humain |
-| Interdit | force-push, hard reset, git clean destructif, lecture de secrets | bloquer |
+| Allowed | read, `aief validate`, Execution inspection, Git state | without repetitive confirmation |
+| Confirmation | gate, external ticket creation, commit/push, branch/worktree mutation, validation outside sandbox | ask human |
+| Forbidden | force-push, hard reset, destructive git clean, secret read | block |
 
-Le modèle partagé est volontairement conservateur. Les permissions d’un
-provider MCP se configurent séparément et restent soumises aux mêmes policies.
+The shared model is deliberately conservative. An MCP provider's permissions are
+configured separately and remain subject to the same policies.
 
-La baseline autorise `Bash(aief *)` afin que les opérations Runtime ordinaires
-ne redemandent pas une permission à chaque phase. Les règles `ask` spécifiques
-aux approbations, écritures externes, synchronisations et mutations Git sont
-évaluées avant cette règle générale et restent interactives. Les interdictions
-destructrices restent prioritaires.
+The baseline authorizes `Bash(aief *)` so ordinary Runtime operations
+do not request permission at each phase. Specific `ask` rules for approvals, external writes, synchronizations and Git mutations are
+evaluated before this general rule and remain interactive. Destructive prohibitions remain priority.
 
 ## 2. Claude Code
 
-Claude Code charge la configuration partagée depuis
-`.claude/settings.json`. Le template utilise `acceptEdits` pour éviter une
-confirmation à chaque modification locale, puis encadre les commandes Bash
-avec `allow`, `ask` et `deny`.
+Claude Code loads shared configuration from
+`.claude/settings.json`. The template uses `acceptEdits` to avoid confirmation at each local modification, then frames Bash commands
+with `allow`, `ask` and `deny`.
 
-Le fichier local `.claude/settings.local.json` est ignoré par Git. Il sert aux
-ajustements propres au poste, jamais à contourner une règle organisationnelle.
-Il peut également fournir `GAD_AI_FACTORY_HOME` à Claude lorsque le client est
-lancé depuis un IDE ou une application qui n’hérite pas du shell :
+The local file `.claude/settings.local.json` is ignored by Git. It serves workstation-specific adjustments, never to bypass organizational rules.
+It can also provide `GAD_AI_FACTORY_HOME` to Claude when the client is
+launched from an IDE or application that does not inherit the shell:
 
 ```json
 {
@@ -63,20 +57,19 @@ lancé depuis un IDE ou une application qui n’hérite pas du shell :
 }
 ```
 
-Fusionner cette clé avec les permissions locales existantes et ne jamais
-commiter ce fichier.
+Merge this key with existing local permissions and never
+commit this file.
 
-Vérification depuis Claude Code :
+Verification from Claude Code:
 
 ```text
 /permissions
 ```
 
-Contrôler que les règles projet sont chargées, puis commencer par `/analyze`.
-Ne pas utiliser `bypassPermissions` ni `--dangerously-skip-permissions` pour le
-fonctionnement normal de la Factory.
+Verify that project rules are loaded, then start with `/analyze`.
+Do not use `bypassPermissions` or `--dangerously-skip-permissions` for normal Factory operation.
 
-Les commandes Factory doivent être simples et littérales :
+Factory commands must be simple and literal:
 
 ```bash
 aief execution next 20260816T120000Z-example \
@@ -84,7 +77,20 @@ aief execution next 20260816T120000Z-example \
   --factory "/absolute/factory"
 ```
 
-Éviter dans la commande soumise à Bash :
+Mutating phase submissions also carry the active lease owner:
+
+```bash
+aief execution complete-phase 20260816T120000Z-example \
+  --output "/absolute/project/.ai/runtime/executions/20260816T120000Z-example/output.yaml" \
+  --owner "claude-code:<session-id>" \
+  --project "/absolute/project" \
+  --factory "/absolute/factory"
+```
+
+The initial `--agent-session` label is only `OBSERVED`. The owner becomes a
+`TRUSTED` Runtime session only while the matching Execution lease is active.
+
+Avoid in the command submitted to Bash:
 
 ```bash
 $(pwd)
@@ -93,14 +99,13 @@ ${GAD_AI_FACTORY_HOME:-.}
 cd ... && aief ...
 ```
 
-L’adapter résout d’abord les chemins, puis réutilise leurs valeurs absolues
-littérales. Les substitutions et commandes composées sont plus difficiles à
-valider par les permissions natives et provoquent des prompts supplémentaires.
+The adapter first resolves paths, then reuses their literal absolute values.
+Substitutions and compound commands are harder to validate by native permissions and cause additional prompts.
 
 ## 3. Codex
 
-Codex charge `.codex/config.toml` et `.codex/rules/` uniquement après que le
-repository a été déclaré de confiance. Le template impose :
+Codex loads `.codex/config.toml` and `.codex/rules/` only after the
+repository has been declared trusted. The template requires:
 
 ```toml
 approval_policy = "on-request"
@@ -110,12 +115,12 @@ sandbox_mode = "workspace-write"
 network_access = false
 ```
 
-Le code et `.ai/runtime/` restent modifiables dans le workspace. Une commande
-qui exige un accès hors sandbox déclenche les règles de
-`.codex/rules/factory.rules`. Les règles `forbidden` l’emportent sur `prompt`,
-qui l’emporte sur `allow`.
+Code and `.ai/runtime/` remain modifiable in the workspace. A command
+requiring out-of-sandbox access triggers the rules in
+`.codex/rules/factory.rules`. `forbidden` rules override `prompt`,
+which overrides `allow`.
 
-Tester les règles avant adoption :
+Test rules before adoption:
 
 ```bash
 codex execpolicy check --pretty \
@@ -127,67 +132,76 @@ codex execpolicy check --pretty \
   -- aief execution approve exec-example
 ```
 
-Le premier résultat doit être `forbidden`, le second `prompt`.
+The first result should be `forbidden`, the second `prompt`.
 
-## 4. Ajouter les commandes propres au projet
+## 4. Add Project-Specific Commands
 
-Le template générique ne présume aucune stack. Après activation des Profiles,
-le projet peut ajouter uniquement les validations réellement nécessaires.
+The generic template assumes no stack. After Profile activation,
+the project can add only the validations truly needed.
 
-Claude Code, exemple Maven :
+Claude Code, Maven example:
 
 ```json
 "Bash(./mvnw verify *)"
 ```
 
-Claude Code, exemple Flutter :
+Claude Code, Flutter example:
 
 ```json
 "Bash(flutter analyze *)",
 "Bash(flutter test *)"
 ```
 
-Codex, exemple Maven à ajouter dans un fichier
-`.codex/rules/project-validations.rules` :
+Codex, Maven example to add in a
+`.codex/rules/project-validations.rules` file:
 
 ```python
 prefix_rule(
     pattern = ["./mvnw", "verify"],
     decision = "allow",
-    justification = "Validation Maven déclarée par le Profile du repository",
+    justification = "Maven validation declared by repository Profile",
     match = ["./mvnw verify"],
 )
 ```
 
-Avant d’autoriser une commande :
+Before authorizing a command:
 
-1. vérifier qu’elle provient d’un Profile ou d’une convention projet validée ;
-2. utiliser un préfixe précis, jamais `Bash` ou `npm` globalement ;
-3. ne pas autoriser les options destructrices ou de publication ;
-4. ajouter un exemple de test dans la règle Codex ;
-5. faire reviewer le changement comme une modification de sécurité.
+1. verify it comes from a Profile or validated project convention;
+2. use a specific prefix, never `Bash` or `npm` globally;
+3. do not authorize destructive or publishing options;
+4. add a test example in the Codex rule;
+5. have the change reviewed like a security modification.
 
-## 5. Actions qui doivent rester interactives
+## 5. Actions That Must Remain Interactive
 
-Même avec une autonomie projet L3 ou L4, les fichiers natifs partagés ne
-doivent pas auto-approuver :
+Even with project autonomy L3 or L4, shared native files must not
+auto-approve:
 
-- un gate humain Factory ;
-- la création ou liaison d’une tâche externe ;
-- un commit, push, merge ou rebase ;
-- une préparation ou un rollback de workspace ;
-- l’ajout d’un MCP ou l’élévation de ses permissions ;
-- toute commande demandant un accès réseau ou hors workspace non documenté.
+- a Factory human gate;
+- external task creation or linking;
+- commit, push, merge or rebase;
+- workspace preparation or rollback;
+- adding an MCP or elevating its permissions;
+- any command requiring network or out-of-workspace access not documented.
 
-La policy peut refuser l’action après la confirmation native. L’inverse n’est
-pas vrai : confirmer une fenêtre Claude/Codex ne valide pas un gate Factory.
+Policy can refuse the action after native confirmation. The reverse is not true:
+confirming a Claude/Codex window does not validate a Factory gate.
 
-## Identité Git et messages de commit
+Likewise, native configuration is not automatically `ENFORCED` evidence. A
+known capability may be `ENFORCEABLE`; an assumed external configuration is
+`UNVERIFIED`; absence is `UNAVAILABLE`. Only execution-bound verification can
+promote the applicable Runtime path to `ENFORCED`.
 
-La Factory ne signe pas les commits au nom de l’agent. Lorsqu’un commit est
-autorisé, Claude ou Codex peut préparer le message selon les conventions de
-l’organisation, mais Git doit utiliser le profil déjà configuré par le
-développeur :
+Adapter labels are recorded as `OBSERVED`. A session becomes `TRUSTED` for
+review-independence comparison only through an active matching Runtime lease.
+Text written in `review.yaml` remains artifact-declared and cannot authenticate
+the reviewer.
+
+## Git Identity and Commit Messages
+
+The Factory does not sign commits on behalf of the agent. When a commit is
+authorized, Claude or Codex can prepare the message per organizational conventions,
+but Git must use the profile already configured by the developer:
 
 ```bash
 git config user.name
@@ -196,17 +210,16 @@ git config --get commit.gpgsign
 git config --get user.signingkey
 ```
 
-L’agent ne doit pas utiliser `--author`, `--reset-author`, `GIT_AUTHOR_*`,
-`GIT_COMMITTER_*`, ni remplacer la clé de signature. Il ne doit pas ajouter
-automatiquement une signature ou une mention `Co-authored-by` représentant
-l’agent. L’identité et l’état de signature sont enregistrés avant le commit ;
-une identité absente ou différente du profil développeur bloque la gate
-`before-commit`.
+The agent must not use `--author`, `--reset-author`, `GIT_AUTHOR_*`,
+`GIT_COMMITTER_*`, or replace the signing key. It must not automatically add
+a signature or `Co-authored-by` mention representing the agent. Identity and
+signing state are recorded before commit; missing or different identity from the developer
+profile blocks the `before-commit` gate.
 
-## 6. Installation et contrôle
+## 6. Installation and Control
 
-`aief init` copie les fichiers avec le reste du template. Pour un projet déjà
-configuré, les copier et les reviewer sans écraser des réglages existants :
+`aief init` copies files with the rest of the template. For an already-configured
+project, copy and review them without overwriting existing settings:
 
 ```bash
 mkdir -p .claude .codex/rules
@@ -215,19 +228,19 @@ cp "<FACTORY_HOME>/templates/project/.codex/config.toml" .codex/config.toml
 cp "<FACTORY_HOME>/templates/project/.codex/rules/factory.rules" .codex/rules/factory.rules
 ```
 
-Puis :
+Then:
 
 ```bash
 aief validate . --factory "<FACTORY_HOME>"
 git diff -- .claude .codex .gitignore
 ```
 
-Redémarrer Claude Code ou Codex : les deux clients découvrent leur
-configuration projet au démarrage. Commencer par une analyse non mutante, puis
-une petite modification locale avec autonomie maximale L2.
+Restart Claude Code or Codex: both clients discover their
+project configuration at startup. Start with a non-mutating analysis, then
+a small local modification with maximum autonomy L2.
 
-## 7. Sources natives
+## 7. Native Sources
 
-- Claude Code — settings et scopes : <https://code.claude.com/docs/en/settings>
-- Codex — configuration : <https://developers.openai.com/codex/config-reference>
-- Codex — règles de commandes : <https://developers.openai.com/codex/rules>
+- Claude Code — settings and scopes: <https://code.claude.com/docs/en/settings>
+- Codex — configuration: <https://developers.openai.com/codex/config-reference>
+- Codex — command rules: <https://developers.openai.com/codex/rules>

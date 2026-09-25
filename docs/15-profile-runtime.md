@@ -77,4 +77,10 @@ egw-app [flutter]
 
 Commands execute from their repository root. The resulting report records repository, profile, operation, argv, working directory, exit code, stdout and stderr for every command.
 
+Each Runtime-executed result also records execution identity, UTC verification
+timestamp and the trusted Runtime verifier. `details.commits` binds every
+repository to the Git revision tested, while `validation.durationMs` measures
+the monotonic command window. A missing Git revision in a non-Git fixture is
+explicitly unavailable; it is not inferred.
+
 Any non-zero exit code makes the report and Execution `failed`. Successful validation advances to the next workflow phase. In both cases, `validation.yaml` remains available for review, traceability and multi-agent handoff.

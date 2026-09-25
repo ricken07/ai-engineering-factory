@@ -18,4 +18,9 @@ Adapter-native skills are intentionally thin. They resolve a pinned Core workflo
 
 Since v1.4.0 every adapter enters the same executable boundary through `aief run`. The adapter supplies the untouched user request and its identity, then follows `aief execution next` and submits schema-valid phase results. Intent normalization, workflow compilation, state, gates and handoff must never be reimplemented in an agent plug-in.
 
+The adapter supplies `--agent-session`, acquires the returned Execution lease
+with the same owner, and passes `--owner` to mutating transitions. The label
+alone is observed; only the matching active lease establishes a trusted Runtime
+session. Handoff releases that lease before another supported adapter resumes.
+
 For `validate-change`, adapters must call the shared profile-validation operation. Repository selection, profile inheritance, command construction, authorization and result persistence belong to the Runtime, ensuring identical behavior across agents.

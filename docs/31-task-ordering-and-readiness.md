@@ -1,92 +1,90 @@
-# 31 — Ordonnancement des Tasks et readiness dérivée
+# 31 — Task Ordering and Derived Readiness
 
-## Objectif
+## Goal
 
-Jusqu'en 1.14.0, la Factory n'avait aucune primitive d'ordre entre Tasks.
-`aief intake` normalise une requête à la fois, `aief execution next` avance une
-phase *à l'intérieur* d'une exécution déjà choisie, et la seule fonction
-topologique du Runtime (`aief backlog apply`) ordonnait la *création* de tickets
-externes, jamais leur exécution. La dépendance déclarée sur une
-`ExternalTaskProposal` disparaissait du modèle d'état dès l'issue créée : elle
-survivait dans le tracker, nulle part dans `.ai/runtime`.
+Until 1.14.0, the Factory had no primitive for task ordering.
+`aief intake` normalizes one request at a time, `aief execution next` advances a
+phase *within* an already-chosen execution, and the only topological function
+in the Runtime (`aief backlog apply`) ordered the *creation* of external tickets,
+never their execution. The declared dependency on an `ExternalTaskProposal`
+disappeared from state as soon as the issue was created: it survived in the
+tracker, nowhere in `.ai/runtime`.
 
-Conséquence : l'ordre ne pouvait vivre que dans un fichier de pilotage lu par
-l'agent, donc appliqué par discipline et non par contrainte — hors schéma, hors
-`aief validate`, hors journal d'événements. C'est exactement la classe de
-garantie que la Factory existe pour supprimer.
+Consequence: order could only live in a pilot file read by the agent, applied
+by discipline not constraint — outside schema, outside `aief validate`, outside
+event log. This is exactly the class of guarantee the Factory exists to
+eliminate.
 
-La version 1.15.0 comble ce trou sans introduire de scheduler : la dépendance
-est **déclarée** sur la Task et gouvernée par schéma ; l'ordre et la
-disponibilité sont **dérivés** de l'état, jamais déclarés.
+Version 1.15.0 fills this gap without introducing a scheduler: dependency is
+**declared** on the Task and governed by schema; order and availability are
+**derived** from state, never declared.
 
-## Ce que le projet déclare
+## What the Project Declares
 
-`task.schema.json` accepte deux champs supplémentaires :
+`task.schema.json` accepts two additional fields:
 
 ```yaml
 kind: Task
 metadata: {id: EGW-142}
-parent: EGW-100          # hiérarchie — n'ordonne pas et ne bloque pas
-dependsOn: [EGW-141]     # séquence — ordonne et bloque
+parent: EGW-100          # hierarchy — does not order or block
+dependsOn: [EGW-141]     # sequence — orders and blocks
 objective: {summary: ...}
 ```
 
-La distinction est volontaire. `parent` rattache une Task à son epic ; un epic
-n'a pas à être terminé avant ses enfants. `dependsOn` exprime une précédence
-réelle : tant que la dépendance n'est pas terminée, la Task n'est pas prenable.
+The distinction is intentional. `parent` attaches a Task to its epic; an epic
+need not complete before its children. `dependsOn` expresses real precedence:
+while a dependency is unfinished, the Task is not ready to take.
 
-Ces champs vivent dans `.ai/runtime/tasks/<id>/task.yaml`, donc dans le
-périmètre scanné par `aief validate` : un `dependsOn` mal typé casse la
-validation projet au lieu de passer silencieusement.
+These fields live in `.ai/runtime/tasks/<id>/task.yaml`, so within the scope
+scanned by `aief validate`: a malformed `dependsOn` breaks project validation
+instead of passing silently.
 
-## Ce que le Runtime dérive
+## What the Runtime Derives
 
-Le Runtime ne stocke aucun statut de Task. Il le recalcule :
+The Runtime stores no Task status. It recalculates it:
 
 ```text
-état de la Task   = statut de son Execution la plus récente
-                    (aucune Execution → pending)
-readiness         = fonction de (état, dépendances non satisfaites)
+Task state     = status of its most recent Execution
+                 (no Execution → pending)
+readiness      = function of (state, unsatisfied dependencies)
 ```
 
-Les identifiants d'Execution portent un horodatage UTC, donc « la plus
-récente » se résout par tri lexicographique, sans lire d'horloge.
+Execution identifiers carry a UTC timestamp, so "most recent" resolves by
+lexicographic sort, without reading a clock.
 
-| readiness | signification |
+| readiness | meaning |
 | --- | --- |
-| `done` | une Execution `completed` existe |
-| `blocked` | au moins une dépendance déclarée n'est pas terminée, ou est inconnue |
-| `active` | une Execution possède déjà la Task, y compris encore `pending` |
-| `ready` | rien n'empêche d'ouvrir une Execution |
+| `done` | a `completed` Execution exists |
+| `blocked` | at least one declared dependency is unfinished, or unknown |
+| `active` | an Execution already owns the Task, including still `pending` |
+| `ready` | nothing prevents opening an Execution |
 
-Trois décisions explicites :
+Three explicit decisions:
 
-- Une Execution possède sa Task dès sa création, avant même sa première phase.
-  Une Execution `pending` rend donc la Task `active` : sans cela, un agent
-  pourrait en ouvrir une seconde sur le même travail.
-- Une Execution `failed` ou `cancelled` laisse la Task `ready` : un échec est
-  rejouable, pas terminal.
-- Une référence `dependsOn` qui ne correspond à aucune Task enregistrée
-  **bloque** et est reportée dans `unknownDependsOn`. Pas de fallback
-  silencieux : une dépendance qu'on ne sait pas résoudre n'est pas une
-  dépendance satisfaite.
-- Un cycle de dépendances est une erreur, comme pour `backlog apply`. Le
-  Runtime refuse de produire un ordre plutôt que d'en produire un faux.
+- An Execution owns its Task on creation, before even its first phase.
+  A `pending` Execution makes the Task `active`: without this, an agent
+  could open a second one on the same work.
+- A `failed` or `cancelled` Execution leaves the Task `ready`: failure is
+  replayable, not terminal.
+- A `dependsOn` reference that matches no registered Task
+  **blocks** and is reported in `unknownDependsOn`. No silent fallback:
+  a dependency we cannot resolve is not a satisfied dependency.
+- A dependency cycle is an error, as with `backlog apply`. The
+  Runtime refuses to produce an order rather than produce a false one.
 
-Une Task qui affiche `readiness: blocked` avec `state: running` signale une
-**violation d'ordre** : une exécution a démarré sur un travail dont les
-prérequis ne sont pas satisfaits. Les deux champs sont exposés séparément pour
-rendre ce cas visible.
+A Task showing `readiness: blocked` with `state: running` signals an
+**order violation**: an execution started on work whose preconditions are
+unsatisfied. The two fields are exposed separately to make this visible.
 
-## La commande
+## The Command
 
 ```bash
 aief task list --project . --factory "$GAD_AI_FACTORY_HOME"
 aief task list --ready --project . --factory "$GAD_AI_FACTORY_HOME"
 ```
 
-La sortie est un artefact `TaskBacklog` validé contre
-`core/schemas/task-backlog.schema.json` :
+The output is a `TaskBacklog` artifact validated against
+`core/schemas/task-backlog.schema.json`:
 
 ```yaml
 kind: TaskBacklog
@@ -97,25 +95,25 @@ tasks:
     position: 1
     state: pending
     readiness: ready
-    summary: Exposer le contrat Homework
+    summary: Expose the Homework contract
     workflow: implement-task
     intent: implement
 ```
 
-`--ready` ne retient que les Tasks prenables et renumérote les positions. Les
-Tasks sont triées topologiquement par `dependsOn`, l'ordre entre Tasks
-indépendantes étant stabilisé par identifiant.
+`--ready` keeps only ready-to-take Tasks and renumbers positions. Tasks are
+sorted topologically by `dependsOn`, order between independent Tasks stabilized
+by identifier.
 
-La projection est **calculée à la lecture, jamais persistée**. Il n'existe donc
-pas d'ordre à resynchroniser : l'état du Runtime est la seule source.
+The projection is **calculated on read, never persisted**. There is no order to
+resynchronize: Runtime state is the sole source.
 
-## Limite assumée
+## Acknowledged Limit
 
-`aief task list` est une **lecture**, pas un gate. La Factory n'interdit pas
-aujourd'hui d'ouvrir une Execution sur une Task `blocked` — elle le rend
-visible et auditable. L'application dure de la précédence (blocage via
-`blockingReason`, comme pour `external-tracking-required`) reste un choix
-ouvert, à trancher quand l'usage aura montré si la visibilité suffit.
+`aief task list` is a **read**, not a gate. The Factory does not today forbid
+opening an Execution on a `blocked` Task — it makes this visible and auditable.
+Hard enforcement of precedence (blocking via `blockingReason`, like
+`external-tracking-required`) remains an open choice, to decide when usage
+shows whether visibility suffices.
 
-Conformément à `docs/19-idempotence-execution-leases.md`, aucun scheduler,
-daemon, base de données ni verrou distribué n'est introduit.
+Per `docs/19-idempotence-execution-leases.md`, no scheduler, daemon,
+database or distributed lock is introduced.

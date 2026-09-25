@@ -1,8 +1,8 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://factory.gaddigital.io/schemas/task-tracking-decision.schema.json",
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://aief.dev/schemas/task-tracking-decision.schema.json",
   "type":"object", "required":["apiVersion","kind","metadata","task","decision","reasons","requiredBefore","provider","duplicateSearch","externalTracking"],
   "properties":{
-    "apiVersion":{"const":"factory.gaddigital.io/v1alpha1"}, "kind":{"const":"TaskTrackingDecision"}, "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
+    "apiVersion":{"const":"aief.dev/v1alpha1"}, "kind":{"const":"TaskTrackingDecision"}, "metadata":{"$ref":"common.schema.json#/$defs/metadata"},
     "task":{"type":"string"}, "decision":{"type":"object","required":["level"],"properties":{"level":{"enum":["optional","recommended","required"]},"mode":{"enum":["local","external"]},"satisfied":{"type":"boolean"}},"additionalProperties":false},
     "reasons":{"$ref":"common.schema.json#/$defs/stringArray"}, "requiredBefore":{"$ref":"common.schema.json#/$defs/stringArray"},
     "provider":{"type":"object","required":["capability","status"],"properties":{"capability":{"const":"task-provider"},"id":{"type":"string"},"status":{"enum":["not-required","unresolved","available","unavailable"]}},"additionalProperties":false},

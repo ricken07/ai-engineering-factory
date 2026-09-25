@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://factory.gaddigital.io/schemas/gate.schema.json",
+  "$id": "https://aief.dev/schemas/gate.schema.json",
   "type": "object",
   "required": [
     "id",

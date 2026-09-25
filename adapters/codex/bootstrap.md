@@ -2,10 +2,17 @@
 
 When operating in a Factory-enabled project:
 
-1. For every engineering request, including natural language, execute
-   `adapters/codex/runtime-protocol.md`; do not require the developer to invoke
-   `aief` manually.
-2. Read `.ai/project.yaml`.
+1. Read `.ai/project.yaml`.
+2. Resolve `activation.mode` (default `auto`) to decide whether this request
+   executes `adapters/codex/runtime-protocol.md`:
+   - a native command (`$implement`, `$fix`, ...) always executes it, for
+     this execution, regardless of `mode`;
+   - free text under `mode: auto` executes it only after asking the
+     developer and receiving an explicit yes; otherwise handle the request
+     directly, without the Factory;
+   - free text under `mode: manual` never executes it; always handle the
+     request directly.
+   Do not require the developer to invoke `aief` manually.
 3. Resolve the pinned Factory version from `$GAD_AI_FACTORY_HOME` (or organization equivalent).
 4. Load the requested Core workflow, applicable policies and required skills.
 5. Load `.ai/repository-map.yaml` and mandatory project context.

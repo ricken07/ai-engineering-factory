@@ -15,9 +15,9 @@ Risk assessment
   ↓
 Policy decision
   ↓
-Plan
+Governed execution plan
   ↓
-Gate (if required)
+Enforcement point / gate (if required)
   ↓
 Implement
   ↓
@@ -31,7 +31,20 @@ Submit
   ↓
 Human/CI gates
   ↓
+Evidence bundle
+  ↓
 Merge or handoff
 ```
 
+Execution and phase timers begin and end on these persisted transitions. Human
+gate intervals are accumulated separately from Runtime and validation time;
+overlapping open gates count as one waiting interval rather than double-counted
+human attention time.
+
 A task may span multiple repositories while remaining one functional task. Each repository may have independent branches, commits and change requests linked back to the same task/execution.
+
+The Project owns one canonical Execution State Store. Each repository used by
+an Execution has a `WorkspaceBinding` to a checkout or worktree. Handoff changes
+session ownership, not Task/Execution identity or workspace binding. A missing
+recorded workspace blocks resume; it is never replaced by the caller's current
+directory.

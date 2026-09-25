@@ -1,4 +1,4 @@
-apiVersion: factory.gaddigital.io/v1alpha1
+apiVersion: aief.dev/v1alpha1
 kind: Policy
 metadata: {id: human-approval-policy, name: Human Approval Policy, version: 0.1.0}
 scope: factory
