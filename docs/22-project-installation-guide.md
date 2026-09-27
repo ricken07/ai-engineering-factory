@@ -24,7 +24,7 @@ metadata:
   name: My Project
 factory:
   version: 1.15.0
-  homeEnv: GAD_AI_FACTORY_HOME
+  homeEnv: AI_FACTORY_HOME
 engineering:
   inheritOrganization: true
   organizationCatalogs: [my-organization@1.0.0]
@@ -39,19 +39,19 @@ The project references the name of a variable, not a machine-specific path:
 ```yaml
 factory:
   version: 1.15.0
-  homeEnv: GAD_AI_FACTORY_HOME
+  homeEnv: AI_FACTORY_HOME
 ```
 
 The developer's workstation provides its value:
 
 ```bash
-export GAD_AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
+export AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
 ```
 
 Local example:
 
 ```bash
-export GAD_AI_FACTORY_HOME="/Users/example/.gad/ai-engineering-factory/1.15.0"
+export AI_FACTORY_HOME="/Users/example/.aief/ai-engineering-factory/1.15.0"
 ```
 
 ### `.zshrc` is not sufficient in all launch modes
@@ -67,22 +67,22 @@ For new Zsh login shells, also declare the variable in
 `~/.zprofile`, or use the environment mechanism managed by the organization:
 
 ```bash
-export GAD_AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
+export AI_FACTORY_HOME="<ABSOLUTE_FACTORY_INSTALLATION>"
 ```
 
 Then open a new terminal, or reload explicitly:
 
 ```bash
 source "$HOME/.zshrc"
-printenv GAD_AI_FACTORY_HOME
-test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
+printenv AI_FACTORY_HOME
+test -f "$AI_FACTORY_HOME/factory.yaml"
 ```
 
 Launching the agent from the same terminal guarantees inheritance:
 
 ```bash
 cd "<PROJECT_ROOT>"
-env | grep '^GAD_AI_FACTORY_HOME='
+env | grep '^AI_FACTORY_HOME='
 claude
 # or: codex
 ```
@@ -95,7 +95,7 @@ When an agent is launched from an IDE or a path is workstation-specific, Claude 
 ```json
 {
   "env": {
-    "GAD_AI_FACTORY_HOME": "<ABSOLUTE_FACTORY_INSTALLATION>"
+    "AI_FACTORY_HOME": "<ABSOLUTE_FACTORY_INSTALLATION>"
   }
 }
 ```
@@ -108,8 +108,8 @@ If this file already contains permissions, merge the `env` key without overwriti
 Before the first workflow, execute only:
 
 ```bash
-printenv GAD_AI_FACTORY_HOME
-test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
+printenv AI_FACTORY_HOME
+test -f "$AI_FACTORY_HOME/factory.yaml"
 ```
 
 An empty output is a precondition failure. The adapter must stop and indicate how to configure the environment. It must never search for an arbitrary installation, nor copy, generate, or link `factory.yaml` into the project workspace.
@@ -118,7 +118,7 @@ An empty output is a precondition failure. The adapter must stop and indicate ho
 
 ```text
 Developer workstation
-├── ~/.gad/ai-engineering-factory/1.15.0/  # Central Factory, read-only
+├── ~/.aief/ai-engineering-factory/1.15.0/  # Central Factory, read-only
 ├── ~/.agents/skills/                      # Codex entry points to Factory
 └── ~/.claude/skills/                      # Claude Code entry points to Factory
 
@@ -144,7 +144,7 @@ The presence of `.ai/project.yaml` only means the project is
 
 | Layer | Expected verification |
 | --- | --- |
-| Central Factory | The requested tag exists in `GAD_AI_FACTORY_HOME` |
+| Central Factory | The requested tag exists in `AI_FACTORY_HOME` |
 | Runtime | `aief` is installed and accessible in `PATH` |
 | Adapter | Skills exist in `~/.agents/skills` or `~/.claude/skills` |
 | Project | `.ai/project.yaml`, `AGENTS.md` and `CLAUDE.md` are present at root |
@@ -241,7 +241,7 @@ The organization's single reference is the published Git tag (`vX.Y.Z`), not
 a local clone: pin that same tag on every workstation and in CI, rather than
 each developer choosing their own version independently. Where each checkout
 physically lives — a fresh clone per workstation, or one shared
-filesystem/mounted location every `GAD_AI_FACTORY_HOME` points to — is a
+filesystem/mounted location every `AI_FACTORY_HOME` points to — is a
 deployment detail; what must never diverge is the tag. See
 [`09-governance.md`](09-governance.md#versioning) for the release process and
 the fail-closed guarantee that a project cannot silently run against a build
@@ -257,7 +257,7 @@ export AIEF_REPOSITORY_URL="<FACTORY_GIT_URL>"
 export AIEF_VERSION="1.15.0"
 
 # Organizational local root. This folder belongs to no business project.
-export AIEF_INSTALL_ROOT="$HOME/.gad/ai-engineering-factory"
+export AIEF_INSTALL_ROOT="$HOME/.aief/ai-engineering-factory"
 
 # Final path of the installed version.
 export AIEF_HOME="$AIEF_INSTALL_ROOT/$AIEF_VERSION"
@@ -309,16 +309,16 @@ Declare the path for resolving Factory assets:
 
 ```bash
 # Used by bootstraps/adapters to find the central version.
-export GAD_AI_FACTORY_HOME="$AIEF_HOME"
+export AI_FACTORY_HOME="$AIEF_HOME"
 
 # Makes the variable persistent for new Zsh sessions.
-echo "export GAD_AI_FACTORY_HOME=\"$AIEF_HOME\"" >> "$HOME/.zshrc"
+echo "export AI_FACTORY_HOME=\"$AIEF_HOME\"" >> "$HOME/.zshrc"
 source "$HOME/.zshrc"
 
 # Verifies that the current session resolves the Factory and its assets.
-test -n "$GAD_AI_FACTORY_HOME"
-test -d "$GAD_AI_FACTORY_HOME/core"
-test -f "$GAD_AI_FACTORY_HOME/pyproject.toml"
+test -n "$AI_FACTORY_HOME"
+test -d "$AI_FACTORY_HOME/core"
+test -f "$AI_FACTORY_HOME/pyproject.toml"
 ```
 
 ## 5. Install Agent Adapters
@@ -418,7 +418,7 @@ metadata:
 
 factory:
   version: 1.15.0                        # Central version required by project.
-  homeEnv: GAD_AI_FACTORY_HOME           # Variable that locates its installation.
+  homeEnv: AI_FACTORY_HOME           # Variable that locates its installation.
 
 workspace:
   strategy: polyrepo                     # Use monorepo if single Git root.
@@ -676,8 +676,8 @@ Execute these checks from a new terminal session:
 command -v aief
 
 # 2. Central Factory resolved.
-test -n "$GAD_AI_FACTORY_HOME"
-test -d "$GAD_AI_FACTORY_HOME/core"
+test -n "$AI_FACTORY_HOME"
+test -d "$AI_FACTORY_HOME/core"
 
 # 3. Project and bootstraps present.
 test -f "$PROJECT_ROOT/.ai/project.yaml"
@@ -694,7 +694,7 @@ test -f "$HOME/.claude/skills/implement/SKILL.md"
 test -f "$HOME/.agents/skills/implement/SKILL.md"
 
 # 6. Valid deterministic configuration.
-aief validate "$PROJECT_ROOT" --factory "$GAD_AI_FACTORY_HOME"
+aief validate "$PROJECT_ROOT" --factory "$AI_FACTORY_HOME"
 aief doctor "$PROJECT_ROOT"
 ```
 
@@ -771,8 +771,8 @@ test -f "$HOME/.claude/skills/implement/SKILL.md"
 ls -la "$HOME/.claude/skills/implement"
 
 # 3. Is the central Factory resolved in this session?
-printenv GAD_AI_FACTORY_HOME
-test -f "$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md"
+printenv AI_FACTORY_HOME
+test -f "$AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md"
 
 # 4. Do the project instructions exist at the launch root?
 test -f "$PROJECT_ROOT/CLAUDE.md"
@@ -783,7 +783,7 @@ If the skill is missing:
 
 ```bash
 aief setup-adapter claude-code \
-  --factory "$GAD_AI_FACTORY_HOME" \
+  --factory "$AI_FACTORY_HOME" \
   --execute
 ```
 
@@ -887,7 +887,7 @@ A version upgrade is explicit:
 
 1. install the new tag in a new central folder;
 2. update `factory.version` in `.ai/project.yaml` on a project branch;
-3. repoint `GAD_AI_FACTORY_HOME` to this installation;
+3. repoint `AI_FACTORY_HOME` to this installation;
 4. reinstall/repoint adapters;
 5. regenerate the integration lock;
 6. execute `validate` and `doctor`;
@@ -898,7 +898,7 @@ Do not silently replace the contents of an existing version folder.
 ## 15. Acceptance Checklist
 
 - [ ] The Factory is installed from a known tag.
-- [ ] `GAD_AI_FACTORY_HOME` points to this version.
+- [ ] `AI_FACTORY_HOME` points to this version.
 - [ ] `aief --help` works without manual Python environment.
 - [ ] Adapters were previewed then explicitly installed.
 - [ ] Native Claude/Codex permissions were reviewed and committed.

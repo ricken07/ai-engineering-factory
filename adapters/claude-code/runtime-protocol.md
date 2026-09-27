@@ -121,7 +121,7 @@ Factory manifest is a fatal configuration error. Never repair it by copying,
 linking or generating `factory.yaml` inside the project workspace.
 
 Commands submitted to Bash must contain literal, already-resolved arguments.
-Never use `$(pwd)`, `${GAD_AI_FACTORY_HOME}`, `${VAR:-fallback}`, `cd &&`, an
+Never use `$(pwd)`, `${AI_FACTORY_HOME}`, `${VAR:-fallback}`, `cd &&`, an
 environment assignment prefix, command substitution, pipes or redirections in
 an `aief` invocation. These forms are harder for native permission rules to
 validate and cause avoidable approval prompts. Do not probe `aief --help` during

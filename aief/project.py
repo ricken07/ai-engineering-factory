@@ -72,7 +72,7 @@ def load_project(root: Path) -> dict[str, Any]:
     return load_yaml(root / ".ai" / "project.yaml")
 
 def factory_home(project: dict[str, Any]) -> Path:
-    key = project["factory"].get("homeEnv", "GAD_AI_FACTORY_HOME")
+    key = project["factory"].get("homeEnv", "AI_FACTORY_HOME")
     value = os.environ.get(key)
     if not value: raise FileNotFoundError(f"environment variable {key} is not set")
     base = Path(value).expanduser()

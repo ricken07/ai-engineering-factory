@@ -26,8 +26,8 @@ Example:
 Query:
 
 ```bash
-aief task log <task-id> --project . --factory "$GAD_AI_FACTORY_HOME"
-aief task log <task-id> --project . --factory "$GAD_AI_FACTORY_HOME" --json
+aief task log <task-id> --project . --factory "$AI_FACTORY_HOME"
+aief task log <task-id> --project . --factory "$AI_FACTORY_HOME" --json
 ```
 
 The `.ai/runtime/` folder remains gitignored. For durable traceability, the

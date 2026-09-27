@@ -13,7 +13,7 @@ When operating in a Factory-enabled project:
    - free text under `mode: manual` never executes it; always handle the
      request directly.
    Do not require the developer to invoke `aief` manually.
-3. Resolve the pinned Factory version from `$GAD_AI_FACTORY_HOME` (or organization equivalent).
+3. Resolve the pinned Factory version from `$AI_FACTORY_HOME` (or organization equivalent).
 4. Load the requested Core workflow, applicable policies and required skills.
 5. Load `.ai/repository-map.yaml` and mandatory project context.
 6. Retrieve/understand the active task.

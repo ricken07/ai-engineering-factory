@@ -8,7 +8,7 @@ description: Execute the AI Engineering Factory add-tests workflow for the curre
 Invoke `aief run` with the complete user request and the pinned arguments below.
 
 Before any task work, execute the mandatory Codex Runtime Protocol at
-`$GAD_AI_FACTORY_HOME/adapters/codex/runtime-protocol.md`. Pass the complete
+`$AI_FACTORY_HOME/adapters/codex/runtime-protocol.md`. Pass the complete
 request with `--intent test --expect-workflow add-tests`; do not continue
 without a Runtime receipt.
 

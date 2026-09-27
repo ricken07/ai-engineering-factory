@@ -88,7 +88,7 @@ The log can be consulted during or after execution:
 ```bash
 aief task log <task-id> \
   --project "$PROJECT_ROOT" \
-  --factory "$GAD_AI_FACTORY_HOME"
+  --factory "$AI_FACTORY_HOME"
 ```
 
 It allows verification of the actual persisted trajectory: intent,
@@ -259,7 +259,7 @@ command intentionally triggers a prompt because Claude cannot parse it staticall
 ```bash
 aief execution complete-phase <id> \
   --project "$(pwd)" \
-  --factory "${GAD_AI_FACTORY_HOME}"
+  --factory "${AI_FACTORY_HOME}"
 ```
 
 The correct form is:
@@ -287,8 +287,8 @@ If the agent indicates the Factory is not configured, check in its own
 session:
 
 ```bash
-printenv GAD_AI_FACTORY_HOME
-test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
+printenv AI_FACTORY_HOME
+test -f "$AI_FACTORY_HOME/factory.yaml"
 ```
 
 The presence of the export in `.zshrc` does not prove a process launched from
@@ -310,10 +310,10 @@ Claude/Codex confirmation does not count as approval of a Factory gate.
 Only for administration or diagnostics:
 
 ```bash
-aief validate . --factory "$GAD_AI_FACTORY_HOME"
+aief validate . --factory "$AI_FACTORY_HOME"
 aief doctor .
-aief integrations doctor . --factory "$GAD_AI_FACTORY_HOME"
-aief execution inspect <execution-id> --project . --factory "$GAD_AI_FACTORY_HOME"
+aief integrations doctor . --factory "$AI_FACTORY_HOME"
+aief execution inspect <execution-id> --project . --factory "$AI_FACTORY_HOME"
 ```
 
 `aief run` remains a low-level interface for adapters, integration
@@ -325,7 +325,7 @@ Before the first mutating task:
 
 - [ ] the agent was launched from the root containing `.ai/project.yaml`;
 - [ ] the skill adapter is installed;
-- [ ] `GAD_AI_FACTORY_HOME` resolves the pinned version;
+- [ ] `AI_FACTORY_HOME` resolves the pinned version;
 - [ ] the request is passed automatically to the Runtime, respecting `activation.mode`;
 - [ ] an Execution appears in `.ai/runtime/`;
 - [ ] the receipt contains `taskLog` and the log begins with `task.normalized`;

@@ -79,8 +79,8 @@ unsatisfied. The two fields are exposed separately to make this visible.
 ## The Command
 
 ```bash
-aief task list --project . --factory "$GAD_AI_FACTORY_HOME"
-aief task list --ready --project . --factory "$GAD_AI_FACTORY_HOME"
+aief task list --project . --factory "$AI_FACTORY_HOME"
+aief task list --ready --project . --factory "$AI_FACTORY_HOME"
 ```
 
 The output is a `TaskBacklog` artifact validated against

@@ -62,7 +62,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [22 — Installation Guide](22-project-installation-guide.md) | Clone Factory, install CLI, set `GAD_AI_FACTORY_HOME`, install adapter, init project | Operators, project leads |
+| [22 — Installation Guide](22-project-installation-guide.md) | Clone Factory, install CLI, set `AI_FACTORY_HOME`, install adapter, init project | Operators, project leads |
 | [08 — Project Adoption](08-project-adoption.md) | Organizing a project to work with AIEF: context locations, profiles, integrations, repository structure | Project leads |
 | [25 — Agent Permissions](25-agent-permissions.md) | Permission templates for Claude Code, Codex; three-layer intersection: Factory policy + native + OS sandbox | Operators, security |
 

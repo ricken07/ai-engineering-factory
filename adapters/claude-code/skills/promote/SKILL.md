@@ -8,7 +8,7 @@ description: Execute the AI Engineering Factory promote-knowledge workflow for t
 Invoke `aief run` with the complete user request and the pinned arguments below.
 
 Before any task work, execute the mandatory Claude Code Runtime Protocol at
-`$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md`. Pass the
+`$AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md`. Pass the
 complete request with `--intent promote --expect-workflow promote-knowledge`;
 do not continue without a Runtime receipt.
 

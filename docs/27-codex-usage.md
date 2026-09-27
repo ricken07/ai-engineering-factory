@@ -31,15 +31,15 @@ Both formulations must produce the same
 Define the absolute path to the Factory in the shell profile:
 
 ```bash
-export GAD_AI_FACTORY_HOME="/absolute/path/to/ai-engineering-factory"
+export AI_FACTORY_HOME="/absolute/path/to/ai-engineering-factory"
 ```
 
 Then verify the CLI and the Factory:
 
 ```bash
-printenv GAD_AI_FACTORY_HOME
+printenv AI_FACTORY_HOME
 aief --help
-test -f "$GAD_AI_FACTORY_HOME/factory.yaml"
+test -f "$AI_FACTORY_HOME/factory.yaml"
 ```
 
 Shell configuration serves onboarding and initial resolution.
@@ -51,14 +51,14 @@ During a workflow, the adapter must resolve this value once then provide
 First preview the installation:
 
 ```bash
-aief setup-adapter codex --factory "$GAD_AI_FACTORY_HOME"
+aief setup-adapter codex --factory "$AI_FACTORY_HOME"
 ```
 
 Then create the links managed by the Factory:
 
 ```bash
 aief setup-adapter codex \
-  --factory "$GAD_AI_FACTORY_HOME" \
+  --factory "$AI_FACTORY_HOME" \
   --execute
 ```
 
@@ -92,9 +92,9 @@ For a project that does not yet have Codex files:
 
 ```bash
 mkdir -p .codex/rules
-cp "$GAD_AI_FACTORY_HOME/templates/project/.codex/config.toml" \
+cp "$AI_FACTORY_HOME/templates/project/.codex/config.toml" \
   .codex/config.toml
-cp "$GAD_AI_FACTORY_HOME/templates/project/.codex/rules/factory.rules" \
+cp "$AI_FACTORY_HOME/templates/project/.codex/rules/factory.rules" \
   .codex/rules/factory.rules
 ```
 
@@ -230,7 +230,7 @@ aief execution next <execution-id> \
   --json
 ```
 
-Do not use `$(pwd)`, `${GAD_AI_FACTORY_HOME}`, `cd ... &&`, a
+Do not use `$(pwd)`, `${AI_FACTORY_HOME}`, `cd ... &&`, a
 redirection or a pipe in these commands. These constructions prevent
 reliable static analysis and cause unnecessary permission requests.
 
@@ -266,7 +266,7 @@ Verify:
 ```bash
 test -f "$HOME/.agents/skills/implement/SKILL.md"
 ls -la "$HOME/.agents/skills/implement"
-test -f "$GAD_AI_FACTORY_HOME/adapters/codex/runtime-protocol.md"
+test -f "$AI_FACTORY_HOME/adapters/codex/runtime-protocol.md"
 ```
 
 If necessary, reinstall the adapter with `setup-adapter ... --execute`, close
@@ -274,7 +274,7 @@ Codex, then restart a new session from the project root.
 
 ### The Skill is loaded but no Execution exists
 
-Stop any modification. Verify `aief`, `GAD_AI_FACTORY_HOME`,
+Stop any modification. Verify `aief`, `AI_FACTORY_HOME`,
 `.ai/project.yaml` and the requested Factory version. The Skill must obtain a
 `runtimeReceipt`; a conversational assertion is not enough.
 
@@ -349,7 +349,7 @@ rm -rf ~/.mcp-auth/mcp-remote*
 
 ## 10. Minimal Checklist
 
-- [ ] `GAD_AI_FACTORY_HOME` points to the expected version.
+- [ ] `AI_FACTORY_HOME` points to the expected version.
 - [ ] `aief` is available in `PATH`.
 - [ ] `~/.agents/skills/implement/SKILL.md` exists.
 - [ ] Codex session was restarted after Skill installation.
