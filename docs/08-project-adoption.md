@@ -9,7 +9,7 @@ pinned once for every team member and every project (see
 [`09-governance.md`](09-governance.md#versioning)); for example:
 
 ```text
-~/.gad/ai-engineering-factory/0.1.0/
+~/.aief/ai-engineering-factory/0.1.0/
 ```
 
 If the organization also maintains its own engineering practices, it defines

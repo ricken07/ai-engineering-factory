@@ -31,7 +31,7 @@
         },
         "homeEnv": {
           "type": "string",
-          "default": "GAD_AI_FACTORY_HOME"
+          "default": "AI_FACTORY_HOME"
         }
       },
       "additionalProperties": false

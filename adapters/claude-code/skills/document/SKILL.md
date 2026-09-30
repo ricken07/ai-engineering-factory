@@ -8,7 +8,7 @@ description: Execute the AI Engineering Factory update-documentation workflow fo
 Invoke `aief run` with the complete user request and the pinned arguments below.
 
 Before any task work, execute the mandatory Claude Code Runtime Protocol at
-`$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md`. Pass the
+`$AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md`. Pass the
 complete request with `--intent document --expect-workflow update-documentation`;
 do not continue without a Runtime receipt.
 

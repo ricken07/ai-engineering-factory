@@ -140,22 +140,22 @@ A plain `pip install -e .` from the clone also works.
 **3. Point agents at the installation:**
 
 ```bash
-export GAD_AI_FACTORY_HOME="$HOME/.local/share/aief/$AIEF_VERSION"
+export AI_FACTORY_HOME="$HOME/.local/share/aief/$AIEF_VERSION"
 ```
 
 **4. Install an adapter, starting with a dry run:**
 
 ```bash
-aief setup-adapter claude-code --factory "$GAD_AI_FACTORY_HOME"
-aief setup-adapter claude-code --factory "$GAD_AI_FACTORY_HOME" --execute
+aief setup-adapter claude-code --factory "$AI_FACTORY_HOME"
+aief setup-adapter claude-code --factory "$AI_FACTORY_HOME" --execute
 ```
 
 **5. Initialize a project:**
 
 ```bash
-cp -R "$GAD_AI_FACTORY_HOME/templates/project/.ai" "$PROJECT_ROOT/.ai"
-cp "$GAD_AI_FACTORY_HOME/templates/project/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
-cp "$GAD_AI_FACTORY_HOME/templates/project/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
+cp -R "$AI_FACTORY_HOME/templates/project/.ai" "$PROJECT_ROOT/.ai"
+cp "$AI_FACTORY_HOME/templates/project/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
+cp "$AI_FACTORY_HOME/templates/project/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
 ```
 
 Edit `.ai/project.yaml` with the repositories, profiles, autonomy and organization catalogs for the project. Organization-specific practices belong in a separate catalog; the `core/` directory remains unchanged.
@@ -163,7 +163,7 @@ Edit `.ai/project.yaml` with the repositories, profiles, autonomy and organizati
 **6. Validate and run a first non-mutating request:**
 
 ```bash
-aief validate "$PROJECT_ROOT" --factory "$GAD_AI_FACTORY_HOME"
+aief validate "$PROJECT_ROOT" --factory "$AI_FACTORY_HOME"
 aief doctor "$PROJECT_ROOT"
 ```
 

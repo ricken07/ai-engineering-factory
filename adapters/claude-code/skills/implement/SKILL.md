@@ -7,7 +7,7 @@ description: Execute the AI Engineering Factory implement-task workflow for the 
 
 Before reading implementation code or using `Write`/`Edit`, execute the
 mandatory Claude Code Runtime Protocol at
-`$GAD_AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md` with:
+`$AI_FACTORY_HOME/adapters/claude-code/runtime-protocol.md` with:
 
 ```bash
 aief run "<complete-user-request>" --agent claude-code \
@@ -19,7 +19,7 @@ aief run "<complete-user-request>" --agent claude-code \
 Do not continue without the real Runtime receipt and execution ID. Never replace
 this command with a conversational claim that the Task was normalized.
 Replace every placeholder with a previously resolved literal absolute path.
-Do not send `$(pwd)`, `${GAD_AI_FACTORY_HOME}` or a shell fallback to Bash.
+Do not send `$(pwd)`, `${AI_FACTORY_HOME}` or a shell fallback to Bash.
 
 1. Locate the nearest workspace `.ai/project.yaml`.
 2. Resolve its pinned Factory version; fail closed if unavailable or incompatible.

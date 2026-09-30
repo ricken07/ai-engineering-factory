@@ -21,7 +21,7 @@ guarantee rather than a convention — see [`04-runtime-model.md`](04-runtime-mo
 1. Land the change on the default branch; land no unrelated version bump in the same commit.
 2. Bump `factory.yaml#metadata.version`, `VERSION` and `pyproject.toml#project.version` together, in one commit.
 3. Run the compatibility checks below.
-4. Tag the release commit `vX.Y.Z` and push the tag; this tag is the artifact every team member and every project resolves through `GAD_AI_FACTORY_HOME`, whether by cloning it fresh or pointing an existing shared installation at it. No other channel (a branch, an untagged commit, a rebuilt local copy) is authoritative.
+4. Tag the release commit `vX.Y.Z` and push the tag; this tag is the artifact every team member and every project resolves through `AI_FACTORY_HOME`, whether by cloning it fresh or pointing an existing shared installation at it. No other channel (a branch, an untagged commit, a rebuilt local copy) is authoritative.
 5. Announce the tag to teams already pinned to an older one; upgrading is explicit per project, never automatic — see [`22-project-installation-guide.md`](22-project-installation-guide.md#14-factory-upgrade).
 
 ## Changes requiring review

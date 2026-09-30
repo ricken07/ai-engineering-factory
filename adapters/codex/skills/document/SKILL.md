@@ -8,7 +8,7 @@ description: Execute the AI Engineering Factory update-documentation workflow fo
 Invoke `aief run` with the complete user request and the pinned arguments below.
 
 Before any task work, execute the mandatory Codex Runtime Protocol at
-`$GAD_AI_FACTORY_HOME/adapters/codex/runtime-protocol.md`. Pass the complete
+`$AI_FACTORY_HOME/adapters/codex/runtime-protocol.md`. Pass the complete
 request with `--intent document --expect-workflow update-documentation`; do not
 continue without a Runtime receipt.
 

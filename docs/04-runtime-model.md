@@ -41,7 +41,7 @@ Persist artifacts / traceability
 Recommended workstation layout:
 
 ```text
-~/.gad/ai-engineering-factory/
+~/.aief/ai-engineering-factory/
 ├── 0.1.0/
 ├── 0.2.0/
 └── 1.0.0/

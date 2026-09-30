@@ -46,13 +46,13 @@ Claude Code loads shared configuration from
 with `allow`, `ask` and `deny`.
 
 The local file `.claude/settings.local.json` is ignored by Git. It serves workstation-specific adjustments, never to bypass organizational rules.
-It can also provide `GAD_AI_FACTORY_HOME` to Claude when the client is
+It can also provide `AI_FACTORY_HOME` to Claude when the client is
 launched from an IDE or application that does not inherit the shell:
 
 ```json
 {
   "env": {
-    "GAD_AI_FACTORY_HOME": "<ABSOLUTE_FACTORY_INSTALLATION>"
+    "AI_FACTORY_HOME": "<ABSOLUTE_FACTORY_INSTALLATION>"
   }
 }
 ```
@@ -94,8 +94,8 @@ Avoid in the command submitted to Bash:
 
 ```bash
 $(pwd)
-${GAD_AI_FACTORY_HOME}
-${GAD_AI_FACTORY_HOME:-.}
+${AI_FACTORY_HOME}
+${AI_FACTORY_HOME:-.}
 cd ... && aief ...
 ```
 
