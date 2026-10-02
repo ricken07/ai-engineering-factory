@@ -48,5 +48,5 @@ artifacts, policy decisions, gates, workspace operations and validation
 outcomes. It never stores private chain-of-thought. Inspect it with:
 
 ```bash
-aief task log <task-id> --project . --factory "$GAD_AI_FACTORY_HOME"
+aief task log <task-id> --project . --factory "$AI_FACTORY_HOME"
 ```

@@ -6,7 +6,7 @@
       "Read",
       "Glob",
       "Grep",
-      "Bash(printenv GAD_AI_FACTORY_HOME)",
+      "Bash(printenv AI_FACTORY_HOME)",
       "Bash(aief *)",
       "Bash(aief validate *)",
       "Bash(aief doctor *)",
