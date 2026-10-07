@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fixed `aief setup-adapter --execute` crashing with `AttributeError: 'Namespace' object has no attribute 'path'` after a successful install; the command now exits 0 in both dry-run and execute modes.
+
 ## 1.0.0 — First release
 
 - Established an agent-agnostic core based on contracts, schemas and deterministic policies.

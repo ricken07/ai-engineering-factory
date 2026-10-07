@@ -120,3 +120,14 @@ def test_task_tracking_status_command(tmp_path: Path, capsys):
     service.reassess_tracking(identifier,{"risk":"low","repositories":["main"],"changeTypes":["refactoring"]})
     assert main(["task","tracking",identifier,"--project",str(project),"--factory",".","--json"]) == 0
     assert '"level": "optional"' in capsys.readouterr().out
+
+def test_setup_adapter_dry_run_then_execute(tmp_path: Path, capsys):
+    target = tmp_path / "skills"
+    assert main(["setup-adapter", "claude-code", "--factory", ".", "--target", str(target)]) == 0
+    out = capsys.readouterr().out
+    assert "PLAN " in out and not target.exists()
+    assert main(["setup-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
+    out = capsys.readouterr().out
+    assert "Installed " in out and target.is_dir()
+    assert any((skill / "SKILL.md").is_file() for skill in target.iterdir())
+    assert main(["setup-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
