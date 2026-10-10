@@ -180,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
             for path in install_adapter(factory,args.agent,target,args.copy): print(f"Installed {path}")
         else:
             for source,destination in adapter_plan(factory,args.agent,target): print(f"PLAN {source} -> {destination}")
-            return 0
+        return 0
     if args.command == "mcp-config":
         project_root=find_project(Path(args.project)); bindings=resolve_bindings(Path(args.factory).resolve(),load_project(project_root))
         print(render_codex(bindings) if args.agent=="codex" else json.dumps(render_claude(bindings),indent=2)); return 0
