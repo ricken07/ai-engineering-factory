@@ -194,6 +194,8 @@ class Execution:
             if self.data["status"] == "completed": self._finish_execution()
             self.record_runtime_duration(runtime_started)
             self.save(); return self.data["status"]
+        if self.data["status"] == "blocked":
+            self.record_runtime_duration(runtime_started); self.save(); return "blocked"
         if output is not None:
             self._persist_output(phase, output)
         if "gate" in phase and not approved:

@@ -228,6 +228,8 @@ class RuntimeService:
         phase = execution.next_phase()
         if phase is None:
             raise RuntimeError("execution is already complete")
+        if execution.data["status"] == "blocked":
+            raise RuntimeError("execution is blocked: resolve it (answer-question, resume or cancel) before completing a phase")
         pending = self._pending_policy_gates(execution, phase["id"])
         if pending:
             raise PermissionError("required policy gates are pending: " + ", ".join(sorted(pending)))
@@ -515,6 +517,30 @@ class RuntimeService:
         self._events(execution.data["task"]).append(
             "execution.cancelled", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": reason},
+        )
+        return execution
+
+    @measured_runtime
+    def ask_user(self, execution_id: str, question: str, requires_authority: bool = False, owner: str | None = None) -> Execution:
+        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+        execution.ask_user(question, requires_authority)
+        self._events(execution.data["task"]).append(
+            "question.asked", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "phase": execution.next_phase()["id"] if execution.next_phase() else None,
+                     "requiresAuthority": requires_authority, "question": question},
+        )
+        return execution
+
+    @measured_runtime
+    def answer_user_question(self, execution_id: str, answer: str, owner: str | None = None) -> Execution:
+        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+        execution.answer_user_question(answer)
+        self._events(execution.data["task"]).append(
+            "question.answered", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "phase": execution.next_phase()["id"] if execution.next_phase() else None,
+                     "answeredBy": owner or "human", "answer": answer},
         )
         return execution
 

@@ -31,6 +31,51 @@ def test_runtime_service_creates_schema_valid_execution_and_handoff(tmp_path: Pa
     assert execution.next_phase()["id"] == "understand"
 
 
+def test_ask_user_and_answer_question_round_trip_stay_schema_valid(tmp_path: Path):
+    project = tmp_path / "project"
+    initialize(Path("templates/project"), project)
+    service = RuntimeService(project, Path("."))
+    execution = service.start("/analyze DEMO-60", "codex")
+    execution_id = execution.data["metadata"]["id"]
+
+    blocked = service.ask_user(execution_id, "Which behavior is authoritative?", requires_authority=True)
+    assert blocked.data["status"] == "blocked"
+    assert blocked.next_phase()["recovery"]["status"] == "waiting-user"
+    assert not list(validator("execution.schema.json").iter_errors(blocked.data))
+
+    resumed = service.answer_user_question(execution_id, "Use the documented behavior")
+    assert resumed.data["status"] == "running"
+    assert resumed.next_phase()["recovery"]["answer"] == "Use the documented behavior"
+    assert not list(validator("execution.schema.json").iter_errors(resumed.data))
+
+    events = service.task_events("DEMO-60")
+    assert [item["event"]["type"] for item in events][-2:] == ["question.asked", "question.answered"]
+    assert events[-2]["payload"]["question"] == "Which behavior is authoritative?"
+    assert events[-1]["payload"]["answer"] == "Use the documented behavior"
+
+
+def test_complete_phase_refuses_to_advance_while_blocked_on_a_pending_question(tmp_path: Path):
+    project = tmp_path / "project"
+    initialize(Path("templates/project"), project)
+    service = RuntimeService(project, Path("."))
+    execution = service.start("/analyze DEMO-62", "codex")
+    execution_id = execution.data["metadata"]["id"]
+    service.ask_user(execution_id, "Which behavior is authoritative?", requires_authority=True)
+
+    output = yaml.safe_load(Path("core/skills/understand-task/examples/output.yaml").read_text())
+    with pytest.raises(RuntimeError, match="blocked"):
+        service.complete_phase(execution_id, output)
+    blocked = service.execution(execution_id)
+    assert blocked.data["artifacts"] == []
+    assert blocked.next_phase()["status"] == "blocked"
+    assert "phase.completed" not in [item["event"]["type"] for item in service.task_events("DEMO-62")]
+
+    service.answer_user_question(execution_id, "Use the documented behavior")
+    completed = service.complete_phase(execution_id, output)
+    assert completed.data["status"] == "running"
+    assert "understand.yaml" in completed.data["artifacts"]
+
+
 def test_task_log_traces_workflow_and_structured_phase_decisions(tmp_path: Path):
     project = tmp_path / "project"
     initialize(Path("templates/project"), project)

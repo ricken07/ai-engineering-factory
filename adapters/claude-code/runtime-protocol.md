@@ -131,5 +131,27 @@ For `validate-change`, use `aief execution profile-validation`; do not construct
 stack commands in the adapter. For governed actions, wait for the Runtime gate
 and use `aief execution approve` only after explicit human approval.
 
+When `execution next` reports `blocked` because the current phase's
+`recovery.status` is `waiting-user`, do not resolve the question in
+conversation alone: read `recovery.question`, present it to the human in this
+session, and once answered, submit it with the exact deterministic form:
+
+```bash
+aief execution answer-question "<execution-id>" \
+  --answer "<the human's exact answer>" \
+  --owner "claude-code:<session-id>" \
+  --project "<absolute-workspace-root>" \
+  --factory "<absolute-factory-home>" \
+  --json
+```
+
+Resume the phase loop from `execution next` only after this call returns
+`running`. Raise such a question yourself with `aief execution ask-user
+--question "<precise-question>" [--requires-authority]`; omit
+`--requires-authority` only once the phase's recorded attempts satisfy
+`recovery.minimumAttempts`. To abandon an Execution instead of continuing it,
+call `aief execution cancel "<execution-id>" --reason "<reason>"`; this is a
+terminal transition and cannot be undone.
+
 All CLI arguments derived from user input must be passed as discrete, safely
 quoted arguments. Do not use `eval`, shell concatenation or `shell=True`.

@@ -19,6 +19,7 @@ EVENT_TYPES = {
     "workspace.prepared", "workspace.blocked",
     "integration.resolved", "integration.failed",
     "execution.completed", "execution.failed", "execution.cancelled",
+    "question.asked", "question.answered",
 }
 
 _SENSITIVE_KEYS = {

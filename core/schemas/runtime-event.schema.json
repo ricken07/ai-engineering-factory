@@ -17,7 +17,8 @@
             "gate.requested", "gate.approved", "gate.rejected",
             "workspace.prepared", "workspace.blocked",
             "integration.resolved", "integration.failed",
-            "execution.completed", "execution.failed", "execution.cancelled"
+            "execution.completed", "execution.failed", "execution.cancelled",
+            "question.asked", "question.answered"
           ]
         },
         "timestamp": {"type": "string", "format": "date-time"}

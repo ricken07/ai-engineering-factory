@@ -1,4 +1,6 @@
 from pathlib import Path
+import json
+import yaml
 from aief.cli import main
 
 def test_inspect_example(capsys):
@@ -120,6 +122,42 @@ def test_task_tracking_status_command(tmp_path: Path, capsys):
     service.reassess_tracking(identifier,{"risk":"low","repositories":["main"],"changeTypes":["refactoring"]})
     assert main(["task","tracking",identifier,"--project",str(project),"--factory",".","--json"]) == 0
     assert '"level": "optional"' in capsys.readouterr().out
+
+def test_execution_ask_user_answer_question_and_cancel_commands(tmp_path: Path, capsys):
+    destination = tmp_path / "demo"
+    assert main(["init", str(destination)]) == 0
+    capsys.readouterr()
+    assert main(["run", "/analyze DEMO-50", "--project", str(destination), "--factory", "."]) == 0
+    execution_id = yaml.safe_load(capsys.readouterr().out)["execution"]
+
+    assert main([
+        "execution", "ask-user", execution_id,
+        "--question", "Which behavior is authoritative?", "--requires-authority",
+        "--project", str(destination), "--factory", ".", "--json",
+    ]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "blocked"
+    assert data["phases"][0]["recovery"]["status"] == "waiting-user"
+    assert data["phases"][0]["recovery"]["question"] == "Which behavior is authoritative?"
+
+    assert main([
+        "execution", "answer-question", execution_id,
+        "--answer", "Use the documented behavior",
+        "--project", str(destination), "--factory", ".", "--json",
+    ]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "running"
+    assert data["phases"][0]["recovery"]["answer"] == "Use the documented behavior"
+
+    assert main([
+        "execution", "cancel", execution_id,
+        "--reason", "superseded by DEMO-51",
+        "--project", str(destination), "--factory", ".", "--json",
+    ]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "cancelled"
+    assert data["cancelledReason"] == "superseded by DEMO-51"
+
 
 def test_setup_adapter_dry_run_then_execute(tmp_path: Path, capsys):
     target = tmp_path / "skills"
