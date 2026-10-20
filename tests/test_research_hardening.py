@@ -202,6 +202,7 @@ def test_reproducibility_metadata_is_explicit_and_exportable(tmp_path: Path):
     assert metadata["contextFingerprint"]["availability"] == "OBSERVED"
     assert metadata["policyFingerprint"]["availability"] == "OBSERVED"
     assert metadata["governedExecutionPlanFingerprint"]["availability"] == "OBSERVED"
+    assert metadata["adapterIdentifier"] == {"value": "claude-code", "availability": "OBSERVED"}
     assert_schema(ROOT, "execution.schema.json", execution.data)
     args = parser().parse_args(["run", "task", "--experiment-condition", "L2", "--repeat-index", "3"])
     assert (args.experiment_condition, args.repeat_index) == ("L2", 3)

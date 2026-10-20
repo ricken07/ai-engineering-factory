@@ -188,6 +188,7 @@ class RuntimeService:
             "governedExecutionPlanFingerprint": self._observed_value(None),
             "agentIdentifier": self._observed_value(actor.get("id")),
             "modelIdentifier": self._observed_value(experiment.get("modelIdentifier")),
+            "adapterIdentifier": self._observed_value(agent),
             "adapterVersion": self._observed_value(adapter_version),
             "experimentalCondition": self._observed_value(experiment.get("condition")),
             "repeatIndex": self._observed_value(experiment.get("repeatIndex")),
