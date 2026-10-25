@@ -253,7 +253,6 @@ AIEF documentation is organized by use case and audience, not by file number. **
 
 ## Security
 
-See [`SECURITY.md`](SECURITY.md) for vulnerability reporting and the supported-version policy.
 
 ## Research baseline observability
 
