@@ -18,3 +18,34 @@ def install_adapter(factory: Path, agent: str, target: Path | None = None, copy:
         shutil.copytree(source,destination) if copy else destination.symlink_to(source, target_is_directory=True)
         installed.append(destination)
     return installed
+
+def adapter_status(factory: Path, agent: str, target: Path | None = None) -> list[dict]:
+    """Per-skill installation status, without touching the filesystem."""
+    statuses=[]
+    for source,destination in adapter_plan(factory,agent,target):
+        if destination.is_symlink():
+            state = "linked" if destination.resolve()==source.resolve() else "broken"
+        elif destination.is_dir():
+            state = "copied"
+        elif destination.exists():
+            state = "conflict"
+        else:
+            state = "absent"
+        statuses.append({"skill":source.name,"source":str(source),"destination":str(destination),"status":state})
+    return statuses
+
+def uninstall_adapter(factory: Path, agent: str, target: Path | None = None, copy: bool = False) -> list[Path]:
+    """Remove only entries this Factory installed: a symlink resolving to its
+    source, or, with `copy`, a directory previously installed by `--copy`.
+    Refuses to touch anything else, mirroring `install_adapter`'s refusal to
+    replace an unrelated path."""
+    removed=[]
+    for source,destination in adapter_plan(factory,agent,target):
+        if not destination.exists() and not destination.is_symlink(): continue
+        if destination.is_symlink():
+            if destination.resolve()!=source.resolve(): raise FileExistsError(f"refusing to remove {destination}: not linked to {source}")
+            destination.unlink(); removed.append(destination); continue
+        if copy and destination.is_dir():
+            shutil.rmtree(destination); removed.append(destination); continue
+        raise FileExistsError(f"refusing to remove {destination}: pass --copy to remove a copied installation")
+    return removed

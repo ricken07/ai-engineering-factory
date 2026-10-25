@@ -169,3 +169,49 @@ def test_setup_adapter_dry_run_then_execute(tmp_path: Path, capsys):
     assert "Installed " in out and target.is_dir()
     assert any((skill / "SKILL.md").is_file() for skill in target.iterdir())
     assert main(["setup-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
+
+
+def test_verify_adapter_reports_missing_then_linked(tmp_path: Path, capsys):
+    target = tmp_path / "skills"
+    assert main(["verify-adapter", "claude-code", "--factory", ".", "--target", str(target)]) == 1
+    out = capsys.readouterr().out
+    assert "ABSENT " in out
+    assert main(["setup-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
+    capsys.readouterr()
+    assert main(["verify-adapter", "claude-code", "--factory", ".", "--target", str(target), "--json"]) == 0
+    statuses = json.loads(capsys.readouterr().out)
+    assert statuses and all(entry["status"] == "linked" for entry in statuses)
+
+
+def test_uninstall_adapter_dry_run_then_execute_removes_only_managed_links(tmp_path: Path, capsys):
+    target = tmp_path / "skills"
+    assert main(["setup-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
+    capsys.readouterr()
+
+    assert main(["uninstall-adapter", "claude-code", "--factory", ".", "--target", str(target)]) == 0
+    out = capsys.readouterr().out
+    assert "PLAN remove " in out
+    assert any((skill / "SKILL.md").is_file() for skill in target.iterdir())
+
+    assert main(["uninstall-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
+    out = capsys.readouterr().out
+    assert "Removed " in out
+    assert not any(target.iterdir())
+
+    assert main(["uninstall-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"]) == 0
+    assert "Nothing to remove" in capsys.readouterr().out
+
+
+def test_uninstall_adapter_refuses_to_touch_a_foreign_directory(tmp_path: Path, capsys):
+    import pytest
+    target = tmp_path / "skills"
+    target.mkdir()
+    (target / "implement").mkdir()
+    (target / "implement" / "notes.txt").write_text("not installed by aief")
+
+    assert main(["uninstall-adapter", "claude-code", "--factory", ".", "--target", str(target)]) == 0
+    assert "REFUSE " in capsys.readouterr().out
+
+    with pytest.raises(FileExistsError):
+        main(["uninstall-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"])
+    assert (target / "implement" / "notes.txt").is_file()

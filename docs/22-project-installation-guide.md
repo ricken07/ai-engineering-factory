@@ -345,7 +345,22 @@ aief setup-adapter claude-code --factory "$AIEF_HOME" --execute
 
 The adapters remain thin: `$implement` for Codex and `/implement` for Claude trigger the same Core workflow.
 
-Physically verify the installation:
+Verify the installation:
+
+```bash
+# Reports one status line per skill: LINKED, COPIED, BROKEN, CONFLICT or ABSENT.
+# Exits 0 only when every skill is LINKED or COPIED.
+aief verify-adapter codex --factory "$AIEF_HOME"
+aief verify-adapter claude-code --factory "$AIEF_HOME"
+```
+
+`BROKEN` means the entry is a symlink pointing somewhere other than this
+Factory (a stale link from a previous or different installation). `CONFLICT`
+means the destination exists and is neither a matching symlink nor a plain
+directory (for example a file). Either failure must be resolved manually
+before retrying `setup-adapter`; `verify-adapter` never writes anything.
+
+Equivalent manual checks, if only one skill needs a quick look:
 
 ```bash
 # Must find the Codex skill manifest.
@@ -361,6 +376,35 @@ ls -la "$HOME/.claude/skills/implement"
 
 If either test fails, the corresponding agent will not be able to discover its
 native `implement` command.
+
+### Uninstalling or Reinstalling an Adapter
+
+`uninstall-adapter` mirrors `setup-adapter`'s dry-run/`--execute` pattern and
+removes only entries this Factory installed. A symlink resolving to this
+Factory's `adapters/<agent>/skills/` is always eligible; a directory
+installed with `--copy` requires the same `--copy` flag to confirm removal.
+Anything else at the destination (a foreign directory, an unrelated file, a
+symlink pointing elsewhere) is left untouched and reported as `REFUSE`.
+
+```bash
+# Preview only; nothing is removed without --execute.
+aief uninstall-adapter codex --factory "$AIEF_HOME"
+aief uninstall-adapter claude-code --factory "$AIEF_HOME"
+
+# Applies the plan.
+aief uninstall-adapter codex --factory "$AIEF_HOME" --execute
+aief uninstall-adapter claude-code --factory "$AIEF_HOME" --execute
+
+# Only needed if the adapter was installed with --copy.
+aief uninstall-adapter claude-code --factory "$AIEF_HOME" --copy --execute
+```
+
+`uninstall-adapter` never deletes the parent skills directory itself
+(`~/.agents/skills` or `~/.claude/skills`), only the individual skill entries
+it manages — that directory may be shared with other installations. A
+version upgrade is `uninstall-adapter` against the old `$AIEF_HOME` followed
+by `setup-adapter --execute` against the new one; see
+[§14](#14-factory-upgrade).
 
 ## 6. Initialize the Project
 
@@ -688,10 +732,10 @@ test -f "$PROJECT_ROOT/.codex/config.toml"
 test -f "$PROJECT_ROOT/.codex/rules/factory.rules"
 
 # 4. Claude Code adapter, if Claude will be used.
-test -f "$HOME/.claude/skills/implement/SKILL.md"
+aief verify-adapter claude-code --factory "$AI_FACTORY_HOME"
 
 # 5. Codex adapter, if Codex will be used.
-test -f "$HOME/.agents/skills/implement/SKILL.md"
+aief verify-adapter codex --factory "$AI_FACTORY_HOME"
 
 # 6. Valid deterministic configuration.
 aief validate "$PROJECT_ROOT" --factory "$AI_FACTORY_HOME"
@@ -888,7 +932,9 @@ A version upgrade is explicit:
 1. install the new tag in a new central folder;
 2. update `factory.version` in `.ai/project.yaml` on a project branch;
 3. repoint `AI_FACTORY_HOME` to this installation;
-4. reinstall/repoint adapters;
+4. `aief uninstall-adapter <agent> --factory <old $AIEF_HOME> --execute`, then
+   `aief setup-adapter <agent> --factory <new $AIEF_HOME> --execute`, then
+   `aief verify-adapter <agent> --factory <new $AIEF_HOME>`;
 5. regenerate the integration lock;
 6. execute `validate` and `doctor`;
 7. test a non-mutating workflow before an implementation.

@@ -29,6 +29,15 @@ aief setup-adapter claude-code --factory /factory/1.2.0 --execute
 
 The default dry run shows every planned link. Installation refuses to overwrite unrelated paths. Codex skills target `~/.agents/skills`; Claude Code skills target `~/.claude/skills`. A version upgrade repoints the centrally managed links; projects do not copy these skills.
 
+`verify-adapter` reports each skill's status (`linked`, `copied`, `broken`, `conflict`, `absent`) without writing anything, and exits non-zero unless every skill is `linked` or `copied`. `uninstall-adapter` mirrors the same dry-run/`--execute` pattern and removes only entries this Factory manages — a symlink resolving to its own `adapters/<agent>/skills/`, or, with `--copy`, a directory it previously installed that way. Anything else at the destination is left untouched:
+
+```bash
+aief verify-adapter codex --factory /factory/1.2.0
+
+aief uninstall-adapter codex --factory /factory/1.2.0
+aief uninstall-adapter codex --factory /factory/1.2.0 --execute
+```
+
 ### Session bootstrap
 
 `AGENTS.md` is the concise shared bootstrap. `CLAUDE.md` imports it and adds only the Claude adapter bridge. Both resolve `.ai/project.yaml`; neither duplicates Core procedures or provider configuration.

@@ -6,7 +6,7 @@ from .yamlio import load_yaml
 from .project import find_project, initialize, load_project, runtime_root
 from .validation import validate_package, validate_project
 from .policy import resolve_policy
-from .adapter_install import adapter_plan, install_adapter
+from .adapter_install import adapter_plan, adapter_status, install_adapter, uninstall_adapter
 from .mcp import render_claude, render_codex, resolve_bindings
 from .integration_manager import doctor as integration_doctor, sync_agent, write_lock
 from .intake import MUTATING, TaskRegistry
@@ -21,6 +21,8 @@ def parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init"); init.add_argument("destination"); init.add_argument("--template"); init.add_argument("--force", action="store_true")
     resolve = sub.add_parser("resolve"); resolve.add_argument("decision"); resolve.add_argument("--json", action="store_true")
     setup = sub.add_parser("setup-adapter"); setup.add_argument("agent", choices=["codex","claude-code"]); setup.add_argument("--factory", default="."); setup.add_argument("--target"); setup.add_argument("--copy", action="store_true"); setup.add_argument("--execute", action="store_true")
+    uninstall = sub.add_parser("uninstall-adapter"); uninstall.add_argument("agent", choices=["codex","claude-code"]); uninstall.add_argument("--factory", default="."); uninstall.add_argument("--target"); uninstall.add_argument("--copy", action="store_true"); uninstall.add_argument("--execute", action="store_true")
+    verify = sub.add_parser("verify-adapter"); verify.add_argument("agent", choices=["codex","claude-code"]); verify.add_argument("--factory", default="."); verify.add_argument("--target"); verify.add_argument("--json", action="store_true")
     mcp = sub.add_parser("mcp-config"); mcp.add_argument("agent", choices=["codex","claude-code"]); mcp.add_argument("project", nargs="?", default="."); mcp.add_argument("--factory", default=".")
     integrations=sub.add_parser("integrations"); integration_sub=integrations.add_subparsers(dest="integration_command",required=True)
     for name in ("doctor","lock"):
@@ -187,6 +189,31 @@ def main(argv: list[str] | None = None) -> int:
         else:
             for source,destination in adapter_plan(factory,args.agent,target): print(f"PLAN {source} -> {destination}")
         return 0
+    if args.command == "uninstall-adapter":
+        factory, target = Path(args.factory).resolve(), Path(args.target).expanduser() if args.target else None
+        if args.execute:
+            removed = uninstall_adapter(factory,args.agent,target,args.copy)
+            for path in removed: print(f"Removed {path}")
+            if not removed: print("Nothing to remove")
+        else:
+            for entry in adapter_status(factory,args.agent,target):
+                destination, status = entry["destination"], entry["status"]
+                if status == "absent": print(f"SKIP {destination} (absent)")
+                elif status == "linked": print(f"PLAN remove {destination} (linked)")
+                elif status == "copied" and args.copy: print(f"PLAN remove {destination} (copied)")
+                elif status == "copied": print(f"REFUSE {destination} (copied; pass --copy to remove)")
+                elif status == "broken": print(f"REFUSE {destination} (linked elsewhere)")
+                else: print(f"REFUSE {destination} (not managed by this Factory)")
+        return 0
+    if args.command == "verify-adapter":
+        factory, target = Path(args.factory).resolve(), Path(args.target).expanduser() if args.target else None
+        statuses = adapter_status(factory,args.agent,target)
+        healthy = {"linked","copied"}
+        if args.json:
+            print(json.dumps(statuses, indent=2))
+        else:
+            for entry in statuses: print(f"{entry['status'].upper()} {entry['destination']}")
+        return bool(any(entry["status"] not in healthy for entry in statuses))
     if args.command == "mcp-config":
         project_root=find_project(Path(args.project)); bindings=resolve_bindings(Path(args.factory).resolve(),load_project(project_root))
         print(render_codex(bindings) if args.agent=="codex" else json.dumps(render_claude(bindings),indent=2)); return 0
