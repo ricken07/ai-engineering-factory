@@ -33,3 +33,15 @@ def test_runtime_protocol_forbids_unreceipted_mutation():
         assert "`$(pwd)`" in protocol
         assert "literal" in protocol
         assert '--output "<absolute-artifact-path>"' in protocol
+
+
+def test_install_repoints_link_from_another_factory_but_refuses_foreign_paths(tmp_path):
+    import shutil, pytest
+    from aief.adapter_install import install_adapter
+    other = tmp_path / "other"; shutil.copytree(ROOT / "adapters", other / "adapters")
+    target = tmp_path / "skills"
+    install_adapter(other, "claude-code", target)
+    install_adapter(ROOT, "claude-code", target)
+    assert (target / "analyze").resolve() == (ROOT / "adapters/claude-code/skills/analyze").resolve()
+    (target / "fix").unlink(); (target / "fix").mkdir()
+    with pytest.raises(FileExistsError): install_adapter(ROOT, "claude-code", target)
