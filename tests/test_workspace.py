@@ -132,3 +132,47 @@ def test_workspace_snapshot_is_schema_valid(tmp_path: Path):
     workspace, _ = manager(tmp_path)
     state = workspace.inspect(["api"], "EGW-142")
     assert_schema(Path("."), "workspace-snapshot.schema.json", state)
+
+
+def module_manager(tmp_path: Path, mode: str = "require-clean"):
+    root = tmp_path / "project"; repository(root)
+    (root / ".gitignore").write_text(".ai/runtime/\n")
+    for module in ("api", "app"):
+        (root / module).mkdir(); (root / module / "pom.xml").write_text("<project/>\n")
+    git(root, "add", "."); git(root, "commit", "-m", "modules")
+    execution = root / ".ai/runtime/executions/exec-1"; execution.mkdir(parents=True)
+    project = {"workspaceSafety":{"mode":mode,"baseBranch":"main","taskBranchPrefix":"aief"}, "runtime":{"root":".ai/runtime"},
+               "repositories":[{"id":"api","path":"api","role":"library"}, {"id":"app","path":"app","role":"application"}]}
+    return WorkspaceManager(root, project, execution), root
+
+
+def test_modules_sharing_one_git_root_share_one_task_branch(tmp_path: Path):
+    workspace, root = module_manager(tmp_path)
+    state = workspace.prepare(["api", "app"], "EGW-142", execute=True)
+    assert state["decision"]["status"] == "ready"
+    assert len(state["operations"]) == 1
+    assert git(root, "branch", "--show-current") == "aief/egw-142"
+    assert {item["gitRoot"] for item in state["repositories"].values()} == {str(root.resolve())}
+    assert workspace.verify()["status"] == "ready"
+    assert workspace.rollback(execute=True)["decision"]["status"] == "rolled-back"
+    assert git(root, "branch", "--show-current") == "main"
+
+
+def test_modules_sharing_one_git_root_share_one_worktree(tmp_path: Path):
+    workspace, root = module_manager(tmp_path, mode="worktree")
+    state = workspace.prepare(["api", "app"], "EGW-142", execute=True)
+    assert len(state["operations"]) == 1
+    api, app = state["repositories"]["api"], state["repositories"]["app"]
+    assert api["worktreeRoot"] == app["worktreeRoot"]
+    assert Path(api["executionPath"]) == Path(api["worktreeRoot"]) / "api"
+    assert Path(app["executionPath"]) == Path(app["worktreeRoot"]) / "app"
+    assert workspace.verify()["status"] == "ready"
+    workspace.rollback(execute=True)
+    assert not Path(api["worktreeRoot"]).exists()
+
+
+def test_dirty_module_blocks_every_module_of_the_shared_root(tmp_path: Path):
+    workspace, root = module_manager(tmp_path)
+    (root / "app" / "wip.txt").write_text("developer change\n")
+    state = workspace.inspect(["api"], "EGW-142")
+    assert state["decision"]["status"] == "blocked"

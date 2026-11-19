@@ -61,6 +61,17 @@ worktree B can locate an Execution created from worktree A, but resume continues
 against the Execution's recorded binding. There is no implicit rebind to B.
 Missing original workspace, stale branch or conflicts block verification.
 
+## Multi-module monorepo
+
+A configured repository `path` may be a sub-directory of its Git root (for
+example `api/` and `app/` Maven modules of one repository). Entries sharing a
+Git root share one Git state: one branch, one task branch and one worktree. The
+Runtime inspects and prepares that root once, and an entry's `executionPath` is
+its module directory inside the worktree. Status is evaluated for the whole
+root, so a dirty module blocks every module of the same root. Entries sharing
+a root must share the same `git` settings, and the Git root must stay inside
+the project workspace. Keep `.ai/runtime/` ignored by Git.
+
 ## Runtime sequence
 
 ```text
