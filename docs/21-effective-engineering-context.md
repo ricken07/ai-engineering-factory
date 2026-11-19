@@ -16,6 +16,11 @@ Organization mandatory/default practices
   -> EffectiveEngineeringContext
 ```
 
+`analyze-impact` is the phase that decides which repositories are impacted.
+When it starts before any repository is known, every repository declared by the
+project is a candidate and receives its context, so the analysis applies the
+same practices and domain catalog as the later phases.
+
 The most local layer wins only when the referenced practice allows it. A mandatory practice cannot be disabled or overridden by Project, Repository or Task.
 
 ## Project context documents

@@ -719,6 +719,11 @@ class RuntimeService:
                     execution.block({"type":"enforcement-unavailable","message":f"required enforcement unavailable: {point.get('action')}"})
                     return {"execution":execution_id,"status":"blocked","phase":phase,"engineeringContexts":[],"blockingReason":execution.data["blockingReason"]}
         repository_ids = self._impacted_repository_ids(execution, task)
+        if not repository_ids and phase["skill"] == "analyze-impact":
+            # The impact analysis decides which repositories are impacted: until
+            # it completes, every declared repository is a candidate and its
+            # engineering context (practices, domain) must reach the analysis.
+            repository_ids = [item["id"] for item in self.project.get("repositories", [])]
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next(item for item in compiled["phases"] if item["id"] == phase["id"])
         skill_contract = self._skill_contract(phase["skill"], definition)

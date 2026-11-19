@@ -304,3 +304,21 @@ def test_implementation_phase_is_blocked_until_workspace_is_prepared(tmp_path: P
     workspace=service.workspace(execution.data["metadata"]["id"],"prepare",execute=True)
     assert workspace["decision"]["status"] == "ready"
     assert service.prepare_phase(execution.data["metadata"]["id"])["status"] == "running"
+
+
+def test_analyze_impact_receives_context_of_every_candidate_repository(tmp_path: Path):
+    repositories = [{"id": name, "path": ".", "role": "application", "profiles": ["generic"], "responsibilities": [],
+                     "dependencies": [], "criticalDomains": []} for name in ("api", "app")]
+    service, execution = validation_execution(tmp_path, repositories=repositories)
+    task = TaskRegistry(service.project_root).load("DEMO-7"); task["scope"] = {"repositories": []}
+    TaskRegistry(service.project_root).save(task)
+    for phase in execution.data["phases"]:
+        phase["status"] = "pending"
+    impact = next(phase for phase in execution.data["phases"] if phase["skill"] == "analyze-impact")
+    for phase in execution.data["phases"]:
+        if phase is impact: break
+        phase["status"] = "completed"
+    execution.data["repositories"] = []; execution.save()
+    prepared = service.prepare_phase(execution.data["metadata"]["id"])
+    assert prepared["phase"]["skill"] == "analyze-impact"
+    assert [item["repository"] for item in prepared["engineeringContexts"]] == ["api", "app"]
