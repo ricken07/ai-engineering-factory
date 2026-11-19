@@ -130,6 +130,10 @@
     "repositories": {
       "$ref": "common.schema.json#/$defs/stringArray"
     },
+    "impactPaths": {
+      "description": "Paths listed by the impact analysis; they scope path-restricted critical domains.",
+      "$ref": "common.schema.json#/$defs/stringArray"
+    },
     "phases": {
       "type": "array",
       "items": {

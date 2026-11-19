@@ -23,7 +23,7 @@ from .engineering import resolve_engineering_context
 from .output_contracts import contract_errors, public as public_contracts, resolve_output_contracts
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
-from .policy import evaluate_runtime_policy
+from .policy import evaluate_runtime_policy, inherited_critical_domains
 from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
 from .task_log import TaskEventLog
@@ -324,7 +324,7 @@ class RuntimeService:
             raise ValueError("analyze-impact details.repositories must be an array of repository identifiers")
         return {
             key: details[key]
-            for key in ("risk", "repositories", "changeTypes", "domains")
+            for key in ("risk", "repositories", "changeTypes", "domains", "paths")
             if key in details
         }
 
@@ -344,10 +344,16 @@ class RuntimeService:
         task=TaskRegistry(self.project_root).load(execution.data["task"])
         merged={key:observations[key] for key in ("risk","repositories","changeTypes","domains") if key in observations}
         impacted=merged.get("repositories") or task.get("scope",{}).get("repositories",[])
-        catalog={item["id"]:item for item in self.project.get("repositories",[])}
-        inherited_domains=[domain for identifier in impacted for domain in catalog.get(identifier,{}).get("criticalDomains",[])]
+        paths=observations.get("paths")
+        if paths is None:
+            # A later reassessment without paths keeps the paths of the analysis.
+            paths=execution.data.get("impactPaths")
+        elif isinstance(paths,list):
+            execution.data["impactPaths"]=paths
+        inherited_domains,inheritance=inherited_critical_domains(self.project,impacted,paths if isinstance(paths,list) else None)
         if inherited_domains: merged["domains"]=list(dict.fromkeys([*merged.get("domains",[]),*inherited_domains]))
         decision=evaluate_runtime_policy(self.factory,self.project,task,merged)
+        decision["matchedRules"]=sorted({*decision["matchedRules"],*inheritance})
         history=sorted(execution.root.glob("policy-decision-*.yaml")); revision=len(history)+1
         previous_risk=execution.data.get("risk"); previous_autonomy=execution.data.get("autonomy",{}).get("authorized")
         reclassified = history and (previous_risk != decision["effectiveRisk"] or previous_autonomy != decision["authorizedAutonomy"])

@@ -28,7 +28,7 @@
         "additionalProperties": false
       }
     },
-    "criticalDomains": {"$ref": "common.schema.json#/$defs/stringArray"}
+    "criticalDomains": {"$ref": "common.schema.json#/$defs/criticalDomains"}
   },
   "additionalProperties": false
 }

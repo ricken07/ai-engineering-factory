@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
 import yaml
 import hashlib
 import json
@@ -52,6 +53,62 @@ def _rule_applies(when: dict[str, Any], domains: set[str], change_types: set[str
         if "containsOnly" in condition: applies=applies and bool(change_types) and change_types <= set(condition["containsOnly"])
     if "impactedRepositories" in when: applies=applies and len(repositories) > when["impactedRepositories"].get("greaterThan",10**9)
     return applies
+
+
+def _glob(pattern: str) -> re.Pattern[str]:
+    """Glob with `*`, `?` and `**`; a match also covers everything below it."""
+    pattern = pattern.strip("/")
+    expression = ""
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index): expression += "(?:.*/)?"; index += 3
+        elif pattern.startswith("**", index): expression += ".*"; index += 2
+        elif pattern[index] == "*": expression += "[^/]*"; index += 1
+        elif pattern[index] == "?": expression += "[^/]"; index += 1
+        else: expression += re.escape(pattern[index]); index += 1
+    return re.compile(expression + "(?:/.*)?")
+
+
+def _within(path: str, root: str) -> str | None:
+    """Return path relative to a repository root, or None when it lies outside."""
+    parts = [part for part in PurePosixPath(path.replace("\\", "/")).parts if part not in ("", ".")]
+    prefix = [part for part in PurePosixPath(root.replace("\\", "/")).parts if part not in ("", ".")]
+    if parts[:len(prefix)] != prefix:
+        return None
+    return "/".join(parts[len(prefix):])
+
+
+def _covers(pattern: str, path: str) -> bool:
+    """True when path matches the glob, or is a directory that contains its literal part."""
+    if _glob(pattern).fullmatch(path):
+        return True
+    literal = re.split(r"[*?]", pattern.strip("/"), maxsplit=1)[0].rsplit("/", 1)[0] if re.search(r"[*?]", pattern) else pattern.strip("/")
+    return path == "" or literal == path or literal.startswith(path + "/")
+
+
+def inherited_critical_domains(project: dict[str, Any], repositories: list[str], paths: list[str] | None) -> tuple[list[str], list[str]]:
+    """Critical domains a task inherits from the repositories it touches.
+
+    A string entry applies to every task touching the repository. A
+    `{domain, paths}` entry applies when an impacted path matches one of its
+    globs (relative to the repository path). It fails closed: it also applies
+    when the analysis lists no path inside the repository, because the Runtime
+    cannot then show the domain is untouched. Returns domains and trace ids.
+    """
+    catalog = {item["id"]: item for item in project.get("repositories", [])}
+    domains: list[str] = []; trace: list[str] = []
+    for identifier in repositories:
+        repository = catalog.get(identifier, {})
+        local = [relative for path in paths or [] if (relative := _within(path, repository.get("path", "."))) is not None]
+        for entry in repository.get("criticalDomains", []):
+            if isinstance(entry, str):
+                domains.append(entry); trace.append(f"repository:{identifier}:criticalDomains:{entry}")
+                continue
+            if not local:
+                domains.append(entry["domain"]); trace.append(f"repository:{identifier}:criticalDomains:{entry['domain']}:no-path")
+            elif any(_covers(pattern, path) for pattern in entry["paths"] for path in local):
+                domains.append(entry["domain"]); trace.append(f"repository:{identifier}:criticalDomains:{entry['domain']}:path")
+    return list(dict.fromkeys(domains)), list(dict.fromkeys(trace))
 
 
 def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[str, Any], observations: dict[str, Any]) -> dict[str, Any]:

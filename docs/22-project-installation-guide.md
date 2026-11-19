@@ -497,7 +497,11 @@ repositories:
     dependencies:
       - repository: backend
         type: REST
-    criticalDomains: [authentication]
+    criticalDomains:
+      # Scoped: only tasks touching these paths inherit the domain.
+      # See docs/05-policy-resolution.md.
+      - domain: authentication
+        paths: [src/auth/]
     git:
       baseBranch: main
 

@@ -39,6 +39,34 @@ effect is `riskAtLeast`: it can raise the effective risk, never lower it.
 Matched rules appear in the `PolicyDecision` as `<layer>:<rule id>`, for
 example `organization:acme:identity-is-high`.
 
+### Repository critical domains
+A repository lists the domains it makes critical in `criticalDomains`. When the
+impact analysis names the repository, the Runtime adds these domains to the
+observed domains before evaluating risk.
+
+```yaml
+criticalDomains:
+  - payment                              # every task touching the repository
+  - domain: authentication               # only tasks touching these paths
+    paths: [src/main/java/**/security/, "**/*Token*.java"]
+```
+
+Paths are globs relative to the repository path (`*`, `?`, `**`); a match also
+covers what lies below it. `analyze-impact` lists the paths it expects to modify
+in `details.paths`, relative to the project root. A scoped domain applies when:
+
+- one of these paths matches a glob, or is a directory containing the scoped
+  area (for example `app/src` for `src/security/`);
+- or the analysis lists no path inside the repository: without paths the Runtime
+  cannot show the area is untouched, so it fails closed.
+
+A later reassessment (`create-plan`) without `paths` keeps the paths of the
+analysis. Inherited domains appear in `matchedRules` as
+`repository:<id>:criticalDomains:<domain>`, with a `:path` or `:no-path` suffix
+for scoped entries. Scoping refines the repository layer's own constraint; it
+does not weaken any other layer, and the Factory and catalog risk rules still
+apply to the domains the analysis declares.
+
 ### Maximum autonomy
 The lowest applicable maximum autonomy wins.
 

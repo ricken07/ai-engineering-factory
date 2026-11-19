@@ -29,3 +29,9 @@ Produce a structured result with `summary`, `status`, `evidence`, `unknowns`, an
 declared by the project. For a mutating workflow it must contain every impacted
 repository and must not be empty. Do not place `repositories` at the artifact
 root and never patch Task or Execution state manually.
+
+List in `details.paths` the files or directories the change is expected to
+modify, relative to the project root. A repository may restrict a critical
+domain to some of its paths: the Runtime then applies that domain only when a
+listed path matches, and applies it whenever the analysis lists no path in the
+repository.

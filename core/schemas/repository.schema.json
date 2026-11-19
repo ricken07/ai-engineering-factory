@@ -51,7 +51,7 @@
       }
     },
     "criticalDomains": {
-      "$ref": "common.schema.json#/$defs/stringArray"
+      "$ref": "common.schema.json#/$defs/criticalDomains"
     },
     "policyRefs": {
       "$ref": "common.schema.json#/$defs/stringArray"

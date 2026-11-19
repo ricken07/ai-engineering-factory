@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from aief.intake import TaskRegistry
-from aief.policy import evaluate_runtime_policy
+from aief.policy import evaluate_runtime_policy, inherited_critical_domains
 from aief.project import initialize
 from aief.service import RuntimeService
 from aief.validation import assert_schema
@@ -168,3 +168,67 @@ def test_risk_rules_cannot_set_risk_directly():
                "extends": [], "practiceRefs": [], "profileBindings": {}, "policy": {"riskRules": [rule]}}
     with pytest.raises(Exception):
         assert_schema(ROOT, "organization-catalog.schema.json", catalog)
+
+
+SCOPED = {"domain": "authentication", "paths": ["src/security/", "**/*Token*.java"]}
+
+
+def scoped_project(*entries, path="app"):
+    return {"repositories": [{"id": "app", "path": path, "criticalDomains": list(entries)}]}
+
+
+def test_string_entries_apply_to_every_task_touching_the_repository():
+    domains, trace = inherited_critical_domains(scoped_project("payment"), ["app"], ["app/README.md"])
+    assert domains == ["payment"] and trace == ["repository:app:criticalDomains:payment"]
+
+
+def test_scoped_entry_applies_only_when_a_listed_path_matches():
+    data = scoped_project(SCOPED)
+    assert inherited_critical_domains(data, ["app"], ["app/src/billing/Invoice.java"])[0] == []
+    assert inherited_critical_domains(data, ["app"], ["app/src/security/Login.java"])[0] == ["authentication"]
+    assert inherited_critical_domains(data, ["app"], ["app/src/web/RefreshTokenFilter.java"])[0] == ["authentication"]
+    assert inherited_critical_domains(data, ["app"], ["./app/src/security"])[0] == ["authentication"]
+    # A listed directory that contains the scoped area may touch it.
+    assert inherited_critical_domains(data, ["app"], ["app/src"])[0] == ["authentication"]
+    assert inherited_critical_domains(data, ["app"], ["app"])[0] == ["authentication"]
+    assert inherited_critical_domains(data, ["app"], ["app/src/web"])[0] == []
+
+
+def test_scoped_entry_fails_closed_without_paths_in_the_repository():
+    data = scoped_project(SCOPED)
+    for paths in (None, [], ["api/src/Contract.java"]):
+        domains, trace = inherited_critical_domains(data, ["app"], paths)
+        assert domains == ["authentication"] and trace[0].endswith(":no-path")
+
+
+def test_paths_are_relative_to_the_repository_path():
+    data = scoped_project({"domain": "payment", "paths": ["src/payment/**"]}, path=".")
+    assert inherited_critical_domains(data, ["app"], ["src/payment/Refund.java"])[0] == ["payment"]
+    assert inherited_critical_domains(data, ["app"], ["src/paymentx/Refund.java"])[0] == []
+
+
+def test_schemas_accept_both_forms():
+    repository = {"id": "app", "path": "app", "role": "application", "profiles": [], "responsibilities": [],
+                  "dependencies": [], "criticalDomains": ["payment", SCOPED]}
+    assert_schema(Path(__file__).parents[1], "repository.schema.json", repository)
+
+
+def test_runtime_scopes_inherited_domains_with_impact_paths(tmp_path: Path):
+    service, execution = runtime(tmp_path)
+    service.project["repositories"][0]["criticalDomains"] = [{"domain": "authentication", "paths": ["src/security/"]}]
+    identifier = execution.data["metadata"]["id"]
+    service.complete_phase(identifier, output("Billing impact", {"repositories": ["main"], "changeTypes": ["source-code"],
+                                                                 "paths": ["src/billing/Invoice.java"]}))
+    current = service.execution(identifier)
+    assert current.data["risk"] != "critical" and current.data["impactPaths"] == ["src/billing/Invoice.java"]
+    decision = yaml.safe_load((current.root / "policy-decision-001.yaml").read_text())
+    assert not any("criticalDomains" in rule for rule in decision["matchedRules"])
+
+
+def test_runtime_keeps_scoped_domain_when_paths_match_or_are_missing(tmp_path: Path):
+    for paths in ({"paths": ["src/security/Login.java"]}, {}):
+        service, execution = runtime(tmp_path / str(len(paths)))
+        service.project["repositories"][0]["criticalDomains"] = [{"domain": "authentication", "paths": ["src/security/"]}]
+        decision = service.reassess_policy(execution, {"repositories": ["main"], "changeTypes": ["source-code"], **paths}, "analyze-impact")
+        assert decision["risk"]["effective"] == "critical"
+        assert any(rule.startswith("repository:main:criticalDomains:authentication") for rule in decision["matchedRules"])

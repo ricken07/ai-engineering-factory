@@ -100,6 +100,24 @@
       },
       "additionalProperties": false
     },
+    "criticalDomains": {
+      "description": "Domains a repository makes critical. A string applies to every task touching the repository; an object applies only when the impact analysis touches one of its paths (globs relative to the repository path), or lists no path in that repository.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type": "string", "minLength": 1},
+          {
+            "type": "object",
+            "required": ["domain", "paths"],
+            "properties": {
+              "domain": {"type": "string", "minLength": 1},
+              "paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
     "stringArray": {
       "type": "array",
       "items": {
