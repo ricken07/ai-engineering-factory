@@ -2,6 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aief.dev/schemas/common.schema.json",
   "$defs": {
+    "outputContracts": {
+      "description": "Extra JSON Schemas a Skill output must satisfy, on top of the Core output schema.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["skill", "schema"],
+        "properties": {"skill": {"$ref": "#/$defs/identifier"}, "schema": {"type": "string", "minLength": 1}},
+        "additionalProperties": false
+      }
+    },
     "riskRules": {
       "description": "Layered risk rules: they can only raise the effective risk (riskAtLeast), never lower it.",
       "type": "array",

@@ -8,6 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from .engineering import validate_engineering_configuration
+from .output_contracts import validate_output_contracts
 from .project import runtime_root
 from .yamlio import load_yaml
 
@@ -107,6 +108,9 @@ def validate_project(project_root: Path, factory_root: Path) -> list[ValidationI
         project = load_yaml(project_root / ".ai" / "project.yaml")
         for message in validate_engineering_configuration(factory_root, project_root, project):
             issues.append(ValidationIssue(".ai/project.yaml", message))
+        skills = {path.parent.name for path in (factory_root / "core" / "skills").glob("*/skill.yaml")}
+        for message in validate_output_contracts(factory_root, project_root, project, skills):
+            issues.append(ValidationIssue(".ai/project.yaml", message))
     return issues
 
 
@@ -192,6 +196,11 @@ def validate_package(root: Path) -> list[ValidationIssue]:
             for ref in data.get("practiceRefs", []):
                 if ref.partition("@")[0] not in catalogs.get("Practice", set()):
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown organization practice '{ref}'"))
+            for contract in data.get("outputContracts", []):
+                if contract.get("skill") not in catalogs.get("Skill", set()):
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"output contract targets unknown skill '{contract.get('skill')}'"))
+                if not (root / "organization" / contract.get("schema", "")).is_file():
+                    issues.append(ValidationIssue(str(path.relative_to(root)), f"output contract schema is missing: {contract.get('schema')}"))
             for profile, refs in data.get("profileBindings", {}).items():
                 if profile not in catalogs.get("Profile", set()):
                     issues.append(ValidationIssue(str(path.relative_to(root)), f"unknown profile binding '{profile}'"))

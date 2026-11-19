@@ -5,6 +5,7 @@
   "properties": {
     "inheritOrganization": {"type": "boolean", "default": true},
     "organizationCatalogs": {"$ref": "common.schema.json#/$defs/stringArray"},
+    "outputContracts": {"$ref": "common.schema.json#/$defs/outputContracts"},
     "practices": {
       "type": "object",
       "additionalProperties": {

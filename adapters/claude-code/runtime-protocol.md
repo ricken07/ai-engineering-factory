@@ -73,7 +73,10 @@ For the returned execution ID:
    being performed. `Write` and `Edit` are forbidden unless the returned Skill
    is `implement-change` and the Runtime status is runnable.
 4. Read the exact `skillContract.manifest`, `skillContract.instructions` and
-   `skillContract.outputSchema` paths returned by the Runtime. Core Skills are
+   `skillContract.outputSchema` paths returned by the Runtime. When
+   `skillContract.outputContracts` is not empty, read each `schema` too: a
+   completed output must satisfy every one of them, and the Runtime rejects
+   it otherwise. Core Skills are
    contracts and must never be invoked through Claude's native `Skill(...)`
    mechanism. In particular, do not call `Skill(understand)`,
    `Skill(analyze-impact)` or `Skill(create-plan)`.

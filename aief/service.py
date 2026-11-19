@@ -20,6 +20,7 @@ from .tracking import TaskTrackingManager, evaluate_tracking
 from .backlog import BacklogImportManager
 from .capabilities import execute_plan, validation_plan
 from .engineering import resolve_engineering_context
+from .output_contracts import contract_errors, public as public_contracts, resolve_output_contracts
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy
@@ -252,6 +253,10 @@ class RuntimeService:
         if errors:
             details = "; ".join(f"{'.'.join(map(str, error.path)) or 'root'}: {error.message}" for error in errors)
             raise ValueError(f"invalid output for {definition['skill']}: {details}")
+        if output.get("status") == "completed":
+            failures = contract_errors(resolve_output_contracts(self.factory, self.project_root, self.project, definition["skill"]), output)
+            if failures:
+                raise ValueError(f"output for {definition['skill']} breaks its output contracts: " + "; ".join(failures))
         completed_skill=phase["skill"]
         output = deepcopy(output)
         if completed_skill == "implement-change":
@@ -638,6 +643,7 @@ class RuntimeService:
             "manifest": str(manifest),
             "instructions": str(instructions),
             "outputSchema": str(schema),
+            "outputContracts": public_contracts(resolve_output_contracts(self.factory, self.project_root, self.project, skill_id)),
             "invocation": "core-contract",
         }
 

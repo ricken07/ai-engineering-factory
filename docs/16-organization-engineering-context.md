@@ -163,3 +163,42 @@ Resolution stops on:
 - unknown repository or Skill.
 
 Project validation performs the same semantic configuration checks before execution.
+
+## Output contracts
+
+A practice tells an agent what to do; it does not prove the agent did it. An
+organization catalog or a project can turn part of a practice into a checked
+contract: an extra JSON Schema that a Skill output must satisfy, on top of the
+Core `output.schema.json`.
+
+```yaml
+# organization/catalogs/acme-backend.yaml (schema path relative to organization/)
+outputContracts:
+  - skill: analyze-impact
+    schema: contracts/acme-impact-classification.schema.json
+```
+
+```yaml
+# .ai/project.yaml (schema path relative to the project root)
+engineering:
+  outputContracts:
+    - skill: analyze-impact
+      schema: .ai/contracts/impact-domains.schema.json
+```
+
+Rules:
+
+- contracts only add constraints: the Core schema is checked first, then every
+  contract of every selected catalog and of the project;
+- they apply to outputs whose `status` is `completed`; a `blocked` or `failed`
+  output is held to the Core schema only;
+- `complete-phase` rejects a non-conforming output and names the contract
+  (`organization:<catalog>` or `project`);
+- `prepare_phase` returns them in `skillContract.outputContracts` with their
+  SHA-256, so the agent reads them and the event log records which version
+  applied;
+- schema paths cannot escape their root; repository and task levels do not
+  accept contracts; `aief validate` reports missing or invalid schemas.
+
+A JSON Schema checks structure and closed vocabularies. Rules that compare
+fields with each other or with the file system stay in organization tooling.

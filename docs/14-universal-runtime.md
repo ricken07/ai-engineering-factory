@@ -27,7 +27,7 @@ The executable boundary is exposed by `aief` and `aief.service.RuntimeService`:
 - normalize an external or local Task;
 - compile workflow phases and Core Skill contracts;
 - create and resume schema-conformant Execution state;
-- validate every submitted phase result against the Skill output schema;
+- validate every submitted phase result against the Skill output schema, then every applicable output contract;
 - persist an artifact before entering a post-phase approval gate;
 - create an agent-neutral Handoff.
 
