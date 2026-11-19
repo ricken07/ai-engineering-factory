@@ -43,6 +43,17 @@ def _contains(condition: Any, values: set[str]) -> bool:
     return bool(values.intersection(condition.get("containsAny", []))) if isinstance(condition, dict) else False
 
 
+def _rule_applies(when: dict[str, Any], domains: set[str], change_types: set[str], repositories: list[str]) -> bool:
+    applies=True
+    if "domains" in when: applies=applies and _contains(when["domains"],domains)
+    if "changeTypes" in when:
+        condition=when["changeTypes"]
+        if "containsAny" in condition: applies=applies and bool(change_types.intersection(condition["containsAny"]))
+        if "containsOnly" in condition: applies=applies and bool(change_types) and change_types <= set(condition["containsOnly"])
+    if "impactedRepositories" in when: applies=applies and len(repositories) > when["impactedRepositories"].get("greaterThan",10**9)
+    return applies
+
+
 def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[str, Any], observations: dict[str, Any]) -> dict[str, Any]:
     """Evaluate risk, autonomy, permissions and gates with most-restrictive-wins semantics."""
     classification=task.get("classification",{})
@@ -53,16 +64,16 @@ def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[s
     matched: list[str]=[]; risks=[supplied,classification.get("risk","unknown")]
     policy=yaml.safe_load((factory/"core/policies/risk-policy.yaml").read_text(encoding="utf-8"))
     for rule in policy["rules"]:
-        when=rule.get("when",{}); applies=True
-        if "domains" in when: applies=applies and _contains(when["domains"],domains)
-        if "changeTypes" in when:
-            condition=when["changeTypes"]
-            if "containsAny" in condition: applies=applies and bool(change_types.intersection(condition["containsAny"]))
-            if "containsOnly" in condition: applies=applies and bool(change_types) and change_types <= set(condition["containsOnly"])
-        if "impactedRepositories" in when: applies=applies and len(repositories) > when["impactedRepositories"].get("greaterThan",10**9)
-        if applies:
+        if _rule_applies(rule.get("when",{}),domains,change_types,repositories):
             effect=rule["effect"]; candidate=effect.get("risk") or effect.get("riskAtLeast")
             if candidate: risks.append(candidate); matched.append(rule["id"])
+    constraints = _layered_constraints(factory, project, task, repositories)
+    # Organization, project and repository layers may add domain knowledge to risk
+    # classification. Their rules only raise the risk (Reff = max over layers).
+    for constraint in constraints:
+        for rule in constraint.get("riskRules", []):
+            if _rule_applies(rule["when"],domains,change_types,repositories):
+                risks.append(rule["effect"]["riskAtLeast"]); matched.append(f"{constraint['source']}:{rule['id']}")
     effective=max(risks,key=lambda value:RISK[value])
     requested=task.get("autonomy",{}).get("requested") or project.get("autonomy",{}).get("default","L0")
     maximum=project.get("autonomy",{}).get("maximum",requested)
@@ -80,7 +91,6 @@ def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[s
         when=rule.get("when",{})
         if when.get("risk") == effective:
             gates.update(rule["effect"].get("requireApproval",[])); matched.append(rule["id"])
-    constraints = _layered_constraints(factory, project, task, repositories)
     layered = resolve_policy(requested, [
         {"source":"risk", "risk":effective, "maximumAutonomy":risk_limit}, *constraints,
     ])
@@ -99,7 +109,7 @@ def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[s
 
 def _constraint(value: Any, source: str) -> dict[str, Any] | None:
     if not isinstance(value, dict): return None
-    permitted = {key:value[key] for key in ("risk", "maximumAutonomy", "allowedActions", "deniedActions", "requiredGates") if key in value}
+    permitted = {key:value[key] for key in ("risk", "maximumAutonomy", "allowedActions", "deniedActions", "requiredGates", "riskRules") if key in value}
     return {"source": source, **permitted} if permitted else None
 
 

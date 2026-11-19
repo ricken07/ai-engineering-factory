@@ -21,6 +21,24 @@ Task
 ### Risk
 The highest applicable risk wins.
 
+The Factory risk policy (`core/policies/risk-policy.yaml`) only knows generic
+domains such as `authentication` or `payment`. An organization catalog, a
+project or a repository can add its own domain knowledge with `riskRules` in
+its `policy` block:
+
+```yaml
+policy:
+  riskRules:
+    - id: identity-is-high
+      when: {domains: {containsAny: [identity]}}
+      effect: {riskAtLeast: high}
+```
+
+A rule matches on `domains` or `changeTypes` (`containsAny`) and its only
+effect is `riskAtLeast`: it can raise the effective risk, never lower it.
+Matched rules appear in the `PolicyDecision` as `<layer>:<rule id>`, for
+example `organization:acme:identity-is-high`.
+
 ### Maximum autonomy
 The lowest applicable maximum autonomy wins.
 

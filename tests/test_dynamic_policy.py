@@ -127,3 +127,44 @@ def test_execution_ending_while_gate_waits_withdraws_it(tmp_path: Path):
     assert gate["timing"]["durationMs"]["availability"] == "OBSERVED"
     assert current.data["metrics"]["gateWaiting"]["durationMs"]["availability"] == "OBSERVED"
     assert current.data["timingState"]["activeGateCount"] == 0
+
+
+def layered_factory(tmp_path: Path, rules: list) -> Path:
+    factory = tmp_path / "factory"; (factory / "organization/catalogs").mkdir(parents=True)
+    for name in ("core", "profiles"): (factory / name).symlink_to(ROOT / name)
+    catalog = {"apiVersion": "aief.dev/v1alpha1", "kind": "OrganizationCatalog",
+               "metadata": {"id": "acme", "name": "Acme", "version": "1.0.0"},
+               "extends": [], "practiceRefs": [], "profileBindings": {}, "policy": {"riskRules": rules}}
+    assert_schema(ROOT, "organization-catalog.schema.json", catalog)
+    (factory / "organization/catalogs/acme.yaml").write_text(yaml.safe_dump(catalog))
+    return factory
+
+
+def test_organization_risk_rules_raise_risk_from_domain_knowledge(tmp_path: Path):
+    factory = layered_factory(tmp_path, [{"id": "identity-is-critical", "when": {"domains": {"containsAny": ["identity"]}}, "effect": {"riskAtLeast": "critical"}}])
+    data = {**project(), "engineering": {"organizationCatalogs": ["acme@1.0.0"]}}
+    plain = evaluate_runtime_policy(factory, project(), task(), {"domains": ["identity"]})
+    raised = evaluate_runtime_policy(factory, data, task(), {"domains": ["identity"]})
+    assert plain["effectiveRisk"] == "medium"
+    assert raised["effectiveRisk"] == "critical" and raised["authorizedAutonomy"] == "L1"
+    assert "organization:acme:identity-is-critical" in raised["matchedRules"]
+    assert "before-implementation" in raised["requiredGates"]
+    untouched = evaluate_runtime_policy(factory, data, task(), {"domains": ["finance"]})
+    assert untouched["effectiveRisk"] == "medium"
+
+
+def test_layered_risk_rules_never_lower_risk(tmp_path: Path):
+    data = {**project(), "repositories": [{"id": "api", "policy": {"riskRules": [
+        {"id": "payment-low", "when": {"domains": {"containsAny": ["payment"]}}, "effect": {"riskAtLeast": "low"}}]}}]}
+    decision = evaluate_runtime_policy(ROOT, data, task(), {"domains": ["payment"]})
+    assert decision["effectiveRisk"] == "high"
+    assert "repository:api:payment-low" in decision["matchedRules"]
+
+
+def test_risk_rules_cannot_set_risk_directly():
+    rule = {"id": "lower", "when": {"domains": {"containsAny": ["payment"]}}, "effect": {"risk": "low"}}
+    catalog = {"apiVersion": "aief.dev/v1alpha1", "kind": "OrganizationCatalog",
+               "metadata": {"id": "acme", "name": "Acme", "version": "1.0.0"},
+               "extends": [], "practiceRefs": [], "profileBindings": {}, "policy": {"riskRules": [rule]}}
+    with pytest.raises(Exception):
+        assert_schema(ROOT, "organization-catalog.schema.json", catalog)

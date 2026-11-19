@@ -2,6 +2,29 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aief.dev/schemas/common.schema.json",
   "$defs": {
+    "riskRules": {
+      "description": "Layered risk rules: they can only raise the effective risk (riskAtLeast), never lower it.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "when", "effect"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "description": {"type": "string"},
+          "when": {
+            "type": "object",
+            "minProperties": 1,
+            "properties": {
+              "domains": {"type": "object", "required": ["containsAny"], "properties": {"containsAny": {"$ref": "#/$defs/stringArray"}}, "additionalProperties": false},
+              "changeTypes": {"type": "object", "required": ["containsAny"], "properties": {"containsAny": {"$ref": "#/$defs/stringArray"}}, "additionalProperties": false}
+            },
+            "additionalProperties": false
+          },
+          "effect": {"type": "object", "required": ["riskAtLeast"], "properties": {"riskAtLeast": {"$ref": "#/$defs/riskLevel"}}, "additionalProperties": false}
+        },
+        "additionalProperties": false
+      }
+    },
     "identifier": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
