@@ -1,9 +1,9 @@
 from __future__ import annotations
-import argparse, json
+import argparse, json, os
 from pathlib import Path
 import yaml
 from .yamlio import load_yaml
-from .project import find_project, initialize, load_project, runtime_root
+from .project import factory_home, find_project, initialize, load_project, runtime_root
 from .validation import validate_package, validate_project
 from .policy import resolve_policy
 from .adapter_install import adapter_plan, adapter_status, install_adapter, uninstall_adapter
@@ -12,10 +12,19 @@ from .integration_manager import doctor as integration_doctor, sync_agent, write
 from .intake import MUTATING, TaskRegistry
 from .service import RuntimeService
 
+def resolve_factory(explicit: str | None, project_root: Path) -> Path:
+    """--factory, else AI_FACTORY_HOME (itself, or its <version> child)."""
+    if explicit: return Path(explicit)
+    try: return factory_home(load_project(project_root))
+    except (FileNotFoundError, KeyError):
+        value = os.environ.get("AI_FACTORY_HOME")
+        if value and (Path(value).expanduser() / "core" / "schemas").is_dir(): return Path(value).expanduser()
+        raise FileNotFoundError("Factory not found: pass --factory or set AI_FACTORY_HOME to a Factory checkout")
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="aief")
     sub = root.add_subparsers(dest="command", required=True)
-    validate = sub.add_parser("validate"); validate.add_argument("path", nargs="?", default="."); validate.add_argument("--factory",default=".")
+    validate = sub.add_parser("validate"); validate.add_argument("path", nargs="?", default="."); validate.add_argument("--factory",default=None)
     doctor = sub.add_parser("doctor"); doctor.add_argument("path", nargs="?", default=".")
     inspect = sub.add_parser("inspect"); inspect.add_argument("path", nargs="?", default="."); inspect.add_argument("--json", action="store_true")
     init = sub.add_parser("init"); init.add_argument("destination"); init.add_argument("--template"); init.add_argument("--force", action="store_true")
@@ -224,7 +233,12 @@ def main(argv: list[str] | None = None) -> int:
         path,content=sync_agent(factory,project_root,project,args.agent,args.scope,args.execute)
         print(f"{'Wrote' if args.execute else 'PLAN'} {path}\n{content}"); return 0
     if args.command == "validate":
-        path = Path(args.path); issues = validate_package(path) if (path / "core" / "schemas").is_dir() else validate_project(find_project(path), Path(args.factory))
+        path = Path(args.path)
+        if (path / "core" / "schemas").is_dir(): issues = validate_package(path)
+        else:
+            try: project_root = find_project(path); factory = resolve_factory(args.factory, project_root)
+            except FileNotFoundError as exc: print(f"ERROR: {exc}"); return 1
+            issues = validate_project(project_root, factory)
         for issue in issues: print(f"ERROR {issue.path}: {issue.message}")
         print(f"Validation: {'FAILED' if issues else 'OK'} ({len(issues)} issue(s))")
         return bool(issues)

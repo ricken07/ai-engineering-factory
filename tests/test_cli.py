@@ -215,3 +215,15 @@ def test_uninstall_adapter_refuses_to_touch_a_foreign_directory(tmp_path: Path, 
     with pytest.raises(FileExistsError):
         main(["uninstall-adapter", "claude-code", "--factory", ".", "--target", str(target), "--execute"])
     assert (target / "implement" / "notes.txt").is_file()
+
+
+def test_validate_defaults_to_ai_factory_home(tmp_path, monkeypatch, capsys):
+    from aief.cli import main
+    from aief.project import initialize
+    root = Path(__file__).parents[1]
+    project = tmp_path / "p"; initialize(root / "templates/project", project)
+    monkeypatch.setenv("AI_FACTORY_HOME", str(root))
+    assert main(["validate", str(project)]) == 0
+    monkeypatch.delenv("AI_FACTORY_HOME")
+    assert main(["validate", str(project)]) == 1
+    assert "Factory not found" in capsys.readouterr().out
