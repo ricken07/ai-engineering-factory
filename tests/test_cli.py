@@ -240,3 +240,16 @@ def test_verify_adapter_defaults_to_ai_factory_home(tmp_path, monkeypatch, capsy
     monkeypatch.delenv("AI_FACTORY_HOME")
     assert main(["verify-adapter", "codex", "--target", str(target)]) == 1
     assert "Factory not found" in capsys.readouterr().out
+
+
+def test_project_commands_default_to_ai_factory_home(tmp_path, monkeypatch, capsys):
+    from aief.cli import main
+    from aief.project import initialize
+    root = Path(__file__).parents[1]
+    project = tmp_path / "p"; initialize(root / "templates/project", project)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AI_FACTORY_HOME", str(root))
+    assert main(["engineering-context", "main", "analyze-impact", "--project", str(project), "--json"]) == 0
+    monkeypatch.delenv("AI_FACTORY_HOME")
+    assert main(["engineering-context", "main", "analyze-impact", "--project", str(project)]) == 1
+    assert "Factory not found" in capsys.readouterr().out
