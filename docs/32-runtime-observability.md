@@ -58,6 +58,7 @@ policy.reclassified
 gate.requested
 gate.approved
 gate.rejected
+gate.closed
 
 workspace.prepared
 workspace.blocked
@@ -83,6 +84,7 @@ mechanism:
 | `policy.evaluated` / `policy.reclassified` | `RuntimeService.reassess_policy`; `reclassified` only if effective risk or authorized autonomy actually change from prior `PolicyDecision`, else `evaluated` |
 | `gate.requested` | a `policyGates` entry or external tracking operation moves to `pending` |
 | `gate.approved` / `gate.rejected` | `approve_execution`, `approve_policy_gate`, `TaskTrackingManager.approve` |
+| `gate.closed` | `Execution` termination (completed, failed, cancelled) with a policy gate still `pending`: `not-triggered` if it never held the Execution, `withdrawn` if the Execution ended while it was waiting |
 | `workspace.prepared` / `workspace.blocked` | `RuntimeService.workspace` and workspace safety blocks in `prepare_phase` — replaces old dynamic naming `workspace.<action>` |
 | `integration.resolved` / `integration.failed` | `TaskTrackingManager.resolve_provider` (MCP/provider resolution) |
 | `execution.completed` | `Execution.advance` when `next_phase()` becomes `None` |

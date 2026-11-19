@@ -206,3 +206,17 @@ def test_reproducibility_metadata_is_explicit_and_exportable(tmp_path: Path):
     assert_schema(ROOT, "execution.schema.json", execution.data)
     args = parser().parse_args(["run", "task", "--experiment-condition", "L2", "--repeat-index", "3"])
     assert (args.experiment_condition, args.repeat_index) == ("L2", 3)
+
+
+def test_completed_execution_keeps_no_policy_gate_waiting(tmp_path: Path):
+    fake = clock()
+    execution = Execution.create(tmp_path, ROOT, workflow({"id": "work", "skill": "analyze-impact"}), "TASK-GATES", clock=fake)
+    gate = {"id": "before-commit", "status": "pending"}
+    execution.request_policy_gate(gate); execution.data["policyGates"] = [gate]
+    fake.advance(milliseconds=500)
+    assert execution.advance({"summary": "analysed"}) == "completed"
+    assert gate["status"] == "not-triggered"
+    assert gate["timing"]["durationMs"] == {"value": 0, "availability": "OBSERVED"}
+    assert execution.data["timingState"]["activeGateCount"] == 0
+    assert execution.data["metrics"]["gateWaiting"]["durationMs"]["availability"] == "UNAVAILABLE"
+    assert execution.closed_gates == [{"gate": "before-commit", "status": "not-triggered"}]

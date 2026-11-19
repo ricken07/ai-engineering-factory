@@ -110,7 +110,7 @@
     },
     "policyGates": {
       "type":"array",
-      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"},"actor":{"$ref":"actor-identity.schema.json"},"timing":{"$ref":"#/$defs/gateTiming"}},"additionalProperties":false}
+      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected","not-triggered","withdrawn"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"},"actor":{"$ref":"actor-identity.schema.json"},"timing":{"$ref":"#/$defs/gateTiming"}},"additionalProperties":false}
     },
     "risk": {
       "$ref": "common.schema.json#/$defs/riskLevel"
@@ -229,6 +229,8 @@
         "gate": {"type": "string"},
         "requestedAt": {"type": ["string", "null"], "format": "date-time"},
         "decidedAt": {"type": ["string", "null"], "format": "date-time"},
+        "blockedAt": {"type": "string", "format": "date-time"},
+        "closedAt": {"type": "string", "format": "date-time"},
         "durationMs": {"$ref": "#/$defs/measurement"},
         "startedMonotonicNs": {"type": "integer"}
       },

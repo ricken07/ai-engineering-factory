@@ -210,6 +210,14 @@ class RuntimeService:
             lease.assert_owner(owner)
 
     @staticmethod
+    def _append_closed_gates(execution: Execution, events: Any) -> None:
+        for item in execution.closed_gates:
+            events.append(
+                "gate.closed", execution=execution.data["metadata"]["id"],
+                payload={"agent": execution.data.get("agent", {}).get("adapter"), **item},
+            )
+
+    @staticmethod
     def _pending_policy_gates(execution: Execution, phase_id: str) -> set[str]:
         required_for_phase = {
             "implementation": {"before-implementation"},
@@ -288,6 +296,7 @@ class RuntimeService:
         if execution.data["status"] == "completed":
             bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
             assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
+            self._append_closed_gates(execution, events)
             events.append(
                 "execution.completed", execution=execution_id,
                 payload={"agent": execution.data.get("agent", {}).get("adapter"),
@@ -359,7 +368,7 @@ class RuntimeService:
         for identifier in decision["requiredGates"]:
             if identifier not in gates:
                 gates[identifier] = {"id":identifier,"status":"pending"}
-                execution.start_policy_gate(gates[identifier])
+                execution.request_policy_gate(gates[identifier])
         execution.data.update({"policyDecision":name,"governedExecutionPlan":plan_name,"risk":decision["effectiveRisk"],
                                "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]},
                                "repositories":decision["observations"]["repositories"],"policyGates":list(gates.values())})
@@ -469,6 +478,7 @@ class RuntimeService:
                      "actor": self._session_actor(execution, owner, "human")},
         )
         if execution.data["status"] == "completed":
+            self._append_closed_gates(execution, events)
             events.append(
                 "execution.completed", execution=execution_id,
                 payload={"agent": execution.data.get("agent", {}).get("adapter"),
@@ -478,7 +488,7 @@ class RuntimeService:
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
-        if gate and gate["status"] != "approved":
+        if gate and gate["status"] == "pending":
             owner = None if approved_by == "human" else approved_by
             actor = self._session_actor(execution, owner, "human")
             gate.update({"status":"approved","approvedAt":timestamp(self.clock),"approvedBy":approved_by,"actor":actor})
@@ -492,6 +502,7 @@ class RuntimeService:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
+        if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
         self._approve_policy_gate(execution,gate_id,owner or "human")
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
         self._events(execution.data["task"]).append(
@@ -515,7 +526,9 @@ class RuntimeService:
     def cancel_execution(self, execution_id: str, reason: str, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         execution.cancel(reason)
-        self._events(execution.data["task"]).append(
+        events = self._events(execution.data["task"])
+        self._append_closed_gates(execution, events)
+        events.append(
             "execution.cancelled", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": reason},
         )
@@ -636,6 +649,8 @@ class RuntimeService:
         task = TaskRegistry(self.project_root).load(execution.data["task"])
         pending = self._pending_policy_gates(execution, phase["id"])
         if pending:
+            for gate in execution.data.get("policyGates", []):
+                if gate["id"] in pending: execution.start_policy_gate(gate)
             execution.data["status"]="waiting-approval"; execution.save()
             return {"execution":execution_id,"status":"waiting-approval","phase":phase,"engineeringContexts":[],"requiredPolicyGates":sorted(pending)}
         if phase["id"] == "implementation":
@@ -791,6 +806,7 @@ class RuntimeService:
                 payload={"agent": agent, "phase":"validation", "status":report["status"],
                          "summary":report["summary"], "evidence":report["evidence"]},
             )
+            self._append_closed_gates(execution, events)
             events.append(
                 "execution.failed", execution=execution_id,
                 payload={"agent": agent, "phase":"validation", "summary":report["summary"]},

@@ -41,6 +41,13 @@ gate intervals are accumulated separately from Runtime and validation time;
 overlapping open gates count as one waiting interval rather than double-counted
 human attention time.
 
+A policy gate is requested when a policy requires it (`requestedAt`) but waits
+only from the moment it holds the Execution (`blockedAt`). When an Execution
+ends with a policy gate still `pending`, the gate is closed (`closedAt`):
+`not-triggered` if it never held the Execution, with a measured zero wait, and
+`withdrawn` if the Execution ended while it was waiting. Neither status is an
+approval, and no gate wait remains open after termination.
+
 A task may span multiple repositories while remaining one functional task. Each repository may have independent branches, commits and change requests linked back to the same task/execution.
 
 The Project owns one canonical Execution State Store. Each repository used by

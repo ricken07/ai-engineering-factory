@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 import yaml
 
 from aief.intake import TaskRegistry
@@ -90,3 +91,39 @@ def test_pending_dynamic_gate_blocks_before_mutating_phase_and_can_resume(tmp_pa
     assert prepared["status"] == "waiting-approval" and prepared["requiredPolicyGates"] == ["before-implementation"]
     service.approve_policy_gate(identifier,"before-implementation")
     assert service.execution(identifier).data["status"] == "running"
+
+
+def test_terminated_execution_closes_gates_that_never_held_it(tmp_path: Path):
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.complete_phase(identifier,output("Payment impact",{"risk":"high","repositories":["main"],"domains":["payment"],"changeTypes":["source-code"]}))
+    service.cancel_execution(identifier,"analysis only")
+    current=service.execution(identifier)
+    gates={item["id"]:item for item in current.data["policyGates"]}
+    assert {"before-commit","before-submission","before-merge"} <= set(gates)
+    for gate in gates.values():
+        assert gate["status"] == "not-triggered"
+        assert gate["timing"]["closedAt"] and gate["timing"]["decidedAt"] is None and "blockedAt" not in gate["timing"]
+        assert gate["timing"]["durationMs"] == {"value": 0, "availability": "OBSERVED"}
+    assert current.data["timingState"]["activeGateCount"] == 0
+    closed=[event for event in service._events(current.data["task"]).read() if event["event"]["type"] == "gate.closed"]
+    assert {event["payload"]["gate"] for event in closed} == set(gates)
+    with pytest.raises(RuntimeError, match="policy gate is not-triggered"):
+        service.approve_policy_gate(identifier,"before-merge")
+
+
+def test_execution_ending_while_gate_waits_withdraws_it(tmp_path: Path):
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.complete_phase(identifier,output("Critical impact",{"risk":"critical","repositories":["main"],"changeTypes":["destructive-migration"]}))
+    current=service.execution(identifier)
+    for phase in current.data["phases"]:
+        if phase["id"] == "implementation": break
+        phase["status"]="completed"
+    current.data["status"]="running"; current.save()
+    assert service.prepare_phase(identifier)["status"] == "waiting-approval"
+    service.cancel_execution(identifier,"abandoned")
+    current=service.execution(identifier)
+    gate=next(item for item in current.data["policyGates"] if item["id"] == "before-implementation")
+    assert gate["status"] == "withdrawn" and gate["timing"]["blockedAt"] and gate["timing"]["closedAt"]
+    assert gate["timing"]["durationMs"]["availability"] == "OBSERVED"
+    assert current.data["metrics"]["gateWaiting"]["durationMs"]["availability"] == "OBSERVED"
+    assert current.data["timingState"]["activeGateCount"] == 0

@@ -15,6 +15,7 @@ class Execution:
     def __init__(self, root: Path, data: dict[str, Any], clock: Clock | None = None):
         self.root, self.data = root, data
         self.clock = clock or SystemClock()
+        self.closed_gates: list[dict[str, str]] = []
         self._ensure_observability()
 
     def _ensure_observability(self) -> None:
@@ -127,21 +128,35 @@ class Execution:
         elapsed = self.clock.monotonic_ns() - started_ns
         self._observe("validation", elapsed)
 
-    def _start_gate_wait(self, gate: dict[str, Any]) -> None:
-        timing = gate.setdefault("timing", {"requestedAt": None, "decidedAt": None, "durationMs": unavailable_metric()})
+    @staticmethod
+    def _gate_timing(gate: dict[str, Any]) -> dict[str, Any]:
+        return gate.setdefault("timing", {"requestedAt": None, "decidedAt": None, "durationMs": unavailable_metric()})
+
+    def _request_gate(self, gate: dict[str, Any]) -> None:
+        timing = self._gate_timing(gate)
         if timing.get("requestedAt") is None:
             timing["requestedAt"] = timestamp(self.clock)
+
+    def _start_gate_wait(self, gate: dict[str, Any]) -> None:
+        """Gate waiting is measured from the moment the gate holds the
+        Execution, not from the moment a policy requires it."""
+        self._request_gate(gate)
+        timing = gate["timing"]
+        if timing.get("blockedAt") is None and timing.get("decidedAt") is None and timing.get("closedAt") is None:
+            timing["blockedAt"] = timestamp(self.clock)
             timing["startedMonotonicNs"] = self.clock.monotonic_ns()
             state = self.data["timingState"]
             if state["activeGateCount"] == 0:
                 state["gateWaitingStartedMonotonicNs"] = self.clock.monotonic_ns()
             state["activeGateCount"] += 1
 
-    def _complete_gate_wait(self, gate: dict[str, Any]) -> None:
+    def _complete_gate_wait(self, gate: dict[str, Any], *, closed: bool = False) -> None:
+        """Ends a gate either by a decision or, with `closed`, by the
+        termination of the Execution without any decision."""
         timing = gate.setdefault("timing", {})
-        if timing.get("decidedAt") is not None:
+        if timing.get("decidedAt") is not None or timing.get("closedAt") is not None:
             return
-        timing["decidedAt"] = timestamp(self.clock)
+        timing["closedAt" if closed else "decidedAt"] = timestamp(self.clock)
         started = timing.pop("startedMonotonicNs", None)
         if isinstance(started, int):
             elapsed = self.clock.monotonic_ns() - started
@@ -152,14 +167,41 @@ class Execution:
             if state["activeGateCount"] == 0 and isinstance(aggregate_started, int):
                 self._observe("gateWaiting", self.clock.monotonic_ns() - aggregate_started)
                 state["gateWaitingStartedMonotonicNs"] = None
+        elif "requestedAt" in timing and timing.get("blockedAt") is None:
+            # Observed directly: the gate never held the Execution.
+            timing["durationMs"] = observed_duration(0)
         else:
             timing["durationMs"] = unavailable_metric()
+
+    def request_policy_gate(self, gate: dict[str, Any]) -> None:
+        self._request_gate(gate)
 
     def start_policy_gate(self, gate: dict[str, Any]) -> None:
         self._start_gate_wait(gate)
 
     def complete_policy_gate(self, gate: dict[str, Any]) -> None:
         self._complete_gate_wait(gate)
+
+    def _close_open_gates(self) -> list[dict[str, str]]:
+        """A terminal Execution keeps no gate waiting. A pending policy gate
+        becomes `not-triggered` when it never held the Execution, and
+        `withdrawn` when the Execution ended while it was waiting. Neither
+        is an approval: the gate stays required for any later Execution."""
+        closed = []
+        for gate in self.data.get("policyGates", []):
+            if gate.get("status") != "pending":
+                continue
+            timing = gate.get("timing", {})
+            # Executions persisted before `blockedAt` started waiting on request.
+            blocked = timing.get("blockedAt") is not None or "startedMonotonicNs" in timing
+            self._request_gate(gate)
+            self._complete_gate_wait(gate, closed=True)
+            gate["status"] = "withdrawn" if blocked else "not-triggered"
+            closed.append({"gate": gate["id"], "status": gate["status"]})
+        for phase in self.data.get("phases", []):
+            if "gateTiming" in phase:
+                self._complete_gate_wait(phase["gateTiming"], closed=True)
+        return closed
 
     def observe_actor(self, role: str, actor: dict[str, Any]) -> None:
         self.data.setdefault("actors", {})[role] = actor
@@ -168,6 +210,7 @@ class Execution:
         timing = self.data["metrics"]["execution"]
         if timing.get("completedAt") is not None:
             return
+        self.closed_gates = self._close_open_gates()
         timing["completedAt"] = timestamp(self.clock)
         started = self.data["timingState"].get("executionStartedMonotonicNs")
         timing["durationMs"] = observed_duration(self.clock.monotonic_ns() - started) if isinstance(started, int) else unavailable_metric()
