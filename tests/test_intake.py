@@ -131,3 +131,11 @@ def test_service_default_auto_mode_blocks_unconfirmed_natural_language_and_accep
 
     result = service.intake("Corrige le bug EGW-1", confirmed=True)
     assert result["intent"]["workflow"] == "fix-bug"
+
+
+def test_a_key_inside_a_sentence_does_not_become_the_task_id():
+    mention = resolve_intent(create_request("/document la migration des packages ARCH-01 de api est terminée"))
+    assert "taskReference" not in mention
+    assert normalize_task(create_request("/document la migration ARCH-01 est terminée"), mention)["metadata"]["id"].startswith("local-")
+    assert resolve_intent(create_request("/fix EGW-327 le webhook est perdu"))["taskReference"] == "EGW-327"
+    assert resolve_intent(create_request("Corrige le bug EGW-327."))["taskReference"] == "EGW-327"

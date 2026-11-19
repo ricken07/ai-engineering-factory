@@ -35,6 +35,25 @@ INTENT_WORKFLOWS = {
 
 MUTATING = {"implement", "fix", "refactor", "test", "document", "promote"}
 REFERENCE = re.compile(r"https?://[^\s]+/-/issues/\d+|(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+#\d+|(?<![A-Za-z0-9])(?:[A-Z][A-Z0-9]+-\d+|!\d+|#\d+)(?![A-Za-z0-9])")
+def _task_reference(text: str) -> str | None:
+    """Tracker reference that identifies the task, if the request names one.
+
+    An issue URL or a qualified `group/project#42` reference is explicit
+    wherever it appears. A bare key such as `EGW-327` only identifies the task
+    when it is the first or last word of the request (`/fix EGW-327`,
+    "Corrige le bug EGW-327"): in the middle of a sentence it usually names a
+    decision, a document or a related item ("la migration ARCH-01 de api"),
+    and taking it as the task id would merge unrelated tasks.
+    """
+    words = [word.strip(".,;:!?()[]«»\"'") for word in text.split()]
+    edges = {words[0], words[-1]} if words else set()
+    for match in REFERENCE.finditer(text):
+        value = match.group(0)
+        if "/" in value or "#" in value or value.startswith("!") or value in edges:
+            return value
+    return None
+
+
 COMMAND = re.compile(r"^\s*[/\$](analyze|implement|fix|refactor|test|review|document|promote)(?:\s+(.*))?$", re.I | re.S)
 
 KEYWORDS = {
@@ -90,7 +109,7 @@ def resolve_intent(request: dict[str, Any], factory: Path | None = None) -> dict
         else:
             intent, confidence, source = "analyze", "ambiguous", "conservative-fallback"
             reason = "no unique mutating intent was established; analysis is the safe default"
-    reference = REFERENCE.search(request.get("arguments") or request["text"])
+    reference = _task_reference(request.get("arguments") or request["text"])
     api_version = get_api_version(factory) if factory else "aief.dev/v1alpha1"
     return {
         "apiVersion": api_version,
@@ -102,7 +121,7 @@ def resolve_intent(request: dict[str, Any], factory: Path | None = None) -> dict
         "source": source,
         "mutating": intent in MUTATING,
         "workflow": INTENT_WORKFLOWS[intent],
-        **({"taskReference": reference.group(0)} if reference else {}),
+        **({"taskReference": reference} if reference else {}),
         "reason": reason,
         "requiresClarification": confidence == "ambiguous" and intent in MUTATING,
     }

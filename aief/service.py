@@ -612,12 +612,23 @@ class RuntimeService:
         catalog = {repository["id"]: repository for repository in self.project.get("repositories", [])}
         unknown = sorted(set(repository_ids) - set(catalog))
         if unknown: raise KeyError(f"unknown impacted repositories: {', '.join(unknown)}")
+        workspace_file = execution.root / "workspace.yaml"
+        bound = load_yaml(workspace_file).get("repositories", {}) if workspace_file.is_file() else {}
+        isolated = self.project.get("workspaceSafety", {}).get("mode") == "worktree"
         plan: list[dict[str, Any]] = []
         for identifier in repository_ids:
             repository = catalog[identifier]
             path = (self.project_root / repository["path"]).resolve()
             if not path.is_relative_to(self.project_root.resolve()):
                 raise ValueError(f"repository path escapes project workspace: {identifier}")
+            # Validation must observe the code the execution changed: in an
+            # isolated workspace that is the execution worktree, not the main
+            # checkout.
+            execution_path = bound.get(identifier, {}).get("executionPath")
+            if execution_path:
+                path = Path(execution_path).resolve()
+            elif isolated:
+                raise RuntimeError(f"repository {identifier} has no prepared worktree: validation would run on the main checkout")
             if not path.is_dir(): raise FileNotFoundError(f"repository path is missing: {identifier}: {path}")
             for item in validation_plan(self.factory, path, repository.get("profiles", [])):
                 plan.append({"repository":identifier,"cwd":str(path),**item})

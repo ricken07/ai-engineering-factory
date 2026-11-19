@@ -139,6 +139,13 @@ Create only the normalized task:
 aief intake "Corrige le bug EGW-327" --project . --factory /opt/factory/1.7.0 --json
 ```
 
+A tracker reference becomes the task identifier when the request names it as
+such. An issue URL or a qualified `group/project#42` reference counts wherever
+it appears. A bare key such as `EGW-327` counts only as the first or last word
+of the request: in the middle of a sentence ("la migration ARCH-01 de api")
+it usually names a decision or a document, and the task gets a local
+identifier instead.
+
 List the registered tasks in dependency order, or only the ones nothing prevents starting:
 
 ```bash

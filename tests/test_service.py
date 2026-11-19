@@ -373,3 +373,19 @@ def test_phase_brief_holds_each_practice_once_and_next_output_stays_compact(tmp_
     assert [item["repository"] for item in compact["engineeringContexts"]] == ["api", "app"]
     assert "practices" not in compact["engineeringContexts"][0]
     assert len(json.dumps(compact)) < len(json.dumps(prepared))
+
+
+def test_profile_validation_runs_in_the_execution_worktree(tmp_path: Path):
+    service, execution = validation_execution(tmp_path)
+    identifier = execution.data["metadata"]["id"]
+    worktree = tmp_path / "worktree"; worktree.mkdir(); (worktree / "mvnw").touch()
+    (execution.root / "workspace.yaml").write_text(yaml.safe_dump({"repositories": {"main": {"executionPath": str(worktree)}}}))
+    plan = service.profile_validation_plan(identifier)
+    assert {item["cwd"] for item in plan} == {str(worktree.resolve())}
+
+
+def test_isolated_validation_without_worktree_fails_closed(tmp_path: Path):
+    service, execution = validation_execution(tmp_path)
+    service.project["workspaceSafety"] = {"mode": "worktree"}
+    with pytest.raises(RuntimeError, match="no prepared worktree"):
+        service.profile_validation_plan(execution.data["metadata"]["id"])
