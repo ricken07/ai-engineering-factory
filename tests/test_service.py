@@ -63,6 +63,7 @@ def test_complete_phase_refuses_to_advance_while_blocked_on_a_pending_question(t
     service.ask_user(execution_id, "Which behavior is authoritative?", requires_authority=True)
 
     output = yaml.safe_load(Path("core/skills/understand-task/examples/output.yaml").read_text())
+    service.prepare_phase(execution_id)
     with pytest.raises(RuntimeError, match="blocked"):
         service.complete_phase(execution_id, output)
     blocked = service.execution(execution_id)
@@ -71,6 +72,7 @@ def test_complete_phase_refuses_to_advance_while_blocked_on_a_pending_question(t
     assert "phase.completed" not in [item["event"]["type"] for item in service.task_events("DEMO-62")]
 
     service.answer_user_question(execution_id, "Use the documented behavior")
+    service.prepare_phase(execution_id)
     completed = service.complete_phase(execution_id, output)
     assert completed.data["status"] == "running"
     assert "understand.yaml" in completed.data["artifacts"]
@@ -112,9 +114,11 @@ def test_runtime_service_validates_skill_output(tmp_path: Path):
     initialize(Path("templates/project"), project)
     service = RuntimeService(project, Path("."))
     execution = service.start("/analyze DEMO-1")
+    service.prepare_phase(execution.data["metadata"]["id"])
     with pytest.raises(ValueError, match="invalid output for understand-task"):
         service.complete_phase(execution.data["metadata"]["id"], {"summary":"incomplete"})
     valid = yaml.safe_load(Path("core/skills/understand-task/examples/output.yaml").read_text())
+    service.prepare_phase(execution.data["metadata"]["id"])
     advanced = service.complete_phase(execution.data["metadata"]["id"], valid)
     assert advanced.next_phase()["id"] == "resolve-context"
 
@@ -230,6 +234,7 @@ def test_impact_completion_automatically_reassesses_tracking(tmp_path: Path):
         phase["status"]="completed"
     execution.data["status"]="running"; execution.save()
     output={"summary":"Cross-repository payment impact","status":"completed","evidence":["repository-map"],"unknowns":[],"details":{"risk":"high","repositories":["main","secondary"],"changeTypes":["functional-change"],"domains":["payment"]}}
+    service.prepare_phase(execution.data["metadata"]["id"])
     service.complete_phase(execution.data["metadata"]["id"],output)
     task=TaskRegistry(project).load(execution.data["task"])
     persisted=service.execution(execution.data["metadata"]["id"])
@@ -249,6 +254,7 @@ def test_mutating_workflow_rejects_impact_without_repositories_before_advancing(
     execution.data["status"]="running"; execution.save()
     output={"summary":"Impact incomplete","status":"completed","evidence":["code"],"unknowns":[],"details":{"repositories":[]}}
 
+    service.prepare_phase(execution.data["metadata"]["id"])
     with pytest.raises(ValueError, match="at least one impacted repository"):
         service.complete_phase(execution.data["metadata"]["id"],output)
 
@@ -266,6 +272,7 @@ def test_impact_rejects_unknown_repository_identifier(tmp_path: Path):
     execution.data["status"]="running"; execution.save()
     output={"summary":"Unknown repository","status":"completed","evidence":["code"],"unknowns":[],"details":{"repositories":["invented-repo"]}}
 
+    service.prepare_phase(execution.data["metadata"]["id"])
     with pytest.raises(ValueError, match="unknown project repositories: invented-repo"):
         service.complete_phase(execution.data["metadata"]["id"],output)
 
@@ -322,3 +329,32 @@ def test_analyze_impact_receives_context_of_every_candidate_repository(tmp_path:
     prepared = service.prepare_phase(execution.data["metadata"]["id"])
     assert prepared["phase"]["skill"] == "analyze-impact"
     assert [item["repository"] for item in prepared["engineeringContexts"]] == ["api", "app"]
+
+
+def test_read_only_impact_must_list_the_repositories_it_concerns(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    execution=service.start("/analyze DEMO-43","codex")
+    identifier=execution.data["metadata"]["id"]
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "analyze-impact": break
+        phase["status"]="completed"
+    execution.data["status"]="running"; execution.save()
+    output={"summary":"Read-only analysis","status":"completed","evidence":["code"],"unknowns":[],"details":{"repositories":[]}}
+    service.prepare_phase(identifier)
+    with pytest.raises(ValueError, match="repositories the task concerns"):
+        service.complete_phase(identifier,output)
+    output["details"]["repositories"]=["main"]
+    service.complete_phase(identifier,output)
+    assert service.execution(identifier).next_phase()["skill"] != "analyze-impact"
+
+
+def test_runtime_refuses_a_phase_it_did_not_start(tmp_path: Path):
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    execution=service.start("/analyze DEMO-44","claude-code")
+    identifier=execution.data["metadata"]["id"]
+    output=yaml.safe_load(Path("core/skills/understand-task/examples/output.yaml").read_text())
+    with pytest.raises(RuntimeError, match="was not started by the Runtime"):
+        service.complete_phase(identifier,output)
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier,output)
+    assert service.execution(identifier).data["phases"][0]["preparedAt"]

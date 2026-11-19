@@ -75,6 +75,11 @@ An adapter must not implement intent rules or workflow logic. It must:
 6. stop when the state is `waiting-approval`, `blocked` or `failed`;
 7. resume only through the same persisted Execution.
 
+`execution next` starts the phase: it delivers the Skill contract and the
+engineering context and records `preparedAt` on the phase. `complete-phase`
+refuses a phase the Runtime did not start, so an output cannot skip that
+context.
+
 Claude `/implement` and Codex `$implement` are therefore different native entry points to the same Runtime.
 
 Native adapters must pin the canonical intent independently from the request

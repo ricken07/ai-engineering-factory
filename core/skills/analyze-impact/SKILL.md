@@ -26,8 +26,10 @@ Trace task intent through domain, repositories, components, public contracts, pe
 
 Produce a structured result with `summary`, `status`, `evidence`, `unknowns`, and `details`.
 `details.repositories` is mandatory and contains only repository identifiers
-declared by the project. For a mutating workflow it must contain every impacted
-repository and must not be empty. Do not place `repositories` at the artifact
+declared by the project. It lists every repository the task concerns, whether
+the task analyses it or modifies it: a read-only analysis of a repository still
+lists that repository. It must not be empty when the project declares
+repositories. Do not place `repositories` at the artifact
 root and never patch Task or Execution state manually.
 
 List in `details.paths` the files or directories the change is expected to

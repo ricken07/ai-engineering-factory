@@ -105,6 +105,7 @@ def test_gate_lifecycle_emits_requested_then_approved(tmp_path: Path):
         if phase["skill"] == "analyze-impact": break
         phase["status"] = "completed"
     execution.data["status"] = "running"; execution.save()
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, output("Critical impact", {"risk": "critical", "repositories": ["main"], "changeTypes": ["destructive-migration"]}))
     current = service.execution(identifier)
     for phase in current.data["phases"]:
@@ -126,7 +127,9 @@ def test_operation_replay_does_not_duplicate_phase_completed_event(tmp_path: Pat
     service, execution = runtime(tmp_path)
     identifier = execution.data["metadata"]["id"]
     payload = output("Impact", {"risk": "low", "repositories": ["main"], "changeTypes": ["source-code"]})
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, payload, operation_id="complete-impact-1")
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, payload, operation_id="complete-impact-1")
     events = service.task_events(execution.data["task"])
     completed = [item for item in events if item["event"]["type"] == "phase.completed"]

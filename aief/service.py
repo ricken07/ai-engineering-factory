@@ -243,6 +243,11 @@ class RuntimeService:
         pending = self._pending_policy_gates(execution, phase["id"])
         if pending:
             raise PermissionError("required policy gates are pending: " + ", ".join(sorted(pending)))
+        if not phase.get("preparedAt"):
+            # The skill contract and engineering context are delivered when the
+            # Runtime starts the phase; an output for a phase it never started
+            # could not have used them.
+            raise RuntimeError(f"phase {phase['id']} was not started by the Runtime: call execution next first")
         compiled = compile_workflow(self.factory, execution.data["workflow"]["id"])
         definition = next((item for item in compiled["phases"] if item["id"] == phase["id"]), None)
         if definition is None:
@@ -330,11 +335,18 @@ class RuntimeService:
 
     def _validate_impact_repositories(self, workflow: dict[str, Any], repositories: list[str]) -> None:
         mutating = any(phase.get("skill") == "implement-change" for phase in workflow.get("phases", []))
+        declared = {item["id"] for item in self.project.get("repositories", [])}
         if mutating and not repositories:
             raise ValueError(
                 "analyze-impact must identify at least one impacted repository before a mutating workflow can continue"
             )
-        declared = {item["id"] for item in self.project.get("repositories", [])}
+        # details.repositories lists the repositories the task concerns, analysed
+        # or modified. A read-only task still concerns some repository of the
+        # project; an empty list would drop their context and critical domains.
+        if declared and not repositories:
+            raise ValueError(
+                "analyze-impact must list the repositories the task concerns (analysed or modified) in details.repositories"
+            )
         unknown = sorted(set(repositories) - declared)
         if unknown:
             raise ValueError(f"analyze-impact references unknown project repositories: {', '.join(unknown)}")
@@ -730,6 +742,9 @@ class RuntimeService:
         contexts = []
         if definition.get("engineeringContext"):
             contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
+        execution = self.execution(execution_id)
+        phase = execution.next_phase()
+        phase["preparedAt"] = timestamp(self.clock); execution.save()
         self._events(execution.data["task"]).append(
             "phase.started", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase":phase["id"],
@@ -784,6 +799,8 @@ class RuntimeService:
         # instances; reload before adding timing/identity so neither write can
         # overwrite the other's artifacts.
         execution = self.execution(execution_id)
+        # The Runtime itself performs this phase, so it starts it here.
+        execution.next_phase()["preparedAt"] = timestamp(self.clock)
         results: list[dict[str, Any]] = []
         snapshots: dict[str, str] = {}
         validation_started = self.clock.monotonic_ns()

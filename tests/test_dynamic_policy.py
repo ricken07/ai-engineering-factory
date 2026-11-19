@@ -40,6 +40,7 @@ def test_repository_critical_domains_are_inherited_by_runtime_policy(tmp_path: P
 
 def test_tracking_uses_effective_policy_risk_not_lower_agent_observation(tmp_path: Path):
     service,execution=runtime(tmp_path); service.project["repositories"][0]["criticalDomains"]=["authentication"]
+    service.prepare_phase(execution.data["metadata"]["id"])
     service.complete_phase(execution.data["metadata"]["id"],output("Repository impact",{"risk":"medium","repositories":["main"],"changeTypes":["source-code"]}))
     tracking=yaml.safe_load((service.project_root/".ai/runtime/tasks"/execution.data["task"]/"tracking.yaml").read_text())
     assert tracking["decision"]["level"] == "required"
@@ -66,11 +67,13 @@ def output(summary: str, details: dict):
 
 def test_runtime_reassesses_after_impact_and_plan_and_never_lowers_risk(tmp_path: Path):
     service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,output("Payment impact",{"risk":"high","repositories":["main"],"domains":["payment"],"changeTypes":["source-code"]}))
     current=service.execution(identifier)
     assert current.data["risk"] == "high" and current.data["autonomy"]["authorized"] == "L2"
     first=yaml.safe_load((current.root/"policy-decision-001.yaml").read_text()); assert_schema(ROOT,"policy-decision.schema.json",first)
     current.next_phase()["status"]="completed"; current.data["status"]="running"; current.save()
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,output("Migration discovered",{"repositories":["main"],"changeTypes":["destructive-migration"]}))
     current=service.execution(identifier)
     assert current.data["risk"] == "critical" and current.data["autonomy"]["authorized"] == "L1"
@@ -81,6 +84,7 @@ def test_runtime_reassesses_after_impact_and_plan_and_never_lowers_risk(tmp_path
 
 def test_pending_dynamic_gate_blocks_before_mutating_phase_and_can_resume(tmp_path: Path):
     service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,output("Critical impact",{"risk":"critical","repositories":["main"],"changeTypes":["destructive-migration"]}))
     current=service.execution(identifier)
     for phase in current.data["phases"]:
@@ -95,6 +99,7 @@ def test_pending_dynamic_gate_blocks_before_mutating_phase_and_can_resume(tmp_pa
 
 def test_terminated_execution_closes_gates_that_never_held_it(tmp_path: Path):
     service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,output("Payment impact",{"risk":"high","repositories":["main"],"domains":["payment"],"changeTypes":["source-code"]}))
     service.cancel_execution(identifier,"analysis only")
     current=service.execution(identifier)
@@ -113,6 +118,7 @@ def test_terminated_execution_closes_gates_that_never_held_it(tmp_path: Path):
 
 def test_execution_ending_while_gate_waits_withdraws_it(tmp_path: Path):
     service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,output("Critical impact",{"risk":"critical","repositories":["main"],"changeTypes":["destructive-migration"]}))
     current=service.execution(identifier)
     for phase in current.data["phases"]:
@@ -217,6 +223,7 @@ def test_runtime_scopes_inherited_domains_with_impact_paths(tmp_path: Path):
     service, execution = runtime(tmp_path)
     service.project["repositories"][0]["criticalDomains"] = [{"domain": "authentication", "paths": ["src/security/"]}]
     identifier = execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, output("Billing impact", {"repositories": ["main"], "changeTypes": ["source-code"],
                                                                  "paths": ["src/billing/Invoice.java"]}))
     current = service.execution(identifier)

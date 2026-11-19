@@ -150,6 +150,7 @@ def test_pending_gate_cannot_bypass_runtime_by_completing_phase_directly(tmp_pat
     execution.data["policyGates"] = [{"id": "before-implementation", "status": "pending"}]
     execution.save()
     output = {"summary": "attempt", "status": "completed", "evidence": [], "unknowns": [], "details": {}}
+    service.prepare_phase(execution.data["metadata"]["id"])
     with pytest.raises(PermissionError, match="required policy gates are pending"):
         service.complete_phase(execution.data["metadata"]["id"], output)
 

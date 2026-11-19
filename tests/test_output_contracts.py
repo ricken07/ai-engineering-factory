@@ -50,9 +50,11 @@ def test_runtime_refuses_output_breaking_a_project_contract(tmp_path: Path):
     root, _ = project_with_contract(tmp_path)
     service = RuntimeService(root, ROOT)
     identifier = at_analyze_phase(service)
+    service.prepare_phase(identifier)
     with pytest.raises(ValueError, match="breaks its output contracts: project: details"):
         service.complete_phase(identifier, analysis(domains=["identity"]))
     entry = {"domain": "payment", "level": "direct", "evidence": ["src/payment"]}
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, analysis(domains=["payment"], impactClassification=[entry]))
     assert service.execution(identifier).data["phases"][0]["status"] == "completed"
 
@@ -62,6 +64,7 @@ def test_blocked_output_is_not_held_to_the_contract(tmp_path: Path):
     service = RuntimeService(root, ROOT)
     identifier = at_analyze_phase(service)
     blocked = {**analysis(), "status": "blocked"}
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, blocked)
 
 

@@ -196,6 +196,7 @@ def run_human_gate(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
     task_data["autonomy"] = {"requested": "L3"}
     TaskRegistry(project_root).save(task_data)
     _advance_to(execution, skill="analyze-impact")
+    service.prepare_phase(identifier)
     service.complete_phase(identifier, _impact_output("Critical impact", {"risk": "critical", "repositories": ["main"], "changeTypes": ["destructive-migration"]}))
     current = service.execution(identifier)
     _advance_to(current, phase_id="implementation")

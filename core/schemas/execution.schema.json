@@ -157,6 +157,10 @@
           "artifacts": {
             "$ref": "common.schema.json#/$defs/stringArray"
           },
+          "preparedAt": {
+            "description": "When the Runtime started the phase (execution next). A phase it did not start cannot be completed.",
+            "type": "string"
+          },
           "recovery": {
             "type": "object",
             "required": ["status", "attempts", "minimumAttempts", "maximumAttempts"],

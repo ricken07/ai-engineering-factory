@@ -33,8 +33,10 @@ def test_execution_lease_prevents_second_agent_and_supports_renew_release(tmp_pa
 def test_mutation_requires_active_lease_owner(tmp_path: Path):
     service,execution=service_and_execution(tmp_path)
     service.lease(execution.data["metadata"]["id"],"acquire","codex:one")
+    service.prepare_phase(execution.data["metadata"]["id"])
     with pytest.raises(PermissionError,match="owner is required"):
         service.complete_phase(execution.data["metadata"]["id"],valid_understanding())
+    service.prepare_phase(execution.data["metadata"]["id"])
     with pytest.raises(LeaseConflict,match="leased by codex:one"):
         service.complete_phase(execution.data["metadata"]["id"],valid_understanding(),owner="claude:two")
 
@@ -42,8 +44,10 @@ def test_mutation_requires_active_lease_owner(tmp_path: Path):
 def test_complete_phase_replay_does_not_advance_twice(tmp_path: Path):
     service,execution=service_and_execution(tmp_path)
     identifier=execution.data["metadata"]["id"]; output=valid_understanding()
+    service.prepare_phase(identifier)
     first=service.complete_phase(identifier,output,"complete-understand-1")
     assert first.next_phase()["id"] == "resolve-context"
+    service.prepare_phase(identifier)
     second=service.complete_phase(identifier,output,"complete-understand-1")
     assert second.next_phase()["id"] == "resolve-context"
     assert len(list((execution.root/"operations").glob("*.yaml"))) == 1
@@ -51,8 +55,10 @@ def test_complete_phase_replay_does_not_advance_twice(tmp_path: Path):
 
 def test_operation_id_cannot_be_reused_with_different_input(tmp_path: Path):
     service,execution=service_and_execution(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,valid_understanding(),"same-operation")
     changed={**valid_understanding(),"summary":"different valid summary"}
+    service.prepare_phase(identifier)
     with pytest.raises(IdempotencyConflict,match="different input"):
         service.complete_phase(identifier,changed,"same-operation")
 
@@ -90,6 +96,7 @@ def test_lease_and_runtime_operation_artifacts_validate(tmp_path: Path):
     from aief.validation import assert_schema
     service,execution=service_and_execution(tmp_path); identifier=execution.data["metadata"]["id"]
     service.lease(identifier,"acquire","codex:one")
+    service.prepare_phase(identifier)
     service.complete_phase(identifier,valid_understanding(),"complete-understand-validate",owner="codex:one")
     lease=yaml.safe_load((execution.root/"lease.yaml").read_text())
     operation=yaml.safe_load((execution.root/"operations/complete-understand-validate.yaml").read_text())

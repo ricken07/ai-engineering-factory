@@ -13,6 +13,7 @@
       "required": ["repositories"],
       "properties": {
         "repositories": {
+          "description": "Repositories the task concerns, analysed or modified. Not empty when the project declares repositories.",
           "type": "array",
           "items": {"type": "string", "minLength": 1},
           "uniqueItems": true
