@@ -21,6 +21,14 @@ def resolve_factory(explicit: str | None, project_root: Path) -> Path:
         if value and (Path(value).expanduser() / "core" / "schemas").is_dir(): return Path(value).expanduser()
         raise FileNotFoundError("Factory not found: pass --factory or set AI_FACTORY_HOME to a Factory checkout")
 
+def resolve_adapter_factory(explicit: str | None) -> Path:
+    """--factory, else AI_FACTORY_HOME, else the current directory when it is a Factory."""
+    if explicit: return Path(explicit).resolve()
+    value = os.environ.get("AI_FACTORY_HOME")
+    for candidate in ([Path(value).expanduser()] if value else []) + [Path(".")]:
+        if (candidate / "adapters").is_dir() and (candidate / "factory.yaml").is_file(): return candidate.resolve()
+    raise FileNotFoundError("Factory not found: pass --factory or set AI_FACTORY_HOME to a Factory checkout")
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="aief")
     sub = root.add_subparsers(dest="command", required=True)
@@ -29,9 +37,9 @@ def parser() -> argparse.ArgumentParser:
     inspect = sub.add_parser("inspect"); inspect.add_argument("path", nargs="?", default="."); inspect.add_argument("--json", action="store_true")
     init = sub.add_parser("init"); init.add_argument("destination"); init.add_argument("--template"); init.add_argument("--force", action="store_true")
     resolve = sub.add_parser("resolve"); resolve.add_argument("decision"); resolve.add_argument("--json", action="store_true")
-    setup = sub.add_parser("setup-adapter"); setup.add_argument("agent", choices=["codex","claude-code"]); setup.add_argument("--factory", default="."); setup.add_argument("--target"); setup.add_argument("--copy", action="store_true"); setup.add_argument("--execute", action="store_true")
-    uninstall = sub.add_parser("uninstall-adapter"); uninstall.add_argument("agent", choices=["codex","claude-code"]); uninstall.add_argument("--factory", default="."); uninstall.add_argument("--target"); uninstall.add_argument("--copy", action="store_true"); uninstall.add_argument("--execute", action="store_true")
-    verify = sub.add_parser("verify-adapter"); verify.add_argument("agent", choices=["codex","claude-code"]); verify.add_argument("--factory", default="."); verify.add_argument("--target"); verify.add_argument("--json", action="store_true")
+    setup = sub.add_parser("setup-adapter"); setup.add_argument("agent", choices=["codex","claude-code"]); setup.add_argument("--factory", default=None); setup.add_argument("--target"); setup.add_argument("--copy", action="store_true"); setup.add_argument("--execute", action="store_true")
+    uninstall = sub.add_parser("uninstall-adapter"); uninstall.add_argument("agent", choices=["codex","claude-code"]); uninstall.add_argument("--factory", default=None); uninstall.add_argument("--target"); uninstall.add_argument("--copy", action="store_true"); uninstall.add_argument("--execute", action="store_true")
+    verify = sub.add_parser("verify-adapter"); verify.add_argument("agent", choices=["codex","claude-code"]); verify.add_argument("--factory", default=None); verify.add_argument("--target"); verify.add_argument("--json", action="store_true")
     mcp = sub.add_parser("mcp-config"); mcp.add_argument("agent", choices=["codex","claude-code"]); mcp.add_argument("project", nargs="?", default="."); mcp.add_argument("--factory", default=".")
     integrations=sub.add_parser("integrations"); integration_sub=integrations.add_subparsers(dest="integration_command",required=True)
     for name in ("doctor","lock"):
@@ -84,6 +92,9 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command in {"setup-adapter", "uninstall-adapter", "verify-adapter"}:
+        try: args.factory = str(resolve_adapter_factory(args.factory))
+        except FileNotFoundError as exc: print(f"ERROR: {exc}"); return 1
     if args.command == "workspace":
         service=RuntimeService(Path(args.project),Path(args.factory))
         data=service.workspace(args.id,args.workspace_command,getattr(args,"execute",False))
@@ -192,14 +203,14 @@ def main(argv: list[str] | None = None) -> int:
         result = resolve_policy(data.get("requestedAutonomy", "L1"), data.get("constraints", [])).as_dict()
         print(json.dumps(result, indent=2) if args.json else yaml.safe_dump(result, sort_keys=False)); return 0
     if args.command == "setup-adapter":
-        factory, target = Path(args.factory).resolve(), Path(args.target).expanduser() if args.target else None
+        factory, target = resolve_adapter_factory(args.factory), Path(args.target).expanduser() if args.target else None
         if args.execute:
             for path in install_adapter(factory,args.agent,target,args.copy): print(f"Installed {path}")
         else:
             for source,destination in adapter_plan(factory,args.agent,target): print(f"PLAN {source} -> {destination}")
         return 0
     if args.command == "uninstall-adapter":
-        factory, target = Path(args.factory).resolve(), Path(args.target).expanduser() if args.target else None
+        factory, target = resolve_adapter_factory(args.factory), Path(args.target).expanduser() if args.target else None
         if args.execute:
             removed = uninstall_adapter(factory,args.agent,target,args.copy)
             for path in removed: print(f"Removed {path}")
@@ -215,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
                 else: print(f"REFUSE {destination} (not managed by this Factory)")
         return 0
     if args.command == "verify-adapter":
-        factory, target = Path(args.factory).resolve(), Path(args.target).expanduser() if args.target else None
+        factory, target = resolve_adapter_factory(args.factory), Path(args.target).expanduser() if args.target else None
         statuses = adapter_status(factory,args.agent,target)
         healthy = {"linked","copied"}
         if args.json:

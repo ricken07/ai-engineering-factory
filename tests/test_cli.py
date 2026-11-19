@@ -227,3 +227,16 @@ def test_validate_defaults_to_ai_factory_home(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("AI_FACTORY_HOME")
     assert main(["validate", str(project)]) == 1
     assert "Factory not found" in capsys.readouterr().out
+
+
+def test_verify_adapter_defaults_to_ai_factory_home(tmp_path, monkeypatch, capsys):
+    from aief.adapter_install import install_adapter
+    from aief.cli import main
+    root = Path(__file__).parents[1]
+    target = tmp_path / "skills"; install_adapter(root, "codex", target)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AI_FACTORY_HOME", str(root))
+    assert main(["verify-adapter", "codex", "--target", str(target)]) == 0
+    monkeypatch.delenv("AI_FACTORY_HOME")
+    assert main(["verify-adapter", "codex", "--target", str(target)]) == 1
+    assert "Factory not found" in capsys.readouterr().out
