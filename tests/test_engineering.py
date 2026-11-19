@@ -53,7 +53,7 @@ def test_project_can_use_only_local_knowledge_without_organization_catalog():
     data["repositories"][0]["engineering"]={"practices":{"payment-module-conventions":{"mode":"enable","category":"convention","ref":".ai/context/payment-module-conventions.md"}}}
     context=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","implement-change")
     assert context["organizationCatalogs"] == []
-    assert practice_ids(context) == {"project-architecture","project-convention","payment-module-conventions"}
+    assert practice_ids(context) == {"project-architecture","project-convention","project-domain","payment-module-conventions"}
 
 
 def test_unknown_or_incompatible_organization_catalog_fails_closed():
@@ -238,3 +238,15 @@ def test_duplicate_practice_id_is_still_rejected_even_when_unreferenced(tmp_path
 
 def test_validate_project_succeeds_for_project_using_only_factory_default():
     assert validate_project(PROJECT_ROOT, ROOT) == []
+
+
+def test_domain_context_travels_with_architecture_only():
+    data=project()
+    analyze=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","analyze-impact")
+    domain=next(item for item in analyze["practices"] if item["id"] == "project-domain")
+    assert domain["category"] == "architecture" and domain["source"] == "project"
+    assert domain["content"] == (PROJECT_ROOT / data["context"]["domain"]).read_text()
+    validate=resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","validate-change")
+    assert "project-domain" not in practice_ids(validate)
+    del data["context"]["domain"]
+    assert "project-domain" not in practice_ids(resolve_engineering_context(ROOT,PROJECT_ROOT,data,"egw-api","analyze-impact"))

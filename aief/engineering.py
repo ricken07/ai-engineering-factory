@@ -215,10 +215,13 @@ def resolve_engineering_context(factory: Path, project_root: Path, project: dict
 
     # Project context complements selected organization practices without pretending to be an organization rule.
     context = project.get("context", {})
-    for category, key in (("convention", "conventions"), ("architecture", "architecture")):
+    # The domain context travels with architecture: context-policy already requires it
+    # once domains are identified, and impact classification needs it from the start.
+    for category, key, identifier in (("convention", "conventions", "project-convention"),
+                                      ("architecture", "architecture", "project-architecture"),
+                                      ("architecture", "domain", "project-domain")):
         if category in categories and context.get(key):
             document = _local_document(project_root, context[key], "project")
-            identifier = f"project-{category}"
             active[identifier] = {"metadata":{"id":identifier,"version":"1.0.0"},"category":category,"enforcement":"default","override":{"allowed":True},"_document":document}
             resolutions.append({"practice":identifier,"action":"complement","source":"project"})
 
