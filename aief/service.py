@@ -214,7 +214,7 @@ class RuntimeService:
 
     def _session_actor(self, execution: Execution, owner: str | None, actor_type: str = "agent") -> dict[str, Any]:
         if owner:
-            lease = ExecutionLease(execution.root).read()
+            lease = ExecutionLease(execution.root).active()
             if lease and lease.get("owner") == owner:
                 return trusted_session_actor(owner, actor_type, execution=execution.data["metadata"]["id"])
             return actor_identity(owner, actor_type, "runtime-session", "OBSERVED", execution=execution.data["metadata"]["id"])
@@ -222,7 +222,9 @@ class RuntimeService:
 
     def _assert_lease(self, execution: Execution, owner: str | None) -> None:
         lease=ExecutionLease(execution.root)
-        if lease.read() is not None:
+        # An expired lease binds nobody: a human can approve a gate or answer
+        # a question once the agent session that held the execution has gone.
+        if lease.active() is not None:
             if owner is None: raise PermissionError("an execution lease is active; owner is required")
             lease.assert_owner(owner)
 

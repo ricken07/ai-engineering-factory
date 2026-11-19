@@ -32,6 +32,13 @@ class ExecutionLease:
     def read(self) -> dict[str, Any] | None:
         return yaml.safe_load(self.path.read_text(encoding="utf-8")) if self.path.is_file() else None
 
+    def active(self) -> dict[str, Any] | None:
+        """The lease while it binds the execution: an expired lease binds nobody."""
+        lease = self.read()
+        if lease and datetime.fromisoformat(lease["expiresAt"]) > _now():
+            return lease
+        return None
+
     def acquire(self, owner: str, ttl_seconds: int = 300, factory: Path | None = None) -> dict[str, Any]:
         if not owner.strip(): raise ValueError("lease owner is required")
         current = self.read()

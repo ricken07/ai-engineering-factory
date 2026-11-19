@@ -102,3 +102,14 @@ def test_lease_and_runtime_operation_artifacts_validate(tmp_path: Path):
     operation=yaml.safe_load((execution.root/"operations/complete-understand-validate.yaml").read_text())
     assert_schema(Path("."),"execution-lease.schema.json",lease)
     assert_schema(Path("."),"runtime-operation.schema.json",operation)
+
+
+def test_an_expired_lease_no_longer_binds_the_execution(tmp_path: Path):
+    service, execution = service_and_execution(tmp_path)
+    identifier = execution.data["metadata"]["id"]
+    service.lease(identifier, "acquire", "claude:gone", ttl_seconds=60)
+    lease = execution.root / "lease.yaml"
+    data = yaml.safe_load(lease.read_text()); data["expiresAt"] = "2000-01-01T00:00:00+00:00"
+    lease.write_text(yaml.safe_dump(data))
+    service.ask_user(identifier, "Which behaviour is right?", requires_authority=True)
+    assert service.execution(identifier).data["status"] == "blocked"
