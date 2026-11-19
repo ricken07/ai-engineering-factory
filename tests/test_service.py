@@ -63,7 +63,6 @@ def test_complete_phase_refuses_to_advance_while_blocked_on_a_pending_question(t
     service.ask_user(execution_id, "Which behavior is authoritative?", requires_authority=True)
 
     output = yaml.safe_load(Path("core/skills/understand-task/examples/output.yaml").read_text())
-    service.prepare_phase(execution_id)
     with pytest.raises(RuntimeError, match="blocked"):
         service.complete_phase(execution_id, output)
     blocked = service.execution(execution_id)
@@ -358,3 +357,19 @@ def test_runtime_refuses_a_phase_it_did_not_start(tmp_path: Path):
     service.prepare_phase(identifier)
     service.complete_phase(identifier,output)
     assert service.execution(identifier).data["phases"][0]["preparedAt"]
+
+
+def test_phase_brief_holds_each_practice_once_and_next_output_stays_compact(tmp_path: Path):
+    from aief.phase_brief import compact_prepared
+    repositories = [{"id": name, "path": ".", "role": "application", "profiles": ["maven"], "responsibilities": [],
+                     "dependencies": [], "criticalDomains": []} for name in ("api", "app")]
+    service, execution = validation_execution(tmp_path, repositories=repositories)
+    prepared = service.prepare_phase(execution.data["metadata"]["id"])
+    brief = Path(prepared["phaseBrief"]["path"])
+    text = brief.read_text()
+    assert text.count("### testing-baseline") == 1 and "Applies to: `api`, `app`" in text
+    assert prepared["phaseBrief"]["sha256"] and brief.name in service.execution(execution.data["metadata"]["id"]).data["artifacts"]
+    compact = compact_prepared(prepared)
+    assert [item["repository"] for item in compact["engineeringContexts"]] == ["api", "app"]
+    assert "practices" not in compact["engineeringContexts"][0]
+    assert len(json.dumps(compact)) < len(json.dumps(prepared))

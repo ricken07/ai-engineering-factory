@@ -206,7 +206,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="handoff": service.handoff_execution(args.id,args.owner)
         if args.execution_command=="next":
-            data=service.prepare_phase(args.id)
+            from .phase_brief import compact_prepared
+            data=compact_prepared(service.prepare_phase(args.id))
         else: data=execution.data
         print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "resolve":

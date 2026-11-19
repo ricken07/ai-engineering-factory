@@ -1,0 +1,71 @@
+"""Phase brief: the instructions an agent must read before producing a phase output.
+
+`execution next` used to return every EffectiveEngineeringContext inline, with
+the full text of each practice repeated per repository. Agents whose tools
+truncate large command outputs could then miss the practices. The brief is a
+single Markdown file written next to the execution, with each practice once,
+so an agent can read it completely; the command output only points to it.
+"""
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+from typing import Any
+
+
+def _practices(contexts: list[dict[str, Any]]) -> list[tuple[dict[str, Any], list[str]]]:
+    seen: dict[tuple[str, str], tuple[dict[str, Any], list[str]]] = {}
+    for context in contexts:
+        for practice in context.get("practices", []):
+            key = (practice["id"], practice.get("contentHash", ""))
+            entry = seen.setdefault(key, (practice, []))
+            entry[1].append(context["repository"])
+    return list(seen.values())
+
+
+def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]]) -> str:
+    lines = [f"# Phase brief: {phase['id']} ({phase['skill']})", "",
+             "Read this file completely before producing the phase output.", "",
+             "## Skill contract", "",
+             f"- Instructions: `{skill_contract['instructions']}`",
+             f"- Manifest: `{skill_contract['manifest']}`",
+             f"- Output schema: `{skill_contract['outputSchema']}`"]
+    for contract in skill_contract.get("outputContracts", []):
+        lines.append(f"- Output contract ({contract['source']}): `{contract['schema']}`")
+    if not contexts:
+        lines += ["", "No engineering context applies to this phase."]
+        return "\n".join(lines) + "\n"
+    lines += ["", "## Repositories", ""]
+    for context in contexts:
+        lines.append(f"- `{context['repository']}`: profiles {', '.join(context.get('profiles', [])) or 'none'}; "
+                     f"context `{context['metadata']['id']}` ({context.get('fingerprint', '')[:16]})")
+    task = next((context.get("taskContext") for context in contexts if context.get("taskContext")), None)
+    if task:
+        lines += ["", "## Task context", ""]
+        lines += [f"- {key}: {value}" for key, value in task.items()]
+    lines += ["", "## Practices", "",
+              "Each practice applies to the repositories listed with it. Follow every one of them."]
+    for practice, repositories in _practices(contexts):
+        lines += ["", f"### {practice['id']} {practice.get('version', '')}".rstrip(), "",
+                  f"Applies to: {', '.join(f'`{item}`' for item in repositories)}. "
+                  f"Category: {practice.get('category')}. Enforcement: {practice.get('enforcement')}.", "",
+                  practice.get("content", "").strip()]
+    return "\n".join(lines) + "\n"
+
+
+def write_phase_brief(root: Path, phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]]) -> dict[str, Any]:
+    text = render_phase_brief(phase, skill_contract, contexts)
+    path = root / f"phase-brief-{phase['id']}.md"
+    path.write_text(text, encoding="utf-8")
+    content = text.encode("utf-8")
+    return {"path": str(path), "sha256": hashlib.sha256(content).hexdigest(), "bytes": len(content)}
+
+
+def compact_prepared(data: dict[str, Any]) -> dict[str, Any]:
+    """Command output of `execution next`: contexts by reference, brief by path."""
+    compact = dict(data)
+    compact["engineeringContexts"] = [
+        {"repository": item["repository"], "id": item["metadata"]["id"], "fingerprint": item.get("fingerprint")}
+        for item in data.get("engineeringContexts", [])
+    ]
+    return compact

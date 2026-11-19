@@ -24,6 +24,7 @@ from .output_contracts import contract_errors, public as public_contracts, resol
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
+from .phase_brief import write_phase_brief
 from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
 from .task_log import TaskEventLog
@@ -744,16 +745,21 @@ class RuntimeService:
             contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
         execution = self.execution(execution_id)
         phase = execution.next_phase()
+        brief = write_phase_brief(execution.root, phase, skill_contract, contexts)
+        name = Path(brief["path"]).name
+        for artifacts in (phase.setdefault("artifacts", []), execution.data.setdefault("artifacts", [])):
+            if name not in artifacts: artifacts.append(name)
         phase["preparedAt"] = timestamp(self.clock); execution.save()
         self._events(execution.data["task"]).append(
             "phase.started", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase":phase["id"],
                      "status":execution.data["status"], "skill":phase["skill"],
                      "skillContract":skill_contract,
-                     "engineeringContexts":[item["metadata"]["id"] for item in contexts]},
+                     "engineeringContexts":[item["metadata"]["id"] for item in contexts],
+                     "phaseBrief":{"artifact":name,"sha256":brief["sha256"]}},
         )
         return {"execution":execution_id,"status":execution.data["status"],"phase":phase,
-                "skillContract":skill_contract,"engineeringContexts":contexts}
+                "skillContract":skill_contract,"phaseBrief":brief,"engineeringContexts":contexts}
 
     @measured_runtime
     def workspace(self, execution_id: str, action: str, execute: bool = False) -> dict[str, Any]:

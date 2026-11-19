@@ -72,7 +72,12 @@ For the returned execution ID:
 3. For a runnable phase, verify that the returned phase is the only operation
    being performed. `Write` and `Edit` are forbidden unless the returned Skill
    is `implement-change` and the Runtime status is runnable.
-4. Read the exact `skillContract.manifest`, `skillContract.instructions` and
+4. Read the file at `phaseBrief.path` completely, with no offset or line
+   limit, before any other work on the phase. It holds the applicable
+   practices and project context documents, each once, for every
+   repository of the phase; `engineeringContexts` only lists their
+   identifiers. Follow every practice it contains.
+5. Read the exact `skillContract.manifest`, `skillContract.instructions` and
    `skillContract.outputSchema` paths returned by the Runtime. When
    `skillContract.outputContracts` is not empty, read each `schema` too: a
    completed output must satisfy every one of them, and the Runtime rejects
@@ -80,8 +85,8 @@ For the returned execution ID:
    contracts and must never be invoked through Claude's native `Skill(...)`
    mechanism. In particular, do not call `Skill(understand)`,
    `Skill(analyze-impact)` or `Skill(create-plan)`.
-5. Use Claude Code for only the agentic work required by that Skill.
-6. Write the structured phase artifact under the current task/execution runtime
+6. Use Claude Code for only the agentic work required by that Skill.
+7. Write the structured phase artifact under the current task/execution runtime
    directory and submit it with the exact deterministic form:
 
    ```bash
@@ -95,7 +100,7 @@ For the returned execution ID:
 
    `--output` is mandatory. Do not pass artifact content through shell
    redirection, interpolation or a heredoc.
-7. Repeat from `execution next`; never skip or reorder a phase locally.
+8. Repeat from `execution next`; never skip or reorder a phase locally.
 
 For handoff, call `aief execution handoff <execution-id> --owner
 "claude-code:<session-id>"`; this persists the handoff and releases the lease.

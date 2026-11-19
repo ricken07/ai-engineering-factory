@@ -80,6 +80,15 @@ engineering context and records `preparedAt` on the phase. `complete-phase`
 refuses a phase the Runtime did not start, so an output cannot skip that
 context.
 
+The engineering context reaches the agent through a phase brief,
+`phase-brief-<phase>.md` in the execution directory. It holds each applicable
+practice and project context document once, with the repositories it applies
+to, and the Skill and output contracts. The command output only returns
+`phaseBrief` (path, SHA-256, size) and the context identifiers, so agent tools
+that truncate large outputs cannot hide a practice. Adapters read the brief
+completely before working on the phase. The full contexts remain persisted as
+`engineering-context-<repository>-<skill>.yaml`.
+
 Claude `/implement` and Codex `$implement` are therefore different native entry points to the same Runtime.
 
 Native adapters must pin the canonical intent independently from the request
