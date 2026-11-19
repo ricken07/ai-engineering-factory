@@ -40,6 +40,30 @@ The Runtime obtains impacted repository IDs in this order:
 
 It fails closed when impact is unknown, a repository ID is absent from `project.yaml`, a path escapes the workspace, the directory is missing, a profile is unknown, or no applicable command can be resolved.
 
+Commands run where the execution changed the code: in `worktree` mode, the
+execution worktree recorded by workspace preparation. A worktree-mode
+validation without a prepared worktree fails closed instead of testing the main
+checkout.
+
+## Modules of one build
+
+When impacted repositories are modules of one Git root (for example the `api`
+and `app` Maven modules of one reactor), building a module alone would resolve
+its sibling modules from stale local artifacts. A profile can declare an
+`aggregate` block; when the root holds its discovery files, the Runtime runs
+those commands once from the root, with `{modules}` replaced by the impacted
+module paths:
+
+```yaml
+aggregate:
+  discovery: {files: [pom.xml, mvnw]}
+  commands:
+    build: [./mvnw, verify, -pl, '{modules}', -am]
+    test: [./mvnw, test, -pl, '{modules}', -am]
+```
+
+Without an aggregating profile, each module keeps its own commands.
+
 ## Governance
 
 Planning is side-effect free:

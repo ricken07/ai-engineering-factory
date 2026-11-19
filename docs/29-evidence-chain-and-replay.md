@@ -73,10 +73,15 @@ review:
   independence: INDEPENDENT # or NOT_INDEPENDENT / UNVERIFIED / NOT_REQUIRED
 ```
 
-Distinct identities prove `INDEPENDENT` only when both are trusted. Same
-reliable identity produces `NOT_INDEPENDENT`; missing, declared-only or
-insufficiently comparable identity produces `UNVERIFIED`. Required independent
-review fails closed for every state except `INDEPENDENT`. Review approval and
+Distinct identities prove `INDEPENDENT` only when both are trusted and the
+producer handed the execution off (`aief execution handoff`) before the
+reviewer took it. A lease owner is a free label: one session can acquire a new
+lease under another name, so distinct owners without that handoff produce
+`UNVERIFIED`. Same reliable identity produces `NOT_INDEPENDENT`; missing,
+declared-only or insufficiently comparable identity produces `UNVERIFIED`.
+Required independent review fails closed for every state except `INDEPENDENT`,
+and the Runtime checks it when the review phase completes, so workflows without
+a submission phase are covered too. Review approval and
 blocking findings remain separate required checks.
 
 ## Replay

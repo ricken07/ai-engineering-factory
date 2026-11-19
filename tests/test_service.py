@@ -146,6 +146,8 @@ def test_runtime_fails_closed_on_factory_version_mismatch(tmp_path: Path):
 def validation_execution(tmp_path: Path, repositories=None, autonomy="L2"):
     project = tmp_path / "project"
     initialize(Path("templates/project"), project)
+    for repository in repositories or []:
+        (project / repository["path"]).mkdir(parents=True, exist_ok=True)
     project_data = yaml.safe_load((project / ".ai/project.yaml").read_text())
     project_data["autonomy"]["default"] = autonomy
     project_data["repositories"] = repositories or [{"id":"main","path":".","role":"application","profiles":["maven"],"responsibilities":[],"dependencies":[],"criticalDomains":[]}]
@@ -389,3 +391,44 @@ def test_isolated_validation_without_worktree_fails_closed(tmp_path: Path):
     service.project["workspaceSafety"] = {"mode": "worktree"}
     with pytest.raises(RuntimeError, match="no prepared worktree"):
         service.profile_validation_plan(execution.data["metadata"]["id"])
+
+
+def test_modules_of_one_build_root_are_validated_together_from_the_root(tmp_path: Path):
+    repositories = [{"id": name, "path": name, "role": "application", "profiles": ["maven"], "responsibilities": [],
+                     "dependencies": [], "criticalDomains": []} for name in ("api", "app")]
+    service, execution = validation_execution(tmp_path, repositories=repositories)
+    root = tmp_path / "worktree"
+    for name in ("api", "app"):
+        (root / name).mkdir(parents=True); (root / name / "pom.xml").touch(); (root / name / "mvnw").touch()
+    (root / "pom.xml").touch(); (root / "mvnw").touch()
+    bound = {name: {"worktreeRoot": str(root), "executionPath": str(root / name)} for name in ("api", "app")}
+    (execution.root / "workspace.yaml").write_text(yaml.safe_dump({"repositories": bound}))
+    plan = service.profile_validation_plan(execution.data["metadata"]["id"])
+    assert [item["command"] for item in plan] == [["./mvnw", "verify", "-pl", "api,app", "-am"], ["./mvnw", "test", "-pl", "api,app", "-am"]]
+    assert {item["cwd"] for item in plan} == {str(root.resolve())} and plan[0]["repositories"] == ["api", "app"]
+
+
+def test_review_by_the_producer_session_is_refused_when_independence_is_required(tmp_path: Path):
+    from aief.identity import trusted_session_actor
+    project=tmp_path/"project"; initialize(Path("templates/project"),project); service=RuntimeService(project,Path("."))
+    execution=service.start("/document la page de démarrage","claude-code")
+    identifier=execution.data["metadata"]["id"]
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "review-change": break
+        phase["status"]="completed"
+    execution.data["status"]="running"
+    execution.data["actors"]={"producer":trusted_session_actor("claude-code:one",execution=identifier)}
+    execution.data["review"]={"independentRequired":True}
+    execution.save()
+    review={"summary":"review","status":"completed","evidence":["diff"],"unknowns":[],"details":{"decision":"approved","blockingFindings":[]}}
+    service.lease(identifier,"acquire","claude-code:one"); service.prepare_phase(identifier)
+    with pytest.raises(PermissionError, match="independence is NOT_INDEPENDENT"):
+        service.complete_phase(identifier,review,owner="claude-code:one")
+    service.lease(identifier,"release","claude-code:one"); service.lease(identifier,"acquire","claude-code:two")
+    with pytest.raises(PermissionError, match="independence is UNVERIFIED"):
+        service.complete_phase(identifier,review,owner="claude-code:two")
+    service.lease(identifier,"release","claude-code:two"); service.lease(identifier,"acquire","claude-code:one")
+    service.handoff_execution(identifier,"claude-code:one")
+    service.lease(identifier,"acquire","claude-code:two")
+    service.complete_phase(identifier,review,owner="claude-code:two")
+    assert service.execution(identifier).data["review"]["independence"] == "INDEPENDENT"

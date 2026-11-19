@@ -60,7 +60,10 @@ def review_independence(
     # Distinct labels are positive independence evidence only when both were
     # bound by a trusted identity mechanism. OBSERVED adapter labels can prove
     # sameness, but cannot prove that two sessions are distinct principals.
-    if producer.get("assurance") == reviewer.get("assurance") == "TRUSTED":
+    # A lease owner is a free label: one session can take a new one. The
+    # reviewer counts as another session only when the producer handed the
+    # execution off before the reviewer took it.
+    if producer.get("assurance") == reviewer.get("assurance") == "TRUSTED" and reviewer.get("handoffFrom") == producer_id:
         return "INDEPENDENT"
     return "UNVERIFIED"
 

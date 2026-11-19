@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import json
+import subprocess
 import yaml
 from jsonschema import Draft202012Validator
 from collections.abc import Callable
@@ -18,7 +19,7 @@ from .identity import actor_identity, declared_actor, review_independence, trust
 from .enforcement import enforcement_point, assert_required_enforcement
 from .tracking import TaskTrackingManager, evaluate_tracking
 from .backlog import BacklogImportManager
-from .capabilities import execute_plan, validation_plan
+from .capabilities import aggregate_plan, execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 from .output_contracts import contract_errors, public as public_contracts, resolve_output_contracts
 from .workspace import WorkspaceManager
@@ -63,6 +64,20 @@ def measured_runtime(method: Callable[..., Any]) -> Callable[..., Any]:
             if isinstance(subject, Execution): subject.data = current.data
             if isinstance(result, Execution): result.data = current.data
     return wrapped
+
+
+def _build_root(path: Path, binding: dict[str, Any]) -> Path | None:
+    """Build root of a module: its worktree or Git root when the module is a sub-directory of it."""
+    root = binding.get("worktreeRoot") or binding.get("gitRoot")
+    if not root:
+        try:
+            root = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=path, text=True, capture_output=True, check=True).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            return None
+    root_path = Path(root).resolve()
+    if root_path == path or not path.is_relative_to(root_path):
+        return None
+    return root_path
 
 
 class RuntimeService:
@@ -276,9 +291,18 @@ class RuntimeService:
             # Runtime-owned identity always replaces artifact-supplied assurance.
             claimed = details.get("reviewerSession") or details.get("reviewerId")
             reviewer = self._session_actor(execution, owner) if owner else declared_actor(claimed)
-            execution.observe_actor("reviewer", reviewer)
+            producer = execution.data.get("actors", {}).get("producer") or {}
+            if reviewer.get("assurance") == "TRUSTED" and any(item["from"] == producer.get("id") for item in execution.data.get("handoffs", [])):
+                reviewer["handoffFrom"] = producer["id"]
             required = execution.data.get("review", {}).get("independentRequired", True)
-            independence = review_independence(execution.data.get("actors", {}).get("producer"), reviewer, required=required)
+            independence = review_independence(producer or None, reviewer, required=required)
+            if required and output.get("status") == "completed" and independence != "INDEPENDENT":
+                # The review is checked when it ends, not only at submission:
+                # some workflows (update-documentation) have no submission.
+                raise PermissionError(
+                    f"independent review is required but review independence is {independence}: "
+                    "the producer hands the execution off (aief execution handoff) and another session reviews it")
+            execution.observe_actor("reviewer", reviewer)
             execution.data["review"] = {"independentRequired": required, "independence": independence}
             details["reviewer"] = reviewer
             details["independence"] = independence
@@ -587,6 +611,9 @@ class RuntimeService:
         if manager.read() is not None:
             if owner is None: raise PermissionError("lease owner is required to hand off an active execution")
             manager.release(owner)
+        if owner:
+            execution.data.setdefault("handoffs", []).append({"from": owner, "at": timestamp(self.clock)})
+            execution.save()
         return execution.handoff(self.factory)
 
     def _impacted_repository_ids(self, execution: Execution, task: dict[str, Any]) -> list[str]:
@@ -616,6 +643,8 @@ class RuntimeService:
         bound = load_yaml(workspace_file).get("repositories", {}) if workspace_file.is_file() else {}
         isolated = self.project.get("workspaceSafety", {}).get("mode") == "worktree"
         plan: list[dict[str, Any]] = []
+        modules: dict[str, dict[str, list[str]]] = {}
+        singles: list[tuple[str, Path, dict[str, Any]]] = []
         for identifier in repository_ids:
             repository = catalog[identifier]
             path = (self.project_root / repository["path"]).resolve()
@@ -624,12 +653,29 @@ class RuntimeService:
             # Validation must observe the code the execution changed: in an
             # isolated workspace that is the execution worktree, not the main
             # checkout.
-            execution_path = bound.get(identifier, {}).get("executionPath")
+            binding = bound.get(identifier, {})
+            execution_path = binding.get("executionPath")
             if execution_path:
                 path = Path(execution_path).resolve()
             elif isolated:
                 raise RuntimeError(f"repository {identifier} has no prepared worktree: validation would run on the main checkout")
             if not path.is_dir(): raise FileNotFoundError(f"repository path is missing: {identifier}: {path}")
+            root = _build_root(path, binding)
+            if root is not None:
+                group = modules.setdefault(str(root), {"ids": [], "modules": [], "profiles": []})
+                group["ids"].append(identifier); group["modules"].append(path.relative_to(root).as_posix())
+                group["profiles"] += [item for item in repository.get("profiles", []) if item not in group["profiles"]]
+            else:
+                singles.append((identifier, path, repository))
+        for root, group in modules.items():
+            aggregated = aggregate_plan(self.factory, Path(root), group["modules"], group["profiles"])
+            if aggregated:
+                # Modules of one build root are validated together from that root.
+                plan += [{"repository":group["ids"][0],"repositories":group["ids"],"cwd":root,**item} for item in aggregated]
+            else:
+                for identifier, module in zip(group["ids"], group["modules"]):
+                    singles.append((identifier, Path(root) / module, catalog[identifier]))
+        for identifier, path, repository in singles:
             for item in validation_plan(self.factory, path, repository.get("profiles", [])):
                 plan.append({"repository":identifier,"cwd":str(path),**item})
         if not plan: raise RuntimeError("no applicable validation command was resolved from impacted repository profiles")
@@ -811,7 +857,7 @@ class RuntimeService:
         plan = self.profile_validation_plan(execution_id)
         execution.data.setdefault("roles", {}).setdefault("verifier", {"type":"runtime","identity":"aief-runtime"})
         execution.save()
-        contexts = {identifier:self.engineering_context(execution_id, identifier) for identifier in dict.fromkeys(item["repository"] for item in plan)}
+        contexts = {identifier:self.engineering_context(execution_id, identifier) for identifier in dict.fromkeys(identifier for item in plan for identifier in item.get("repositories", [item["repository"]]))}
         # engineering_context persists through independently loaded Execution
         # instances; reload before adding timing/identity so neither write can
         # overwrite the other's artifacts.
@@ -824,10 +870,10 @@ class RuntimeService:
         verifier = actor_identity(f"runtime:{execution_id}", "runtime", "runtime", "TRUSTED", execution=execution_id)
         execution.observe_actor("verifier", verifier)
         for item in plan:
-            command = {key:value for key,value in item.items() if key not in {"repository","cwd"}}
+            command = {key:value for key,value in item.items() if key not in {"repository","repositories","cwd"}}
             kwargs = {"runner":runner} if runner is not None else {}
             result = execute_plan([command], Path(item["cwd"]), execute=True, **kwargs)[0]
-            results.append({"repository":item["repository"],"cwd":item["cwd"],**result,
+            results.append({"repository":item["repository"],**({"repositories":item["repositories"]} if "repositories" in item else {}),"cwd":item["cwd"],**result,
                             "verifiedAt":timestamp(self.clock),"verifier":verifier["id"],"execution":execution_id})
             try:
                 snapshots[item["repository"]] = git_sha(Path(item["cwd"]))

@@ -13,6 +13,17 @@ discovery:
 commands:
   build: [./mvnw, verify]
   test: [./mvnw, test]
+aggregate:
+  # Modules of one Maven reactor are validated from its root, so a module
+  # builds against the sibling modules of the same workspace, never against
+  # stale artifacts of the local repository.
+  discovery:
+    files:
+    - pom.xml
+    - mvnw
+  commands:
+    build: [./mvnw, verify, -pl, '{modules}', -am]
+    test: [./mvnw, test, -pl, '{modules}', -am]
 practices:
 - use-project-wrapper-when-available
 policyRefs: []

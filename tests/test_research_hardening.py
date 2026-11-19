@@ -97,7 +97,10 @@ def test_identity_assurance_and_independence_are_fail_closed():
     assert actor_identity("agent", "agent", "artifact", "TRUSTED")["assurance"] == "UNVERIFIED"
     assert review_independence(producer, declared_actor("session-b")) == "UNVERIFIED"
     assert review_independence(producer, trusted_session_actor("session-a")) == "NOT_INDEPENDENT"
-    assert review_independence(producer, trusted_session_actor("session-b")) == "INDEPENDENT"
+    # A distinct lease owner alone may be the same session under a new label.
+    assert review_independence(producer, trusted_session_actor("session-b")) == "UNVERIFIED"
+    assert review_independence(producer, trusted_session_actor("session-b", handoffFrom="session-a")) == "INDEPENDENT"
+    assert review_independence(producer, trusted_session_actor("session-b", handoffFrom="session-x")) == "UNVERIFIED"
     assert review_independence(actor_identity("codex", "agent", "adapter", "OBSERVED"), trusted_session_actor("session-b")) == "UNVERIFIED"
     assert review_independence(producer, None) == "UNVERIFIED"
     assert review_independence(producer, None, required=False) == "NOT_REQUIRED"

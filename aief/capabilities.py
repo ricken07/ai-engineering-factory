@@ -29,6 +29,19 @@ def validation_plan(factory: Path, repository: Path, selected: list[str]) -> lis
             plan.append({"profile": profile["metadata"]["id"], "operation": operation, "command": list(command)})
     return plan
 
+def aggregate_plan(factory: Path, root: Path, modules: list[str], selected: list[str]) -> list[dict[str, Any]]:
+    """Plan for modules sharing one build root, or [] when no profile aggregates them."""
+    plan: list[dict[str, Any]] = []
+    for profile in resolve_profiles(factory, selected):
+        aggregate = profile.get("aggregate")
+        if not aggregate: continue
+        files = aggregate.get("discovery", {}).get("files", [])
+        if files and not all((root / name).exists() for name in files): continue
+        for operation, command in aggregate["commands"].items():
+            argv = [",".join(modules) if value == "{modules}" else value for value in command]
+            plan.append({"profile": profile["metadata"]["id"], "operation": operation, "command": argv})
+    return plan
+
 def execute_plan(plan: list[dict[str, Any]], cwd: Path, execute: bool = False, runner: Callable[..., Any] = subprocess.run) -> list[dict[str, Any]]:
     if not execute: return [{**item, "mode":"plan"} for item in plan]
     results = []

@@ -29,7 +29,7 @@ def test_submission_evidence_accepts_verified_matrix_and_review(tmp_path: Path):
     write(tmp_path, "execution.yaml", {
         "actors": {
             "producer": trusted_session_actor("implementation-1"),
-            "reviewer": trusted_session_actor("review-2"),
+            "reviewer": trusted_session_actor("review-2", handoffFrom="implementation-1"),
         },
         "review": {"independentRequired": True},
     })

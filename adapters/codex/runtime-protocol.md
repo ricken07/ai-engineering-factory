@@ -104,9 +104,12 @@ For the returned execution ID:
 
 For handoff, call `aief execution handoff <execution-id> --owner
 "codex:<session-id>"`; this persists the handoff and releases the lease. The
-receiving session acquires the same Execution with its own owner. Two distinct
-trusted identities yield `INDEPENDENT`; the same trusted identity yields
-`NOT_INDEPENDENT`; insufficient identity yields `UNVERIFIED`.
+receiving session acquires the same Execution with its own owner. A review
+is `INDEPENDENT` only when another session reviews after the producer's
+handoff; the same session under a new owner name yields `UNVERIFIED`, and
+the same owner yields `NOT_INDEPENDENT`. When independent review is required,
+`complete-phase` refuses any other review: hand off and stop, never take a
+new owner name in the same session to review your own change.
 
 For research runs, the initial command also supplies
 `--experiment-condition L0|L1|L2|L3`, `--repeat-index`,

@@ -12,7 +12,8 @@
     "adapter": {"type": "string"},
     "execution": {"type": "string"},
     "model": {"type": "string"},
-    "role": {"type": "string"}
+    "role": {"type": "string"},
+    "handoffFrom": {"description": "Owner that handed the execution off (aief execution handoff) before this actor took it.", "type": "string"}
   },
   "additionalProperties": false
 }

@@ -130,6 +130,11 @@
     "repositories": {
       "$ref": "common.schema.json#/$defs/stringArray"
     },
+    "handoffs": {
+      "description": "Sessions that handed the execution off; a reviewer is independent only after the producer handed off.",
+      "type": "array",
+      "items": {"type": "object", "required": ["from", "at"], "properties": {"from": {"type": "string"}, "at": {"type": "string"}}, "additionalProperties": false}
+    },
     "impactPaths": {
       "description": "Paths listed by the impact analysis; they scope path-restricted critical domains.",
       "$ref": "common.schema.json#/$defs/stringArray"
