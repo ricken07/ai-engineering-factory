@@ -83,6 +83,25 @@ Denied actions are additive and override allowed actions.
 ### Allowed actions
 An action is executable only when it is within the effective autonomy level, required capability is available, and no applicable policy denies it.
 
+### Proposed changes
+
+When the governed plan denies `modify-local-files` but allows
+`propose-change` (L1), the implementation phase is prepared with
+`action: propose-change`. The Runtime fingerprints every Git root of the
+execution workspace (HEAD, status and diff, outside the Runtime state store)
+when the phase starts, and `complete-phase` rejects the output if the
+workspace changed. The agent writes its change as unified diffs inside the
+execution directory and lists them in `details.proposal.patches` as
+`{repository, path}`; the Runtime checks that each one applies.
+
+The proposal then holds every later phase behind the `apply-proposal` policy
+gate. When a human approves it (`aief execution approve-policy <id>
+apply-proposal`), the Runtime verifies that neither the workspace nor the
+patches changed and applies them itself. Validation below L2 is allowed only
+for such an applied proposal: the human approved the change, and the Runtime,
+not the agent, executes the profile commands. Both the denial and the
+application are recorded as enforcement points.
+
 ## Output
 
 Policy resolution produces a `PolicyDecision` containing:

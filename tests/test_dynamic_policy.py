@@ -239,3 +239,69 @@ def test_runtime_keeps_scoped_domain_when_paths_match_or_are_missing(tmp_path: P
         decision = service.reassess_policy(execution, {"repositories": ["main"], "changeTypes": ["source-code"], **paths}, "analyze-impact")
         assert decision["risk"]["effective"] == "critical"
         assert any(rule.startswith("repository:main:criticalDomains:authentication") for rule in decision["matchedRules"])
+
+
+def git(root: Path, *args: str) -> str:
+    import subprocess
+    return subprocess.run(["git", *args], cwd=root, check=True, text=True, capture_output=True).stdout
+
+
+def critical_implementation(tmp_path: Path):
+    """Execution at L1 (critical risk) whose implementation phase is about to start, in a Git checkout."""
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]; root=service.project_root
+    (root/".gitignore").write_text(".ai/runtime/\n"); (root/"app.txt").write_text("one\n")
+    git(root,"init","-q","-b","main"); git(root,"-c","user.name=t","-c","user.email=t@t","add","-A")
+    git(root,"-c","user.name=t","-c","user.email=t@t","commit","-qm","init")
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier,output("Critical impact",{"risk":"critical","repositories":["main"],"changeTypes":["destructive-migration"]}))
+    current=service.execution(identifier)
+    for phase in current.data["phases"]:
+        if phase["id"] == "implementation": break
+        phase["status"]="completed"
+    current.data["status"]="running"; current.save()
+    assert service.prepare_phase(identifier)["status"] == "waiting-approval"
+    service.approve_policy_gate(identifier,"before-implementation")
+    workspace=service.workspace(identifier,"prepare",execute=True)
+    assert workspace["decision"]["status"] == "ready"
+    from aief.proposal import repository_roots
+    root=Path(repository_roots(workspace)["main"])
+    prepared=service.prepare_phase(identifier)
+    assert prepared["phase"]["action"] == "propose-change"
+    assert "propose-change" in Path(prepared["phaseBrief"]["path"]).read_text()
+    return service,identifier,root
+
+
+PATCH="--- a/app.txt\n+++ b/app.txt\n@@ -1 +1 @@\n-one\n+two\n"
+
+
+def test_l1_implementation_cannot_modify_the_workspace(tmp_path: Path):
+    service,identifier,root=critical_implementation(tmp_path)
+    (root/"app.txt").write_text("edited by the agent\n")
+    with pytest.raises(PermissionError, match="propose-change but not modify-local-files"):
+        service.complete_phase(identifier,output("Edited",{"repositories":["main"]}))
+    (root/"app.txt").write_text("one\n")
+    with pytest.raises(ValueError, match="details.proposal.patches"):
+        service.complete_phase(identifier,output("No patch",{"repositories":["main"]}))
+
+
+def test_l1_proposal_is_applied_by_the_runtime_after_human_approval(tmp_path: Path):
+    service,identifier,root=critical_implementation(tmp_path)
+    execution=service.execution(identifier); (execution.root/"change.patch").write_text(PATCH)
+    service.complete_phase(identifier,output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}}))
+    current=service.execution(identifier)
+    assert current.data["proposal"]["status"] == "proposed" and (root/"app.txt").read_text() == "one\n"
+    with pytest.raises(PermissionError, match="apply-proposal"):
+        service.run_profile_validation(identifier, runner=lambda *a, **k: None)
+    assert service.prepare_phase(identifier)["requiredPolicyGates"] == ["apply-proposal"]
+    service.approve_policy_gate(identifier,"apply-proposal")
+    current=service.execution(identifier)
+    assert (root/"app.txt").read_text() == "two\n"
+    assert current.data["proposal"]["status"] == "applied" and current.data["status"] == "running"
+    assert_schema(ROOT,"execution.schema.json",current.data)
+
+
+def test_l1_proposal_must_apply_to_the_workspace(tmp_path: Path):
+    service,identifier,root=critical_implementation(tmp_path)
+    execution=service.execution(identifier); (execution.root/"change.patch").write_text(PATCH.replace("-one","-other"))
+    with pytest.raises(ValueError, match="does not apply"):
+        service.complete_phase(identifier,output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}}))

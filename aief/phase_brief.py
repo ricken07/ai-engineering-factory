@@ -32,6 +32,14 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
              f"- Output schema: `{skill_contract['outputSchema']}`"]
     for contract in skill_contract.get("outputContracts", []):
         lines.append(f"- Output contract ({contract['source']}): `{contract['schema']}`")
+    if phase.get("action") == "propose-change":
+        lines += ["", "## Authorized action: propose-change", "",
+                  "Authorized autonomy denies `modify-local-files`: do not create, edit or delete any file of the",
+                  "repositories. The Runtime fingerprinted the workspace when this phase started and rejects the",
+                  "output if it changed. Write the change as unified diffs (paths relative to the repository's Git",
+                  "root, as `git diff` prints them from there) in files inside the execution directory, and list them",
+                  "in `details.proposal.patches` as `{repository, path}`. A human approves the `apply-proposal` gate;",
+                  "the Runtime then applies the patches before validation."]
     if not contexts:
         lines += ["", "No engineering context applies to this phase."]
         return "\n".join(lines) + "\n"

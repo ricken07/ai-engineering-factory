@@ -26,6 +26,7 @@ from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
 from .phase_brief import write_phase_brief
+from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
 from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
 from .task_log import TaskEventLog
@@ -242,7 +243,11 @@ class RuntimeService:
             "implementation": {"before-implementation"},
             "submission": {"before-commit", "before-submission"},
         }
-        return required_for_phase.get(phase_id, set()).intersection(
+        required = required_for_phase.get(phase_id, set())
+        if phase_id != "implementation":
+            # A proposed change holds every later phase until it is applied.
+            required = required | {APPLY_GATE}
+        return required.intersection(
             item["id"] for item in execution.data.get("policyGates", []) if item["status"] == "pending"
         )
 
@@ -283,6 +288,8 @@ class RuntimeService:
         completed_skill=phase["skill"]
         output = deepcopy(output)
         if completed_skill == "implement-change":
+            if phase.get("action") == "propose-change":
+                self._check_proposal(execution, phase, output)
             if owner:
                 producer = self._session_actor(execution, owner)
                 adapter = execution.data.get("agent", {}).get("adapter")
@@ -546,6 +553,62 @@ class RuntimeService:
             execution.complete_policy_gate(gate)
             execution.save()
 
+    def _workspace_roots(self, execution: Execution) -> dict[str, str]:
+        return repository_roots(WorkspaceManager(self.project_root, self.project, execution.root).load())
+
+    def _prepare_implementation_action(self, execution: Execution, phase: dict[str, Any]) -> None:
+        plan_name = execution.data.get("governedExecutionPlan")
+        plan = load_yaml(execution.root / plan_name) if plan_name and (execution.root / plan_name).is_file() else None
+        phase["action"] = implementation_action(plan)
+        if phase["action"] == "propose-change" and "baseline" not in execution.data.get("proposal", {}):
+            # Fingerprint the workspace once, when the phase first starts: any
+            # later change made by the agent is outside its authorized actions.
+            execution.data["proposal"] = {"status": "pending",
+                                          "baseline": snapshot(self._workspace_roots(execution), runtime_root(self.project_root, self.project))}
+
+    def _check_proposal(self, execution: Execution, phase: dict[str, Any], output: dict[str, Any]) -> None:
+        proposal = execution.data.get("proposal", {})
+        changed = changed_roots(proposal.get("baseline", {}), runtime_root(self.project_root, self.project))
+        if changed:
+            raise PermissionError(
+                "authorized autonomy allows propose-change but not modify-local-files, and the workspace changed during "
+                f"the phase: {', '.join(changed)}. Restore it and deliver the change as patches in details.proposal.patches")
+        execution_id = execution.data["metadata"]["id"]
+        self._persist_enforcement_point(execution, enforcement_point(
+            execution=execution_id, action="modify-local-files", decision="DENY", mechanism_type="runtime",
+            capability="workspace-fingerprint", status="ENFORCED", evidence_ref=f"{phase['id']}.yaml", required=True))
+        if output.get("status") != "completed":
+            return
+        patches = proposal_patches(output, self._workspace_roots(execution), execution.root)
+        check_patches(patches, execution.root)
+        proposal.update({"status": "proposed", "patches": patches})
+        execution.data["proposal"] = proposal
+        gates = execution.data.setdefault("policyGates", [])
+        gate = next((item for item in gates if item["id"] == APPLY_GATE), None)
+        if gate is None:
+            gate = {"id": APPLY_GATE, "status": "pending"}
+            gates.append(gate)
+        execution.request_policy_gate(gate)
+        self._events(execution.data["task"]).append(
+            "gate.requested", execution=execution_id,
+            payload={"gate": APPLY_GATE, "trigger": "propose-change", "status": "pending"})
+
+    def _apply_proposal(self, execution: Execution, approved_by: str) -> None:
+        proposal = execution.data.get("proposal", {})
+        if proposal.get("status") != "proposed":
+            raise RuntimeError("no proposed change is waiting to be applied")
+        runtime = runtime_root(self.project_root, self.project)
+        changed = changed_roots(proposal["baseline"], runtime)
+        if changed:
+            raise PermissionError(f"the workspace changed since the proposal was made: {', '.join(changed)}")
+        apply_patches(proposal["patches"], execution.root)
+        proposal.update({"status": "applied", "appliedAt": timestamp(self.clock), "appliedBy": "aief-runtime", "approvedBy": approved_by})
+        execution.data["proposal"] = proposal
+        execution.save()
+        self._persist_enforcement_point(execution, enforcement_point(
+            execution=execution.data["metadata"]["id"], action=APPLY_GATE, decision="ALLOW", mechanism_type="runtime",
+            capability="phase-gate", status="ENFORCED", evidence_ref="execution.yaml", required=True))
+
     @measured_runtime
     def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
@@ -553,6 +616,7 @@ class RuntimeService:
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
         if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
+        if gate_id == APPLY_GATE: self._apply_proposal(execution, owner or "human")
         self._approve_policy_gate(execution,gate_id,owner or "human")
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
         self._events(execution.data["task"]).append(
@@ -804,6 +868,8 @@ class RuntimeService:
             contexts = [self.engineering_context(execution_id, identifier) for identifier in repository_ids]
         execution = self.execution(execution_id)
         phase = execution.next_phase()
+        if phase["skill"] == "implement-change":
+            self._prepare_implementation_action(execution, phase)
         brief = write_phase_brief(execution.root, phase, skill_contract, contexts)
         name = Path(brief["path"]).name
         for artifacts in (phase.setdefault("artifacts", []), execution.data.setdefault("artifacts", [])):
@@ -854,8 +920,14 @@ class RuntimeService:
             raise RuntimeError(f"execution state does not allow validation: {execution.data['status']}")
         task = TaskRegistry(self.project_root).load(execution.data["task"])
         authorized = task.get("autonomy", {}).get("authorized") or self.project.get("autonomy", {}).get("default", "L0")
-        if AUTONOMY_RANK.get(authorized, -1) < AUTONOMY_RANK["L2"]:
-            raise PermissionError(f"profile command execution requires autonomy L2; authorized level is {authorized}")
+        phase = execution.next_phase()
+        pending = self._pending_policy_gates(execution, phase["id"]) if phase else set()
+        if pending:
+            raise PermissionError("required policy gates are pending: " + ", ".join(sorted(pending)))
+        # Below L2 the Runtime validates only a change a human had it apply.
+        applied = execution.data.get("proposal", {}).get("status") == "applied"
+        if AUTONOMY_RANK.get(authorized, -1) < AUTONOMY_RANK["L2"] and not applied:
+            raise PermissionError(f"profile command execution requires autonomy L2 or a proposal applied through the {APPLY_GATE} gate; authorized level is {authorized}")
         plan = self.profile_validation_plan(execution_id)
         execution.data.setdefault("roles", {}).setdefault("verifier", {"type":"runtime","identity":"aief-runtime"})
         execution.save()

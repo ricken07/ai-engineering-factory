@@ -83,7 +83,9 @@ The Runtime executes commands only when:
 - the current phase uses `validate-change`;
 - the Execution is not waiting, blocked, failed or cancelled;
 - preceding workflow gates have been satisfied;
-- effective task/project autonomy is at least `L2`.
+- effective task/project autonomy is at least `L2`, or the change is a proposal
+  the Runtime applied through the human `apply-proposal` gate (see
+  [05](05-policy-resolution.md#proposed-changes)).
 
 ## Poly-repository example
 

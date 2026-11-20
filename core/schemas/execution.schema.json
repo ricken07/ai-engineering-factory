@@ -135,6 +135,20 @@
       "type": "array",
       "items": {"type": "object", "required": ["from", "at"], "properties": {"from": {"type": "string"}, "at": {"type": "string"}}, "additionalProperties": false}
     },
+    "proposal": {
+      "description": "Change proposed as patches when modify-local-files is denied; the Runtime applies it through the apply-proposal gate.",
+      "type": "object",
+      "required": ["status", "baseline"],
+      "properties": {
+        "status": {"enum": ["pending", "proposed", "applied"]},
+        "baseline": {"description": "Workspace fingerprint per Git root when the implementation started.", "type": "object", "additionalProperties": {"type": "string"}},
+        "patches": {"type": "array", "items": {"type": "object", "required": ["repository", "root", "path", "sha256"], "properties": {"repository": {"type": "string"}, "root": {"type": "string"}, "path": {"type": "string"}, "sha256": {"type": "string"}}, "additionalProperties": false}},
+        "appliedAt": {"type": "string"},
+        "appliedBy": {"type": "string"},
+        "approvedBy": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "impactPaths": {
       "description": "Paths listed by the impact analysis; they scope path-restricted critical domains.",
       "$ref": "common.schema.json#/$defs/stringArray"
@@ -165,6 +179,10 @@
           "preparedAt": {
             "description": "When the Runtime started the phase (execution next). A phase it did not start cannot be completed.",
             "type": "string"
+          },
+          "action": {
+            "description": "Action the implementation phase may perform under the governed plan: modify-local-files, or propose-change when local modification is denied.",
+            "enum": ["modify-local-files", "propose-change"]
           },
           "recovery": {
             "type": "object",
