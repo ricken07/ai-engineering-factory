@@ -96,8 +96,9 @@ execution directory and lists them in `details.proposal.patches` as
 
 Before submitting, the agent may ask the Runtime for a dry run:
 `aief execution check-proposal <id> --output <draft> --owner <owner>`. The
-Runtime adds a disposable detached worktree at the execution revision, applies
-the patches there, runs the repositories' profile validation commands in it,
+Runtime exports the execution revision (`git archive HEAD`) into a disposable
+directory, without writing into the repository's `.git`, applies the patches
+there, runs the repositories' profile validation commands in it,
 returns exit codes and output tails, then deletes the copy. The execution
 workspace is never modified, so the denial of `modify-local-files` holds; the
 agent sees mechanical failures (compilation, formatting) before proposing.

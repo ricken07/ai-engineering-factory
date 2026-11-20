@@ -335,6 +335,7 @@ def test_proposal_check_runs_profile_commands_on_a_disposable_copy(tmp_path: Pat
     assert all(text == "two\n" for _, _, text in seen)
     assert all(cwd != root and not cwd.exists() for _, cwd, _ in seen)
     assert (root/"app.txt").read_text() == "one\n" and git(root,"worktree","list") == worktrees
+    assert git(root,"status","--porcelain") == ""
     service.complete_phase(identifier, proposal)
     assert service.execution(identifier).data["proposal"]["status"] == "proposed"
     assert (service.execution(identifier).root/report["artifact"]).is_file()

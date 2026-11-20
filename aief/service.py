@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import json
+import io
 import subprocess
+import tarfile
 import yaml
 from jsonschema import Draft202012Validator
 from collections.abc import Callable
@@ -22,7 +24,7 @@ from .backlog import BacklogImportManager
 from .capabilities import aggregate_plan, execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 from .output_contracts import contract_errors, public as public_contracts, resolve_output_contracts
-from .workspace import WorkspaceManager, _run as _git
+from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
 from .phase_brief import write_phase_brief
@@ -651,10 +653,17 @@ class RuntimeService:
         results: list[dict[str, Any]] = []
         try:
             for index, root in enumerate(sorted(set(roots.values()))):
+                # An exported tree, not a linked worktree: creating one would
+                # write into the repository's .git, which an agent sandbox may
+                # keep read-only. The copy is its own repository so that
+                # patches apply relative to it.
                 copy = scratch_base / str(index)
-                copy.parent.mkdir(parents=True, exist_ok=True)
-                _git(Path(root), ["worktree", "add", "--detach", str(copy), "HEAD"])
+                copy.mkdir(parents=True, exist_ok=True)
                 copies[root] = copy
+                archive = subprocess.run(["git", "archive", "--format=tar", "HEAD"], cwd=root, capture_output=True, check=True).stdout
+                with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+                    tar.extractall(copy, filter="tar")
+                subprocess.run(["git", "init", "-q"], cwd=copy, capture_output=True, check=True)
             apply_patches([{**patch, "root": str(copies[patch["root"]])} for patch in patches], execution.root)
             bound = {}
             for identifier, binding in workspace.get("repositories", {}).items():
@@ -674,9 +683,6 @@ class RuntimeService:
                                 "exitCode": code, "stdoutTail": out[-4000:], "stderrTail": err[-2000:]})
         finally:
             import shutil
-            for root, copy in copies.items():
-                shutil.rmtree(copy, ignore_errors=True)
-                _git(Path(root), ["worktree", "prune"])
             shutil.rmtree(scratch_base, ignore_errors=True)
         report = {"execution": execution_id, "phase": phase["id"], "checkedAt": timestamp(self.clock),
                   "status": "passed" if results and all(item["exitCode"] == 0 for item in results) else "failed",
