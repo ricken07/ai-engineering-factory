@@ -11,9 +11,8 @@ Need
   → acceptance criteria
   → plan
   → implementation
-  → validation
-  → evidence matrix
-  → independent review
+  → validation (Runtime-observed)
+  → independent review with evidence matrix
   → submission authorized
 ```
 
@@ -30,19 +29,32 @@ details:
       statement: "Reading respects the authenticated user."
 ```
 
-Each criterion must be covered in `validation.yaml` by an item in
-`details.evidenceMatrix`:
+A workflow that ends with submission refuses a completed plan without
+criteria (`{id, statement}`, unique ids), so a missing criterion is caught at
+planning rather than at submission.
+
+Each criterion must be covered by the independent review, in
+`review.yaml` `details.evidenceMatrix`:
 
 ```yaml
 details:
   evidenceMatrix:
     - id: AC-001
       status: verified
-      evidence: [EV-001]
+      evidence: [api:maven:test:exit-0]
+    - id: AC-002
+      status: verified
+      evidence: ["review:the query filters on the authenticated user id"]
 ```
 
-A criterion without proof, or with status other than `verified`, blocks
-submission.
+An evidence entry is either a successful command the Runtime observed during
+validation (`<repository>:<profile>:<operation>:exit-0`) or an explicit
+reviewer observation (`review:...`). The Runtime refuses an approving review
+whose matrix misses a criterion or cites anything else: deciding which
+evidence proves a criterion is a judgement, made by the independent reviewer,
+while the evidence itself stays observed. A criterion without proof, or with
+status other than `verified`, blocks submission. Executions recorded before
+this rule may still carry the matrix in `validation.yaml`.
 
 ## Validation Evidence
 
@@ -51,7 +63,6 @@ submission.
 - `details.validationPlan`: exact commands and repositories involved;
 - `details.results`: return code, output and error of each command;
 - `details.commits`: Git commit tested per repository;
-- `details.evidenceMatrix`: coverage of criteria.
 
 A successful validation must therefore be tied to the code actually tested,
 not merely an agent assertion.

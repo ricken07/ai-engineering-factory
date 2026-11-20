@@ -32,7 +32,7 @@ from .validation import assert_schema
 from .task_log import TaskEventLog
 from .readiness import build_backlog
 from .yamlio import load_yaml
-from .evidence import build_evidence_bundle, file_fingerprint, fingerprint, git_sha, submission_evidence_gaps, experimental_metrics
+from .evidence import acceptance_criteria_gaps, evidence_matrix_gaps, observed_validation_evidence, build_evidence_bundle, file_fingerprint, fingerprint, git_sha, submission_evidence_gaps, experimental_metrics
 from .config import get_api_version
 
 AUTONOMY_RANK = {f"L{level}": level for level in range(5)}
@@ -319,6 +319,20 @@ class RuntimeService:
             execution.data["review"] = {"independentRequired": required, "independence": independence}
             details["reviewer"] = reviewer
             details["independence"] = independence
+        submits = any(item.get("skill") == "submit-change" for item in compiled["phases"])
+        if submits and output.get("status") == "completed" and completed_skill == "create-plan":
+            gaps = acceptance_criteria_gaps(output.get("details", {}))
+            if gaps:
+                raise ValueError("create-plan output for a submitting workflow: " + "; ".join(gaps))
+        if submits and output.get("status") == "completed" and completed_skill == "review-change" \
+                and output.get("details", {}).get("decision") == "approved":
+            plan = load_yaml(execution.root / "planning.yaml") if (execution.root / "planning.yaml").is_file() else {}
+            validation = load_yaml(execution.root / "validation.yaml") if (execution.root / "validation.yaml").is_file() else {}
+            criteria = plan.get("details", {}).get("acceptanceCriteria")
+            if criteria:
+                gaps = evidence_matrix_gaps(criteria, output["details"].get("evidenceMatrix"), observed_validation_evidence(validation))
+                if gaps:
+                    raise ValueError("an approving review maps every acceptance criterion to evidence in details.evidenceMatrix: " + "; ".join(gaps))
         observations: dict[str, Any] = {}
         if completed_skill == "analyze-impact" and output.get("status") == "completed":
             observations = self._impact_observations(output)

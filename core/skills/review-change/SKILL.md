@@ -18,6 +18,12 @@ The review must be independent of the implementation conclusion. Record
 acceptance criteria and validation evidence were checked, and keep unresolved
 blocking findings in `details.blockingFindings`.
 
+An approving review maps every acceptance criterion of the plan to evidence in
+`details.evidenceMatrix` (`{id, status: verified, evidence: [...]}`). Each
+evidence entry is either a validation evidence id the Runtime observed
+(`<repository>:<profile>:<operation>:exit-0`) or a reviewer observation
+written `review:<what was checked>`. The Runtime refuses any other entry.
+
 ## Guardrails
 
 - Read `skill.yaml` and obey its mode, rules, standards, policies, and capability requirements.

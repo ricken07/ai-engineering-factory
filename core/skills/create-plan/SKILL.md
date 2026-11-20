@@ -13,6 +13,11 @@ Create the smallest sufficient, ordered, and verifiable implementation plan.
 
 Map each acceptance criterion to repository actions and validation; order cross-repository dependencies; identify gates, rollback needs, and unresolved blockers.
 
+In a workflow that ends with submission, list the criteria in
+`details.acceptanceCriteria` as `{id, statement}` with unique ids. The
+Runtime refuses a completed plan without them: they are what the independent
+review must later prove.
+
 ## Guardrails
 
 - Read `skill.yaml` and obey its mode, rules, standards, policies, and capability requirements.

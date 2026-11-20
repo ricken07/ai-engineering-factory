@@ -33,6 +33,53 @@ def file_fingerprint(path: Path) -> str:
     return f"sha256:{sha256(path.read_bytes()).hexdigest()}"
 
 
+def acceptance_criteria_gaps(plan_details: dict[str, Any]) -> list[str]:
+    """A plan that leads to submission declares the criteria it must prove."""
+    criteria = plan_details.get("acceptanceCriteria")
+    if not isinstance(criteria, list) or not criteria:
+        return ["planning.details.acceptanceCriteria is missing: list each criterion as {id, statement}"]
+    gaps = []
+    ids = [item.get("id") for item in criteria if isinstance(item, dict)]
+    if len(ids) != len(criteria) or not all(isinstance(item, str) and item for item in ids):
+        gaps.append("each acceptance criterion needs a non-empty id")
+    elif len(set(ids)) != len(ids):
+        gaps.append("acceptance criterion ids must be unique")
+    if any(not isinstance(item, dict) or not item.get("statement") for item in criteria):
+        gaps.append("each acceptance criterion needs a statement")
+    return gaps
+
+
+def evidence_matrix_gaps(criteria: list[Any], matrix: Any, observed: set[str] | None) -> list[str]:
+    """Coverage of the acceptance criteria by a matrix.
+
+    With `observed`, each evidence entry must be a validation result the
+    Runtime observed, or an explicit reviewer observation (`review:...`)."""
+    if not isinstance(matrix, list) or not matrix:
+        return ["evidenceMatrix is missing or empty"]
+    gaps = []
+    for index, item in enumerate(matrix):
+        if not isinstance(item, dict) or item.get("status") != "verified":
+            gaps.append(f"evidence matrix item {index} is not verified")
+        elif not item.get("evidence"):
+            gaps.append(f"evidence matrix item {index} has no evidence")
+        elif observed is not None:
+            unknown = [entry for entry in item["evidence"] if entry not in observed and not str(entry).startswith("review:")]
+            if unknown:
+                gaps.append(f"evidence matrix item {item.get('id', index)} cites evidence the Runtime did not observe: {', '.join(map(str, unknown))}")
+    covered = {item.get("id") for item in matrix if isinstance(item, dict)}
+    missing = [item.get("id", str(index)) for index, item in enumerate(criteria) if isinstance(item, dict) and item.get("id") not in covered]
+    if missing:
+        gaps.append("evidence matrix does not cover: " + ", ".join(missing))
+    return gaps
+
+
+def observed_validation_evidence(validation: dict[str, Any]) -> set[str]:
+    """Evidence ids of a Runtime-written validation report (exit 0 only)."""
+    return {f"{item['repository']}:{item['profile']}:{item['operation']}:exit-0"
+            for item in validation.get("details", {}).get("results", [])
+            if isinstance(item, dict) and item.get("exitCode") == 0 and {"repository", "profile", "operation"} <= set(item)}
+
+
 def submission_evidence_gaps(execution_root: Path) -> list[str]:
     gaps: list[str] = []
     validation_path = execution_root / "validation.yaml"
@@ -50,26 +97,21 @@ def submission_evidence_gaps(execution_root: Path) -> list[str]:
     plan = load_yaml(plan_path)
     validation = load_yaml(validation_path)
     review = load_yaml(review_path)
-    matrix = validation.get("details", {}).get("evidenceMatrix")
-    matrix_ids: set[Any] = set()
-    if not isinstance(matrix, list) or not matrix:
-        gaps.append("validation.details.evidenceMatrix is missing or empty")
+    criteria = plan.get("details", {}).get("acceptanceCriteria", [])
+    # The independent review maps criteria to evidence; a validation-level
+    # matrix is accepted for executions recorded before that rule.
+    review_matrix = review.get("details", {}).get("evidenceMatrix")
+    if review_matrix is not None:
+        gaps += ["review.details." + gap if gap.startswith("evidenceMatrix") else gap
+                 for gap in evidence_matrix_gaps(criteria, review_matrix, observed_validation_evidence(validation))]
     else:
-        matrix_ids = {item.get("id") for item in matrix if isinstance(item, dict)}
-        for index, item in enumerate(matrix):
-            if not isinstance(item, dict) or item.get("status") != "verified":
-                gaps.append(f"evidence matrix item {index} is not verified")
-            elif not item.get("evidence"):
-                gaps.append(f"evidence matrix item {index} has no evidence")
+        gaps += ["validation.details." + gap if gap.startswith("evidenceMatrix") else gap
+                 for gap in evidence_matrix_gaps(criteria, validation.get("details", {}).get("evidenceMatrix"), None)]
     results = validation.get("details", {}).get("results", [])
     if not isinstance(results, list) or not results:
         gaps.append("validation.details.results is missing or empty")
     elif any(not isinstance(item, dict) or item.get("exitCode") != 0 for item in results):
         gaps.append("validation contains a failed command")
-    criteria = plan.get("details", {}).get("acceptanceCriteria", [])
-    missing_criteria = [item.get("id", str(index)) for index, item in enumerate(criteria) if isinstance(item, dict) and item.get("id") not in matrix_ids]
-    if missing_criteria:
-        gaps.append("evidence matrix does not cover: " + ", ".join(missing_criteria))
     review_details = review.get("details", {})
     execution_path = execution_root / "execution.yaml"
     execution = load_yaml(execution_path) if execution_path.is_file() else {}

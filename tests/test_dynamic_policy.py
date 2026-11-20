@@ -74,7 +74,7 @@ def test_runtime_reassesses_after_impact_and_plan_and_never_lowers_risk(tmp_path
     first=yaml.safe_load((current.root/"policy-decision-001.yaml").read_text()); assert_schema(ROOT,"policy-decision.schema.json",first)
     current.next_phase()["status"]="completed"; current.data["status"]="running"; current.save()
     service.prepare_phase(identifier)
-    service.complete_phase(identifier,output("Migration discovered",{"repositories":["main"],"changeTypes":["destructive-migration"]}))
+    service.complete_phase(identifier,output("Migration discovered",{"repositories":["main"],"changeTypes":["destructive-migration"],"acceptanceCriteria":[{"id":"AC-1","statement":"Migration is reversible"}]}))
     current=service.execution(identifier)
     assert current.data["risk"] == "critical" and current.data["autonomy"]["authorized"] == "L1"
     assert current.data["status"] == "waiting-approval"
@@ -305,3 +305,16 @@ def test_l1_proposal_must_apply_to_the_workspace(tmp_path: Path):
     execution=service.execution(identifier); (execution.root/"change.patch").write_text(PATCH.replace("-one","-other"))
     with pytest.raises(ValueError, match="does not apply"):
         service.complete_phase(identifier,output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}}))
+
+
+def test_submitting_workflow_refuses_a_plan_without_acceptance_criteria(tmp_path: Path):
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier,output("Impact",{"risk":"medium","repositories":["main"],"changeTypes":["source-code"]}))
+    current=service.execution(identifier)
+    while current.next_phase()["skill"] != "create-plan":
+        current.next_phase()["status"]="completed"
+    current.data["status"]="running"; current.save()
+    service.prepare_phase(identifier)
+    with pytest.raises(ValueError, match="acceptanceCriteria is missing"):
+        service.complete_phase(identifier,output("Plan",{"repositories":["main"]}))
