@@ -74,7 +74,9 @@ For the returned execution ID:
    is `implement-change` and the Runtime status is runnable. When the
    returned phase has `action: propose-change`, the workspace must not change
    either: write the change as patches inside the execution directory, as the
-   phase brief describes, and stop at the `apply-proposal` gate.
+   phase brief describes, check them with `aief execution check-proposal
+   <execution-id> --output <draft-output> --owner "claude-code:<session-id>"` until it
+   passes, and stop at the `apply-proposal` gate.
 4. Read the file at `phaseBrief.path` completely, with no offset or line
    limit, before any other work on the phase. It holds the applicable
    practices and project context documents, each once, for every

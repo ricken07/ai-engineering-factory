@@ -250,6 +250,7 @@ def critical_implementation(tmp_path: Path):
     """Execution at L1 (critical risk) whose implementation phase is about to start, in a Git checkout."""
     service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]; root=service.project_root
     (root/".gitignore").write_text(".ai/runtime/\n"); (root/"app.txt").write_text("one\n")
+    (root/"pom.xml").write_text("<project/>\n"); (root/"mvnw").write_text("#!/bin/sh\n")
     git(root,"init","-q","-b","main"); git(root,"-c","user.name=t","-c","user.email=t@t","add","-A")
     git(root,"-c","user.name=t","-c","user.email=t@t","commit","-qm","init")
     service.prepare_phase(identifier)
@@ -318,3 +319,22 @@ def test_submitting_workflow_refuses_a_plan_without_acceptance_criteria(tmp_path
     service.prepare_phase(identifier)
     with pytest.raises(ValueError, match="acceptanceCriteria is missing"):
         service.complete_phase(identifier,output("Plan",{"repositories":["main"]}))
+
+
+def test_proposal_check_runs_profile_commands_on_a_disposable_copy(tmp_path: Path):
+    service,identifier,root=critical_implementation(tmp_path)
+    service.project["repositories"][0]["profiles"]=["maven"]
+    execution=service.execution(identifier); (execution.root/"change.patch").write_text(PATCH)
+    proposal=output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}})
+    seen=[]; worktrees=git(root,"worktree","list")
+    class Result: returncode, stdout, stderr = 0, "ok", ""
+    def runner(command, cwd, **kwargs):
+        seen.append((command, Path(cwd), (Path(cwd)/"app.txt").read_text())); return Result()
+    report=service.check_proposal(identifier, proposal, runner=runner)
+    assert report["status"] == "passed" and [item[0] for item in seen] == [["./mvnw","verify"],["./mvnw","test"]]
+    assert all(text == "two\n" for _, _, text in seen)
+    assert all(cwd != root and not cwd.exists() for _, cwd, _ in seen)
+    assert (root/"app.txt").read_text() == "one\n" and git(root,"worktree","list") == worktrees
+    service.complete_phase(identifier, proposal)
+    assert service.execution(identifier).data["proposal"]["status"] == "proposed"
+    assert (service.execution(identifier).root/report["artifact"]).is_file()

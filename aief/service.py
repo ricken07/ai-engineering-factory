@@ -22,7 +22,7 @@ from .backlog import BacklogImportManager
 from .capabilities import aggregate_plan, execute_plan, validation_plan
 from .engineering import resolve_engineering_context
 from .output_contracts import contract_errors, public as public_contracts, resolve_output_contracts
-from .workspace import WorkspaceManager
+from .workspace import WorkspaceManager, _run as _git
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
 from .phase_brief import write_phase_brief
@@ -628,6 +628,71 @@ class RuntimeService:
             capability="phase-gate", status="ENFORCED", evidence_ref="execution.yaml", required=True))
 
     @measured_runtime
+    def check_proposal(self, execution_id: str, output: dict[str, Any], owner: str | None = None,
+                       runner: Callable[..., Any] | None = None) -> dict[str, Any]:
+        """Dry run of a proposal: the Runtime applies its patches to a disposable
+        copy of the execution workspace, runs the profile validation commands
+        there, reports the result and deletes the copy. The execution workspace
+        is never modified, so propose-change stays enforced; the result informs
+        the agent and is not validation evidence."""
+        execution = self.execution(execution_id)
+        self._assert_lease(execution, owner)
+        phase = execution.next_phase()
+        if phase is None or phase.get("action") != "propose-change" or not phase.get("preparedAt") or execution.data["status"] != "running":
+            raise RuntimeError("a proposal can be checked only during a started propose-change implementation phase")
+        workspace = WorkspaceManager(self.project_root, self.project, execution.root).load()
+        roots = repository_roots(workspace)
+        patches = proposal_patches(output, roots, execution.root)
+        check_patches(patches, execution.root)
+        checks = sorted(execution.root.glob("proposal-check-*.yaml"))
+        name = f"proposal-check-{len(checks) + 1:03d}.yaml"
+        scratch_base = runtime_root(self.project_root, self.project) / "proposal-checks" / f"{execution_id}-{len(checks) + 1:03d}"
+        copies: dict[str, Path] = {}
+        results: list[dict[str, Any]] = []
+        try:
+            for index, root in enumerate(sorted(set(roots.values()))):
+                copy = scratch_base / str(index)
+                copy.parent.mkdir(parents=True, exist_ok=True)
+                _git(Path(root), ["worktree", "add", "--detach", str(copy), "HEAD"])
+                copies[root] = copy
+            apply_patches([{**patch, "root": str(copies[patch["root"]])} for patch in patches], execution.root)
+            bound = {}
+            for identifier, binding in workspace.get("repositories", {}).items():
+                root = roots[identifier]
+                path = Path(binding.get("executionPath") or binding["path"]).resolve()
+                bound[identifier] = {**binding, "worktreeRoot": str(copies[root]),
+                                     "executionPath": str(copies[root] / path.relative_to(Path(root)))}
+            run = runner or subprocess.run
+            for item in self._validation_plan(execution, bound):
+                command = item["command"]
+                try:
+                    completed = run(command, cwd=item["cwd"], shell=False, text=True, capture_output=True)
+                    code, out, err = completed.returncode, completed.stdout or "", completed.stderr or ""
+                except OSError as error:
+                    code, out, err = 127, "", str(error)
+                results.append({"repository": item["repository"], "operation": item.get("operation"), "command": command,
+                                "exitCode": code, "stdoutTail": out[-4000:], "stderrTail": err[-2000:]})
+        finally:
+            import shutil
+            for root, copy in copies.items():
+                shutil.rmtree(copy, ignore_errors=True)
+                _git(Path(root), ["worktree", "prune"])
+            shutil.rmtree(scratch_base, ignore_errors=True)
+        report = {"execution": execution_id, "phase": phase["id"], "checkedAt": timestamp(self.clock),
+                  "status": "passed" if results and all(item["exitCode"] == 0 for item in results) else "failed",
+                  "patches": [{"repository": item["repository"], "path": item["path"], "sha256": item["sha256"]} for item in patches],
+                  "results": [{key: item[key] for key in ("repository", "operation", "command", "exitCode")} for item in results]}
+        (execution.root / name).write_text(yaml.safe_dump(report, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        execution = self.execution(execution_id)
+        if name not in execution.data["artifacts"]: execution.data["artifacts"].append(name)
+        execution.save()
+        self._events(execution.data["task"]).append(
+            "proposal.checked", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase": phase["id"],
+                     "status": report["status"], "artifact": name})
+        return {**report, "artifact": name, "results": results}
+
+    @measured_runtime
     def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
@@ -716,6 +781,11 @@ class RuntimeService:
         phase = execution.next_phase()
         if phase is None or phase.get("skill") != "validate-change":
             raise RuntimeError("profile validation is only available during a validate-change phase")
+        workspace_file = execution.root / "workspace.yaml"
+        bound = load_yaml(workspace_file).get("repositories", {}) if workspace_file.is_file() else {}
+        return self._validation_plan(execution, bound)
+
+    def _validation_plan(self, execution: Execution, bound: dict[str, Any]) -> list[dict[str, Any]]:
         task = TaskRegistry(self.project_root).load(execution.data["task"])
         repository_ids = self._impacted_repository_ids(execution, task)
         if not repository_ids:
@@ -723,8 +793,6 @@ class RuntimeService:
         catalog = {repository["id"]: repository for repository in self.project.get("repositories", [])}
         unknown = sorted(set(repository_ids) - set(catalog))
         if unknown: raise KeyError(f"unknown impacted repositories: {', '.join(unknown)}")
-        workspace_file = execution.root / "workspace.yaml"
-        bound = load_yaml(workspace_file).get("repositories", {}) if workspace_file.is_file() else {}
         isolated = self.project.get("workspaceSafety", {}).get("mode") == "worktree"
         plan: list[dict[str, Any]] = []
         modules: dict[str, dict[str, list[str]]] = {}

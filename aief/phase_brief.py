@@ -39,7 +39,10 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
                   "output if it changed. Write the change as unified diffs (paths relative to the repository's Git",
                   "root, as `git diff` prints them from there) in files inside the execution directory, and list them",
                   "in `details.proposal.patches` as `{repository, path}`. A human approves the `apply-proposal` gate;",
-                  "the Runtime then applies the patches before validation."]
+                  "the Runtime then applies the patches before validation.", "",
+                  "Before completing the phase, check the proposal with `aief execution check-proposal <id>",
+                  "--output <draft-output> --owner <owner>`: the Runtime applies the patches to a disposable copy,",
+                  "runs the validation commands there and reports the result. Fix the patches until it passes."]
     if not contexts:
         lines += ["", "No engineering context applies to this phase."]
         return "\n".join(lines) + "\n"

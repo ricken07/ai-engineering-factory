@@ -94,6 +94,17 @@ workspace changed. The agent writes its change as unified diffs inside the
 execution directory and lists them in `details.proposal.patches` as
 `{repository, path}`; the Runtime checks that each one applies.
 
+Before submitting, the agent may ask the Runtime for a dry run:
+`aief execution check-proposal <id> --output <draft> --owner <owner>`. The
+Runtime adds a disposable detached worktree at the execution revision, applies
+the patches there, runs the repositories' profile validation commands in it,
+returns exit codes and output tails, then deletes the copy. The execution
+workspace is never modified, so the denial of `modify-local-files` holds; the
+agent sees mechanical failures (compilation, formatting) before proposing.
+Each run is recorded as a `proposal-check-NNN.yaml` artifact and a
+`proposal.checked` event. It is feedback, not validation evidence: only the
+validation phase, on the applied proposal, produces evidence.
+
 The proposal then holds every later phase behind the `apply-proposal` policy
 gate. When a human approves it (`aief execution approve-policy <id>
 apply-proposal`), the Runtime verifies that neither the workspace nor the
