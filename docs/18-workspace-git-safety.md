@@ -99,6 +99,15 @@ aief workspace rollback <execution-id> --execute --project . --factory /factory/
 
 Without `--execute`, `prepare` is a plan and has no Git side effect.
 
+## Repeated preparation
+
+Preparation is idempotent. Once a workspace is `ready`, `workspace prepare`
+returns the recorded state and `workspace inspect` reports without replacing
+it, so the execution stays bound to its worktree. If the state was lost while
+the execution's worktree still exists on its task branch, `prepare --execute`
+adopts that worktree (`operations[].adopted: true`) instead of failing on the
+existing branch.
+
 ## Typical cases
 
 ### Clean monorepo

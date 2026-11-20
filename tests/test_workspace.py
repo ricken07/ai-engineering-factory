@@ -66,6 +66,23 @@ def test_worktree_mode_isolates_execution_from_original_repository(tmp_path: Pat
     assert (repo / "developer.txt").read_text() == "do not touch\n"
 
 
+def test_repeated_worktree_preparation_keeps_the_execution_bound(tmp_path: Path):
+    workspace, repo = manager(tmp_path, mode="worktree")
+    prepared = workspace.prepare(["api"], "EGW-142", execute=True)
+    assert workspace.prepare(["api"], "EGW-142", execute=True) == prepared
+    assert workspace.inspect(["api"], "EGW-142")["decision"]["status"] == "isolation-required"
+    assert workspace.load() == prepared
+
+
+def test_preparation_adopts_the_worktree_of_a_lost_state(tmp_path: Path):
+    workspace, repo = manager(tmp_path, mode="worktree")
+    prepared = workspace.prepare(["api"], "EGW-142", execute=True)
+    workspace.state_path.unlink()
+    again = workspace.prepare(["api"], "EGW-142", execute=True)
+    assert again["decision"]["status"] == "ready" and again["operations"][0]["adopted"] is True
+    assert again["repositories"]["api"]["executionPath"] == prepared["repositories"]["api"]["executionPath"]
+
+
 @pytest.mark.parametrize("command", [
     ["git","push","--force"], ["git","push","-f"], ["git","reset","--hard"],
     ["git","clean","-fd"], ["git","branch","-D","work"], ["git","switch","--discard-changes","main"],

@@ -148,8 +148,17 @@ class WorkspaceManager:
         document = {"apiVersion":"aief.dev/v1alpha1", "kind":"WorkspaceSnapshot",
                     "metadata":{"id":f"workspace-{self.execution_root.name}"},
                     "capturedAt":datetime.now(timezone.utc).isoformat(), "repositories":repositories, "decision":decision}
-        self.state_path.write_text(yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        # A prepared workspace stays bound to its execution: inspecting again
+        # must not replace its state with the pre-preparation snapshot.
+        if not self._ready():
+            self.state_path.write_text(yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8")
         return document
+
+    def _ready(self) -> dict[str, Any] | None:
+        if not self.state_path.is_file():
+            return None
+        state = load_yaml(self.state_path)
+        return state if state.get("decision", {}).get("status") == "ready" else None
 
     def load(self) -> dict[str, Any]:
         if not self.state_path.is_file():
@@ -157,6 +166,9 @@ class WorkspaceManager:
         return load_yaml(self.state_path)
 
     def prepare(self, identifiers: list[str], task_reference: str, execute: bool = False) -> dict[str, Any]:
+        current = self._ready()
+        if current and set(identifiers) <= set(current["repositories"]):
+            return current
         state = self.inspect(identifiers, task_reference)
         if state["decision"]["status"] == "blocked":
             return state
@@ -185,14 +197,20 @@ class WorkspaceManager:
             operations.append({"repository":identifiers[0], "repositories":identifiers, "command":command, "cwd":git_root, "destination":str(destination)})
         state["operations"] = operations
         if execute:
-            collisions = [item["repository"] for item in operations if _exists(Path(item["cwd"]), ["show-ref", "--verify", "--quiet", f"refs/heads/{state['repositories'][item['repository']]['taskBranch']}"], self.runner)]
+            # A worktree this execution already created, on its task branch,
+            # is adopted: preparation can be repeated after an interruption.
+            adopted = {item["destination"] for item in operations if self._own_worktree(Path(item["destination"]), state["repositories"][item["repository"]]["taskBranch"])}
+            collisions = [item["repository"] for item in operations if item["destination"] not in adopted and _exists(Path(item["cwd"]), ["show-ref", "--verify", "--quiet", f"refs/heads/{state['repositories'][item['repository']]['taskBranch']}"], self.runner)]
             if collisions:
                 raise FileExistsError(f"task branch already exists: {', '.join(collisions)}")
             for operation in operations:
                 destination = Path(operation["destination"])
-                if destination.exists():
+                if operation["destination"] in adopted:
+                    operation["adopted"] = True
+                elif destination.exists():
                     raise FileExistsError(f"worktree destination already exists: {destination}")
-                _run(Path(operation["cwd"]), operation["command"][1:], self.runner)
+                else:
+                    _run(Path(operation["cwd"]), operation["command"][1:], self.runner)
                 for identifier in operation["repositories"]:
                     repository = state["repositories"][identifier]
                     execution_path = str((destination / repository.get("relativePath", ".")).resolve()) if repository.get("relativePath", ".") != "." else operation["destination"]
@@ -204,6 +222,12 @@ class WorkspaceManager:
             state["decision"]["isolated"] = True
         self.state_path.write_text(yaml.safe_dump(state, sort_keys=False, allow_unicode=True), encoding="utf-8")
         return state
+
+    def _own_worktree(self, destination: Path, branch: str) -> bool:
+        if not (destination / ".git").exists():
+            return False
+        return _exists(destination, ["rev-parse", "--verify", "--quiet", "HEAD"], self.runner) and \
+            _run(destination, ["symbolic-ref", "--quiet", "--short", "HEAD"], self.runner) == branch
 
     def verify(self) -> dict[str, Any]:
         state = self.load()
