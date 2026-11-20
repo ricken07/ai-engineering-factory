@@ -141,7 +141,11 @@ an `aief` invocation. These forms are harder for native permission rules to
 validate and cause avoidable approval prompts. Do not probe `aief --help` during
 the workflow: the exact syntax is defined by this protocol.
 
-For `validate-change`, use `aief execution profile-validation`; do not construct
+For `validate-change`, run `aief execution profile-validation <execution-id>
+--execute --owner "claude-code:<session-id>"` with the project and Factory arguments: the
+Runtime executes the commands and writes the validation report itself. Never
+submit a `validate-change` output with `complete-phase`; the Runtime refuses
+it. Do not construct
 stack commands in the adapter. For governed actions, wait for the Runtime gate
 and use `aief execution approve` only after explicit human approval.
 

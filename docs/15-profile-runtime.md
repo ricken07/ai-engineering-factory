@@ -75,8 +75,13 @@ aief execution profile-validation <execution-id> --project . --factory /factory/
 Execution is explicit:
 
 ```bash
-aief execution profile-validation <execution-id> --execute --project . --factory /factory/1.7.0
+aief execution profile-validation <execution-id> --execute --owner <lease-owner> --project . --factory /factory/1.7.0
 ```
+
+The Runtime alone completes the validation phase: `complete-phase` refuses a
+`validate-change` output submitted by an agent, so the persisted report is
+always observed evidence, never a declared claim. When an agent holds the
+Execution lease, `--owner` names it.
 
 The Runtime executes commands only when:
 

@@ -252,7 +252,7 @@ class RuntimeService:
         )
 
     @measured_runtime
-    def complete_phase(self, execution_id: str, output: dict[str, Any], operation_id: str | None = None, owner: str | None = None) -> Execution:
+    def complete_phase(self, execution_id: str, output: dict[str, Any], operation_id: str | None = None, owner: str | None = None, _runtime_verified: bool = False) -> Execution:
         execution = self.execution(execution_id)
         self._assert_lease(execution,owner)
         if operation_id:
@@ -263,6 +263,10 @@ class RuntimeService:
             raise RuntimeError("execution is already complete")
         if execution.data["status"] == "blocked":
             raise RuntimeError("execution is blocked: resolve it (answer-question, resume or cancel) before completing a phase")
+        if phase.get("skill") == "validate-change" and not _runtime_verified:
+            # Validation evidence is observed by the Runtime, never declared by
+            # an agent: only run_profile_validation completes this phase.
+            raise PermissionError("validate-change is performed by the Runtime: run 'aief execution profile-validation <id> --execute --owner <owner>'")
         pending = self._pending_policy_gates(execution, phase["id"])
         if pending:
             raise PermissionError("required policy gates are pending: " + ", ".join(sorted(pending)))
@@ -914,8 +918,9 @@ class RuntimeService:
         return result
 
     @measured_runtime
-    def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None) -> dict[str, Any]:
+    def run_profile_validation(self, execution_id: str, runner: Callable[..., Any] | None = None, owner: str | None = None) -> dict[str, Any]:
         execution = self.execution(execution_id)
+        self._assert_lease(execution, owner)
         if execution.data["status"] in {"waiting-approval", "blocked", "failed", "cancelled"}:
             raise RuntimeError(f"execution state does not allow validation: {execution.data['status']}")
         task = TaskRegistry(self.project_root).load(execution.data["task"])
@@ -983,7 +988,7 @@ class RuntimeService:
                 payload={"agent": agent, "phase":"validation", "summary":report["summary"]},
             )
         else:
-            self.complete_phase(execution_id, report)  # emits phase.completed (and execution.completed if terminal)
+            self.complete_phase(execution_id, report, owner=owner, _runtime_verified=True)  # emits phase.completed (and execution.completed if terminal)
         return report
 
     @measured_runtime

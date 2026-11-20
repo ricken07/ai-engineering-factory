@@ -140,7 +140,11 @@ prefixes, command substitutions, pipes or redirections in an `aief` invocation.
 Do not probe `aief --help` during the workflow: the exact syntax is defined by
 this protocol.
 
-For `validate-change`, use `aief execution profile-validation`; do not construct
+For `validate-change`, run `aief execution profile-validation <execution-id>
+--execute --owner "codex:<session-id>"` with the project and Factory arguments: the
+Runtime executes the commands and writes the validation report itself. Never
+submit a `validate-change` output with `complete-phase`; the Runtime refuses
+it. Do not construct
 stack commands in the adapter. For governed actions, wait for the Runtime gate
 and use `aief execution approve` only after explicit human approval.
 

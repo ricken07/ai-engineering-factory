@@ -178,6 +178,22 @@ def test_runtime_resolves_and_executes_profile_validation_without_shell(tmp_path
     assert service.execution(execution.data["metadata"]["id"]).next_phase()["skill"] == "review-change"
 
 
+def test_validation_report_is_written_by_the_runtime_for_the_lease_owner(tmp_path: Path):
+    from aief.concurrency import ExecutionLease
+    service, execution = validation_execution(tmp_path)
+    identifier = execution.data["metadata"]["id"]
+    ExecutionLease(execution.root).acquire("codex:session-1")
+    class Result: returncode, stdout, stderr = 0, "verified", ""
+    declared = {"summary":"tests pass","status":"completed","evidence":["declared"],"unknowns":[],"details":{}}
+    with pytest.raises(PermissionError, match="performed by the Runtime"):
+        service.complete_phase(identifier, declared, owner="codex:session-1")
+    with pytest.raises(PermissionError):
+        service.run_profile_validation(identifier, lambda command, **kwargs: Result())
+    report = service.run_profile_validation(identifier, lambda command, **kwargs: Result(), owner="codex:session-1")
+    assert report["status"] == "completed"
+    assert service.execution(identifier).next_phase()["skill"] == "review-change"
+
+
 def test_runtime_stops_execution_when_profile_validation_fails(tmp_path: Path):
     service, execution = validation_execution(tmp_path)
     class Result: returncode, stdout, stderr = 1, "", "tests failed"
