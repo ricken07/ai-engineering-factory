@@ -339,3 +339,23 @@ def test_proposal_check_runs_profile_commands_on_a_disposable_copy(tmp_path: Pat
     service.complete_phase(identifier, proposal)
     assert service.execution(identifier).data["proposal"]["status"] == "proposed"
     assert (service.execution(identifier).root/report["artifact"]).is_file()
+
+
+def test_gate_approval_records_how_the_human_approver_was_established(tmp_path: Path, monkeypatch):
+    from aief import approval
+    service,identifier,root=critical_implementation(tmp_path)
+    execution=service.execution(identifier); (execution.root/"change.patch").write_text(PATCH)
+    service.complete_phase(identifier,output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}}))
+    service.lease(identifier,"acquire","codex:session-1")
+    # The session holding the lease relays; naming itself approver is refused.
+    with pytest.raises(PermissionError, match="cannot approve"):
+        service.approve_policy_gate(identifier,"apply-proposal",owner="codex:session-1",approver="codex:session-1")
+    assert (root/"app.txt").read_text() == "one\n"
+    service.lease(identifier,"release","codex:session-1")
+    monkeypatch.setattr(approval,"terminal_confirm",lambda prompt: "apply-proposal")
+    service.approve_policy_gate(identifier,"apply-proposal",approver="alice")
+    current=service.execution(identifier)
+    gate=next(item for item in current.data["policyGates"] if item["id"]=="apply-proposal")
+    assert gate["approvedBy"] == "alice" and current.data["proposal"]["approvedBy"] == "alice"
+    assert (gate["actor"]["assurance"], gate["actor"]["channel"]) == ("OBSERVED", "interactive-terminal")
+    assert_schema(ROOT,"execution.schema.json",current.data)

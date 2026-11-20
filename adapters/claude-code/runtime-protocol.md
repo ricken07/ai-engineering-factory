@@ -149,7 +149,10 @@ Runtime executes the commands and writes the validation report itself. Never
 submit a `validate-change` output with `complete-phase`; the Runtime refuses
 it. Do not construct
 stack commands in the adapter. For governed actions, wait for the Runtime gate
-and use `aief execution approve` only after explicit human approval.
+and use `aief execution approve` only after explicit human approval. When
+you relay that approval, pass your `--owner` and never your own identity as
+`--approver`: the Runtime records the approval as `DECLARED` by an agent relay.
+An approval the human types in their own terminal is recorded as `OBSERVED`.
 
 When `execution next` reports `blocked` because the current phase's
 `recovery.status` is `waiting-user`, do not resolve the question in

@@ -58,8 +58,29 @@ aief execution next <execution-id>
 # requiredPolicyGates: [before-implementation]
 
 aief execution approve-policy <execution-id> before-implementation \
-  --owner codex:session-42
+  --approver alice
 ```
+
+### Approver identity
+
+A gate approval carries human accountability, so the Runtime records how it
+established who approved, on the gate's `actor`, instead of assuming a
+`human`:
+
+| Channel | When | Assurance |
+|---|---|---|
+| `interactive-terminal` | the command has a controlling terminal, outside an agent harness; the Runtime asks there to retype the gate id | `OBSERVED` |
+| `agent-relay` | `--owner` names the agent session holding the lease, or the command runs inside an agent harness (`CLAUDECODE`, `CODEX_SANDBOX`) | `DECLARED` |
+| `non-interactive` | any other call without a terminal | `DECLARED` |
+
+`--approver` names the person; without it, an interactive approval records
+the operating-system account and a relayed one records `human`. The account,
+the detected harness and the relaying session are kept as observations.
+`OBSERVED` is not authentication: it shows that someone typed the
+confirmation at a terminal the agent sessions do not have, not who it was.
+Whatever the channel, an agent identity of the execution (producer,
+reviewer, lease owner, handoff sender) is refused as approver, so a session
+cannot record its own decision as a human one.
 
 `before-implementation` protects the implementation phase. `before-commit` and `before-submission` protect submission. Merge remains outside the current local Runtime and therefore cannot be implicitly authorized.
 

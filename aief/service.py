@@ -18,6 +18,7 @@ from .project import find_project, load_project, runtime_root
 from .runtime import Execution
 from .timing import Clock, SystemClock, timestamp
 from .identity import actor_identity, declared_actor, review_independence, trusted_session_actor
+from . import approval
 from .enforcement import enforcement_point, assert_required_enforcement
 from .tracking import TaskTrackingManager, evaluate_tracking
 from .backlog import BacklogImportManager
@@ -553,21 +554,23 @@ class RuntimeService:
         return point
 
     @measured_runtime
-    def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None) -> Execution:
+    def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None,
+                          approver: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         payload={"decision":"approve"}
         if operation_id:
-            OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner).data)
+            OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner,approver=approver).data)
             return self.execution(execution_id)
-        phase=execution.next_phase(); execution.advance(approved=True)
-        if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",owner or "human")
+        phase=execution.next_phase()
+        actor=self._human_approval(execution, phase["id"] if phase else "phase-gate", owner, approver)
+        execution.advance(approved=True)
+        if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",actor)
         events = self._events(execution.data["task"])
         events.append(
             "gate.approved", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"),
                      "phase": phase["id"] if phase else None, "status":"approved",
-                     "approvedBy":owner or "human", "gate":"phase-gate",
-                     "actor": self._session_actor(execution, owner, "human")},
+                     "approvedBy":actor["id"], "gate":"phase-gate", "actor": actor},
         )
         if execution.data["status"] == "completed":
             self._append_closed_gates(execution, events)
@@ -578,13 +581,20 @@ class RuntimeService:
             )
         return execution
 
-    def _approve_policy_gate(self, execution: Execution, gate_id: str, approved_by: str) -> None:
+    def _human_approval(self, execution: Execution, gate: str, owner: str | None, approver: str | None) -> dict[str, Any]:
+        """Approver identity as the Runtime established it (see aief.approval).
+
+        An owner is the agent session that holds the lease: it relays a human
+        decision, it never is the approver."""
+        return approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
+                                             lease=ExecutionLease(execution.root).active(),
+                                             confirm=approval.terminal_confirm)
+
+    def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any]) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if gate and gate["status"] == "pending":
-            owner = None if approved_by == "human" else approved_by
-            actor = self._session_actor(execution, owner, "human")
-            gate.update({"status":"approved","approvedAt":timestamp(self.clock),"approvedBy":approved_by,"actor":actor})
-            execution.data.setdefault("roles", {})["approver"]={"type":"human","identity":approved_by}
+            gate.update({"status":"approved","approvedAt":timestamp(self.clock),"approvedBy":actor["id"],"actor":actor})
+            execution.data.setdefault("roles", {})["approver"]={"type":"human","identity":actor["id"]}
             execution.complete_policy_gate(gate)
             execution.save()
 
@@ -715,20 +725,22 @@ class RuntimeService:
         return {**report, "artifact": name, "results": results}
 
     @measured_runtime
-    def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None) -> Execution:
+    def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None,
+                            approver: str | None = None) -> Execution:
         execution=self.execution(execution_id); self._assert_lease(execution,owner)
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
         if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
-        if gate_id == APPLY_GATE: self._apply_proposal(execution, owner or "human")
-        self._approve_policy_gate(execution,gate_id,owner or "human")
+        actor=self._human_approval(execution, gate_id, owner, approver)
+        if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
+        self._approve_policy_gate(execution,gate_id,actor)
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
         self._events(execution.data["task"]).append(
             "gate.approved", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"),
                      "phase": execution.next_phase()["id"] if execution.next_phase() else None,
-                     "status":"approved", "approvedBy":owner or "human", "gate":gate_id},
+                     "status":"approved", "approvedBy":actor["id"], "gate":gate_id, "actor":actor},
         )
         return execution
 

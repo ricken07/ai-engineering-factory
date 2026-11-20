@@ -4,7 +4,7 @@ from typing import Any
 
 
 ASSURANCE = {"DECLARED", "OBSERVED", "TRUSTED", "UNVERIFIED"}
-SOURCES = {"runtime-session", "adapter", "authenticated-human", "runtime", "provider", "artifact"}
+SOURCES = {"runtime-session", "adapter", "authenticated-human", "terminal-confirmation", "runtime", "provider", "artifact"}
 
 
 def actor_identity(
