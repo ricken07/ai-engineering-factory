@@ -223,6 +223,21 @@ class RuntimeService:
             return actor_identity(owner, actor_type, "runtime-session", "OBSERVED", execution=execution.data["metadata"]["id"])
         return declared_actor(None, actor_type)
 
+    @staticmethod
+    def _keep_lease(execution: Execution, owner: str | None) -> None:
+        """Renew the lease of the session a long Runtime operation worked for.
+
+        The session held the lease when the operation started (checked by
+        _assert_lease) and could not renew it while the Runtime ran commands
+        on its behalf. Unless another session took the execution meanwhile,
+        its lease continues, so its identity stays TRUSTED."""
+        if not owner:
+            return
+        lease = ExecutionLease(execution.root)
+        current = lease.read()
+        if current and current.get("owner") == owner:
+            lease.acquire(owner)
+
     def _assert_lease(self, execution: Execution, owner: str | None) -> None:
         lease=ExecutionLease(execution.root)
         # An expired lease binds nobody: a human can approve a gate or answer
@@ -684,6 +699,7 @@ class RuntimeService:
         finally:
             import shutil
             shutil.rmtree(scratch_base, ignore_errors=True)
+        self._keep_lease(execution, owner)
         report = {"execution": execution_id, "phase": phase["id"], "checkedAt": timestamp(self.clock),
                   "status": "passed" if results and all(item["exitCode"] == 0 for item in results) else "failed",
                   "patches": [{"repository": item["repository"], "path": item["path"], "sha256": item["sha256"]} for item in patches],
@@ -1050,6 +1066,7 @@ class RuntimeService:
                 snapshots[item["repository"]] = "unavailable"
         execution.record_validation_duration(validation_started)
         execution.save()
+        self._keep_lease(execution, owner)
         failures = [result for result in results if result["exitCode"] != 0]
         report = {
             "summary": f"Executed {len(results)} profile validation command(s) across {len(set(item['repository'] for item in results))} repository(ies).",

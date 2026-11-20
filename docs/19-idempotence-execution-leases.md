@@ -22,6 +22,14 @@ the same Task, have independent leases.
 
 When a lease exists, mutating calls must present the matching owner. Existing projects without an acquired lease remain compatible, while adapters are expected to acquire one before engineering execution.
 
+### Long Runtime operations
+
+`profile-validation --execute` and `check-proposal` can outlast the lease TTL
+while the Runtime runs build commands for the session, which cannot renew the
+lease meanwhile. Both check the lease when they start and, when they end,
+renew it for that same owner unless another session took the execution. The
+session's identity therefore stays `TRUSTED` for the rest of the phase.
+
 ## Replay-safe transitions
 
 Adapters provide a stable operation ID for every retriable transition:

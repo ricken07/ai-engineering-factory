@@ -194,6 +194,22 @@ def test_validation_report_is_written_by_the_runtime_for_the_lease_owner(tmp_pat
     assert service.execution(identifier).next_phase()["skill"] == "review-change"
 
 
+def test_long_validation_keeps_the_lease_of_the_session_it_worked_for(tmp_path: Path):
+    from datetime import datetime, timedelta, timezone
+    from aief.concurrency import ExecutionLease
+    service, execution = validation_execution(tmp_path)
+    identifier = execution.data["metadata"]["id"]
+    lease = ExecutionLease(execution.root); lease.acquire("claude-code:session-1")
+    class Result: returncode, stdout, stderr = 0, "verified", ""
+    def slow(command, **kwargs):
+        data = lease.read(); data["expiresAt"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+        lease.path.write_text(yaml.safe_dump(data))  # the commands outlast the lease
+        return Result()
+    report = service.run_profile_validation(identifier, slow, owner="claude-code:session-1")
+    assert report["status"] == "completed"
+    assert lease.active()["owner"] == "claude-code:session-1"
+
+
 def test_runtime_stops_execution_when_profile_validation_fails(tmp_path: Path):
     service, execution = validation_execution(tmp_path)
     class Result: returncode, stdout, stderr = 1, "", "tests failed"
