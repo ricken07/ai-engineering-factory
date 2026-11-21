@@ -24,6 +24,8 @@
   `interactive-terminal` are `OBSERVED` and let a gate pass; `agent-relay` and
   `non-interactive` approvals are refused and recorded as evidence. See
   [34](34-human-approval.md).
+- **Rework**: return to implementation after a review that did not approve
+  the change; bounded, recorded in `reworks`. See [29](29-evidence-chain-and-replay.md).
 - **Review independence**: `INDEPENDENT`, `NOT_INDEPENDENT`, `UNVERIFIED` or
   `NOT_REQUIRED`, derived from Runtime-held identities rather than review text.
 - **EvidenceBundle**: fingerprinted index of evidence references, governance,

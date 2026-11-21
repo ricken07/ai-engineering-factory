@@ -84,6 +84,11 @@ def _build_root(path: Path, binding: dict[str, Any]) -> Path | None:
     return root_path
 
 
+# Returns to implementation after reviews that do not approve the change,
+# before the human decides how to continue.
+MAX_REWORKS = 3
+
+
 class RuntimeService:
     """Deterministic boundary shared by all agent adapters."""
 
@@ -364,7 +369,15 @@ class RuntimeService:
             gaps = submission_evidence_gaps(execution.root)
             if gaps:
                 raise ValueError("submission evidence is incomplete: " + "; ".join(gaps))
-        execution.advance(output)
+        rework_from = self._rework_target(compiled, phase, output) if completed_skill == "review-change" else None
+        if rework_from:
+            # A review that does not approve the change ends this pass: the
+            # Runtime never leads a rejected change to summary, traceability or
+            # the human submission gates.
+            execution._persist_output(phase, output)
+            phase["status"] = "completed"; execution._complete_phase_timing(phase)
+        else:
+            execution.advance(output)
         events = self._events(execution.data["task"])
         events.append(
             "phase.completed", execution=execution_id,
@@ -373,6 +386,9 @@ class RuntimeService:
                      "skill":completed_skill, "artifact":f"{phase['id']}.yaml",
                      "evidence":output.get("evidence", [])},
         )
+        if rework_from:
+            self._rework(execution, rework_from, phase, output, events)
+            return execution
         if execution.data["status"] == "completed":
             bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
             assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
@@ -388,6 +404,46 @@ class RuntimeService:
             observations["repositories"]=execution.data.get("repositories",observations.get("repositories",[]))
             self.reassess_tracking(execution.data["task"],observations)
         return execution
+
+    @staticmethod
+    def _rework_target(compiled: dict[str, Any], phase: dict[str, Any], output: dict[str, Any]) -> str | None:
+        """Implementation phase to reopen when a completed review does not
+        approve the change; None when the change is approved or the workflow
+        has no implementation before its review (review-only workflows)."""
+        details = output.get("details", {})
+        if output.get("status") != "completed" or (details.get("decision") == "approved" and not details.get("blockingFindings")):
+            return None
+        ids = [item["id"] for item in compiled["phases"]]
+        before = compiled["phases"][:ids.index(phase["id"])]
+        return next((item["id"] for item in reversed(before) if item.get("skill") == "implement-change"), None)
+
+    def _rework(self, execution: Execution, first: str, review: dict[str, Any], output: dict[str, Any], events: Any) -> None:
+        details = output.get("details", {})
+        number = len(execution.data.get("reworks", [])) + 1
+        record = {"number": number, "at": timestamp(self.clock), "review": f"{review['id']}-rework-{number}.yaml",
+                  "decision": str(details.get("decision")), "findings": list(details.get("blockingFindings") or [])}
+        payload = {"agent": execution.data.get("agent", {}).get("adapter"), "phase": first,
+                   "review": record["review"], "decision": record["decision"], "findings": len(record["findings"])}
+        if number > MAX_REWORKS:
+            execution.block({"type": "review-rework-exhausted",
+                             "message": f"the review did not approve the change after {MAX_REWORKS} reworks: the human "
+                                        "cancels this execution (aief execution cancel) and decides whether to start a new one, "
+                                        "for example with a revised task"})
+            events.append("execution.reworked", execution=execution.data["metadata"]["id"], payload={**payload, "status": "blocked"})
+            return
+        # A proposal (below L2) is superseded: the next implementation proposes
+        # again from the current workspace and a human approves it again.
+        if "proposal" in execution.data:
+            record["proposal"] = execution.data.pop("proposal")
+        gates = execution.data.get("policyGates", [])
+        applied = next((item for item in gates if item["id"] == APPLY_GATE), None)
+        if applied:
+            record["applyGate"] = applied
+            execution.data["policyGates"] = [item for item in gates if item["id"] != APPLY_GATE]
+        if "review" in execution.data:
+            execution.data["review"]["independence"] = "UNVERIFIED" if execution.data["review"].get("independentRequired", True) else "NOT_REQUIRED"
+        execution.rework(first, review["id"], record)
+        events.append("execution.reworked", execution=execution.data["metadata"]["id"], payload={**payload, "status": "running", "number": number})
 
     @staticmethod
     def _impact_observations(output: dict[str, Any]) -> dict[str, Any]:

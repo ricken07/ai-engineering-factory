@@ -23,8 +23,8 @@ Implement
   ↓
 Validate
   ↓
-Review
-  ↓
+Review ── changes requested ──▶ back to Implement (bounded rework)
+  ↓ approved
 Trace
   ↓
 Submit

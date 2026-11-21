@@ -283,6 +283,33 @@ class Execution:
         self.data["status"] = "cancelled"; self.data["cancelledReason"] = reason; self._finish_execution()
         self.record_runtime_duration(runtime_started); self.save()
         return "cancelled"
+    def rework(self, first: str, last: str, record: dict[str, Any]) -> None:
+        """Reopen the phases `first`..`last` (implementation to review) after
+        a review that did not approve the change. Their artifacts are kept
+        under a -rework-N name; the next phase is `first` again."""
+        number = record["number"]
+        ids = [phase["id"] for phase in self.data["phases"]]
+        archived = []
+        for phase in self.data["phases"][ids.index(first):ids.index(last) + 1]:
+            for name in phase.get("artifacts", []):
+                source = self.root / name
+                if not source.is_file():
+                    continue
+                target = f"{source.stem}-rework-{number}{source.suffix}"
+                source.replace(self.root / target)
+                archived.append(target)
+                self.data["artifacts"] = [target if item == name else item for item in self.data["artifacts"]]
+            for key in ("preparedAt", "rework"):
+                phase.pop(key, None)
+            phase.update({"status": "pending", "artifacts": [],
+                          "timing": {"startedAt": None, "completedAt": None, "durationMs": unavailable_metric()}})
+        self.data.setdefault("reworks", []).append({**record, "archived": archived})
+        reopened = self.data["phases"][ids.index(first)]
+        reopened["rework"] = {key: record[key] for key in ("number", "review", "decision", "findings") if key in record}
+        self.data["status"] = "running"
+        self._start_phase(reopened)
+        self.save()
+
     def block(self, reason: dict[str, str]) -> str:
         if self.data["status"] in {"completed","failed","cancelled"}: raise RuntimeError(f"terminal execution cannot be blocked: {self.data['status']}")
         self.data["status"]="blocked"; self.data["blockingReason"]=reason; self.save(); return "blocked"

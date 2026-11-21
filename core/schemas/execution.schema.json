@@ -108,6 +108,11 @@
         "additionalProperties": false
       }
     },
+    "reworks": {
+      "description": "Returns to implementation after a review that did not approve the change. The superseded artifacts keep a -rework-N suffix.",
+      "type": "array",
+      "items": {"type": "object", "required": ["number", "at", "review", "decision"], "properties": {"number": {"type": "integer", "minimum": 1}, "at": {"type": "string", "format": "date-time"}, "review": {"type": "string"}, "decision": {"type": "string"}, "findings": {"type": "array"}, "archived": {"type": "array", "items": {"type": "string"}}, "proposal": {"type": "object"}, "applyGate": {"type": "object"}}, "additionalProperties": false}
+    },
     "approvalRefusals": {
       "description": "Human gate approvals the Runtime refused, kept as evidence (for example an approval relayed by an agent session).",
       "type": "array",
@@ -184,6 +189,12 @@
           "preparedAt": {
             "description": "When the Runtime started the phase (execution next). A phase it did not start cannot be completed.",
             "type": "string"
+          },
+          "rework": {
+            "description": "Set on the implementation phase reopened after a review that did not approve the change: the findings to address.",
+            "type": "object", "required": ["number", "review"],
+            "properties": {"number": {"type": "integer", "minimum": 1}, "review": {"type": "string"}, "decision": {"type": "string"}, "findings": {"type": "array"}},
+            "additionalProperties": false
           },
           "action": {
             "description": "Action the implementation phase may perform under the governed plan: modify-local-files, or propose-change when local modification is denied.",

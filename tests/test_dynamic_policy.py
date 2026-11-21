@@ -404,3 +404,62 @@ def test_every_human_gate_refuses_a_relayed_approval_and_keeps_the_refusal(tmp_p
     service.lease(identifier,"release","claude-code:session-1")
     service.approve_execution(identifier,approver="alice")
     assert service.execution(identifier).data["status"] == "running"
+
+
+def reviewed(tmp_path: Path, decision: str, findings: list):
+    """Execution of a submitting workflow whose review is about to complete."""
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier,output("Impact",{"risk":"medium","repositories":["main"],"changeTypes":["source-code"]}))
+    current=service.execution(identifier)
+    while current.next_phase()["skill"] != "review-change":
+        current.next_phase()["status"]="completed"
+    current.data["status"]="running"; current.save()
+    for name in ("implementation.yaml","validation.yaml"):
+        (current.root/name).write_text("details: {}\n")
+    for item in current.data["phases"]:
+        if item["id"] in ("implementation","validation"): item["artifacts"]=[f"{item['id']}.yaml"]
+    current.save()
+    service.prepare_phase(identifier)
+    review=output("Review",{"decision":decision,"blockingFindings":findings,"evidenceMatrix":[]})
+    current=service.execution(identifier); current.data["review"]={"independentRequired":False,"independence":"NOT_REQUIRED"}; current.save()
+    return service,identifier,review
+
+
+def test_a_review_that_does_not_approve_returns_to_implementation(tmp_path: Path):
+    finding={"severity":"P1","criterion":"AC-1","location":"Guard.java:35","finding":"blank value accepted","correction":"refuse it"}
+    service,identifier,review=reviewed(tmp_path,"changes_requested",[finding])
+    service.complete_phase(identifier,review)
+    current=service.execution(identifier)
+    assert current.data["status"] == "running" and current.next_phase()["id"] == "implementation"
+    statuses={item["id"]:item["status"] for item in current.data["phases"]}
+    assert statuses["validation"] == statuses["review"] == statuses["submission"] == "pending"
+    assert all(item["status"] == "pending" for item in current.data["policyGates"] if item["id"] in ("before-commit","before-submission"))
+    rework=current.data["reworks"][0]
+    assert (rework["number"], rework["review"], rework["decision"]) == (1, "review-rework-1.yaml", "changes_requested")
+    assert {"implementation-rework-1.yaml","validation-rework-1.yaml","review-rework-1.yaml"} <= set(rework["archived"])
+    assert (current.root/"review-rework-1.yaml").is_file() and not (current.root/"review.yaml").exists()
+    from aief.phase_brief import render_phase_brief
+    contract={"instructions":"i","manifest":"m","outputSchema":"o"}
+    brief=render_phase_brief(current.next_phase(),contract,[])
+    assert "## Rework 1" in brief and "blank value accepted" in brief and "Expected correction: refuse it" in brief
+    assert "execution.reworked" in [event["event"]["type"] for event in service.task_events(current.data["task"])]
+    assert_schema(ROOT,"execution.schema.json",service.execution(identifier).data)
+
+
+def test_reworks_are_bounded_then_the_human_decides(tmp_path: Path):
+    import aief.service as module
+    service,identifier,review=reviewed(tmp_path,"changes_requested",[])
+    current=service.execution(identifier)
+    current.data["reworks"]=[{"number":n,"at":"2026-01-01T00:00:00+00:00","review":f"review-rework-{n}.yaml","decision":"changes_requested"} for n in range(1,module.MAX_REWORKS+1)]
+    current.save()
+    service.complete_phase(identifier,review)
+    current=service.execution(identifier)
+    assert current.data["status"] == "blocked" and current.data["blockingReason"]["type"] == "review-rework-exhausted"
+
+
+def test_an_approving_review_continues_to_the_submission_path(tmp_path: Path):
+    service,identifier,review=reviewed(tmp_path,"approved",[])
+    service.complete_phase(identifier,review)
+    current=service.execution(identifier)
+    assert "reworks" not in current.data and current.next_phase()["id"] != "implementation"

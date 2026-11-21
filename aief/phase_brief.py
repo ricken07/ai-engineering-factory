@@ -32,6 +32,23 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
              f"- Output schema: `{skill_contract['outputSchema']}`"]
     for contract in skill_contract.get("outputContracts", []):
         lines.append(f"- Output contract ({contract['source']}): `{contract['schema']}`")
+    rework = phase.get("rework")
+    if rework:
+        lines += ["", f"## Rework {rework['number']}: address the review findings", "",
+                  f"The independent review did not approve the previous implementation (decision "
+                  f"`{rework.get('decision')}`; report `{rework['review']}` in the execution directory).",
+                  "Address every finding below, then the change is validated and reviewed again. Do not",
+                  "reduce the acceptance criteria to fit the implementation; if a criterion itself is wrong,",
+                  "ask the human."]
+        for finding in rework.get("findings", []):
+            if isinstance(finding, dict):
+                label = " ".join(str(finding[key]) for key in ("severity", "criterion") if finding.get(key))
+                lines += ["", f"- **{label or 'finding'}** {finding.get('location', '')}".rstrip(),
+                          f"  - {finding.get('finding', '')}".rstrip()]
+                if finding.get("correction"):
+                    lines.append(f"  - Expected correction: {finding['correction']}")
+            else:
+                lines += ["", f"- {finding}"]
     if phase.get("action") == "propose-change":
         lines += ["", "## Authorized action: propose-change", "",
                   "Authorized autonomy denies `modify-local-files`: do not create, edit or delete any file of the",

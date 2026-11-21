@@ -95,6 +95,37 @@ and the Runtime checks it when the review phase completes, so workflows without
 a submission phase are covered too. Review approval and
 blocking findings remain separate required checks.
 
+## Review Outcome and Rework
+
+A review that does not approve the change ends the pass. When a completed
+review has a decision other than `approved`, or any blocking finding, and the
+workflow implements before it reviews, the Runtime returns to implementation
+instead of advancing:
+
+1. the review artifact is persisted, then the implementation, validation and
+   review artifacts are kept under a `-rework-N` name
+   (`review-rework-1.yaml`, ...);
+2. those phases are reopened as `pending`, and `execution next` points to the
+   implementation phase again;
+3. the implementation phase brief gains a **Rework N** section with every
+   blocking finding (severity, criterion, location, expected correction);
+4. a proposal made below L2 is superseded: the next implementation proposes
+   again, and a human approves `apply-proposal` again;
+5. review independence is reset: after the new implementation, the producer
+   hands off again and another session reviews.
+
+Summary, traceability and the human submission gates are never reached with
+a rejected change: a human is not asked to approve a submission the evidence
+chain would refuse. Each return is recorded in `reworks` (number, time,
+review, decision, findings, archived artifacts) and emitted as an
+`execution.reworked` event.
+
+Reworks are bounded: after `MAX_REWORKS` (3) returns, a further rejecting
+review blocks the Execution (`review-rework-exhausted`) and the human decides
+whether to cancel it and start again, for example with a revised task. A
+review-only workflow, which implements nothing, reports its decision without
+rework.
+
 ## Replay
 
 Validations can be replayed with:

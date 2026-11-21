@@ -116,6 +116,14 @@ the same owner yields `NOT_INDEPENDENT`. When independent review is required,
 `complete-phase` refuses any other review: hand off and stop, never take a
 new owner name in the same session to review your own change.
 
+When a review does not approve the change, the Runtime reopens the
+implementation phase: the reviewer completes its review phase and stops. The
+next `execution next` returns the implementation phase whose brief has a
+**Rework** section listing the blocking findings; the producer addresses every
+one of them, then validation and an independent review run again. Never
+change the acceptance criteria to fit the implementation; ask the human when
+a criterion itself is wrong.
+
 For research runs, the initial command also supplies
 `--experiment-condition L0|L1|L2|L3`, `--repeat-index`,
 `--environment-identifier` and, when observable, `--model-identifier`.
