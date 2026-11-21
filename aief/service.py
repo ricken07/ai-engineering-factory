@@ -28,8 +28,8 @@ from .output_contracts import contract_errors, public as public_contracts, resol
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
-from . import plan_binding
-from .phase_brief import write_phase_brief
+from . import plan_binding, payload_ledger
+from .phase_brief import compact_prepared, write_phase_brief
 from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
 from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
@@ -1195,8 +1195,21 @@ class RuntimeService:
                      "engineeringContexts":[item["metadata"]["id"] for item in contexts],
                      "phaseBrief":{"artifact":name,"sha256":brief["sha256"]}},
         )
-        return {"execution":execution_id,"status":execution.data["status"],"phase":phase,
-                "skillContract":skill_contract,"phaseBrief":brief,"engineeringContexts":contexts}
+        prepared = {"execution":execution_id,"status":execution.data["status"],"phase":phase,
+                    "skillContract":skill_contract,"phaseBrief":brief,"engineeringContexts":contexts}
+        # The ledger keeps what the agent was given, as `execution next` prints it.
+        payload_ledger.record_phase(execution.root, execution.data, phase, skill_contract, Path(brief["path"]),
+                                    compact_prepared(prepared), factory=self.factory, project_root=self.project_root,
+                                    api_version=get_api_version(self.factory), at=timestamp(self.clock))
+        assert_schema(self.factory, "payload-ledger.schema.json", payload_ledger.load(execution.root))
+        if payload_ledger.LEDGER not in execution.data["artifacts"]:
+            execution.data["artifacts"].append(payload_ledger.LEDGER); execution.save()
+        return prepared
+
+    def delivered_payloads(self, execution_id: str) -> dict[str, Any]:
+        execution = self.execution(execution_id)
+        ledger = payload_ledger.load(execution.root)
+        return {"ledger": ledger, "gaps": payload_ledger.gaps(execution.root, factory=self.factory, project_root=self.project_root)}
 
     def _record_bound_plan(self, execution: Execution) -> dict[str, Any]:
         """Performs the planning phase of an execution with a bound plan.

@@ -114,6 +114,10 @@ Runtime then records the planning phase from these files, unchanged and
 verified by hash, instead of letting the agent write a plan
 ([Bound plan](29-evidence-chain-and-replay.md#bound-plan)).
 
+What each run actually delivered to the agent is in its
+[payload ledger](29-evidence-chain-and-replay.md#payload-ledger): snapshots,
+hashes and the classification of every item and phase-brief section.
+
 Example descriptor-producing Runtime invocation:
 
 ```bash

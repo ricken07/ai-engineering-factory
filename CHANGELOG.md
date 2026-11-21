@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added the payload ledger: each phase preparation records what the agent received (phase brief and `execution next` snapshots, Core Skill files, bound plan files) with SHA-256 and a classification per item and brief section; `aief execution payload-ledger` reports it and fails on any gap.
 - Added bound plans: `aief run --bound-plan --bound-verification` fixes the task plan and verification before the execution starts; the Runtime records the `planning` phase from them, unchanged and verified by SHA-256, and refuses an agent-written plan.
 - Fixed `aief setup-adapter --execute` crashing with `AttributeError: 'Namespace' object has no attribute 'path'` after a successful install; the command now exits 0 in both dry-run and execute modes.
 

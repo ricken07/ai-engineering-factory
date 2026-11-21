@@ -78,7 +78,7 @@ def parser() -> argparse.ArgumentParser:
     backlog_approval=backlog_sub.add_parser("operation-approval"); backlog_approval.add_argument("id"); backlog_approval.add_argument("operation"); backlog_approval.add_argument("decision",choices=["approve","reject"]); backlog_approval.add_argument("--project",default="."); backlog_approval.add_argument("--factory",default=None); backlog_approval.add_argument("--json",action="store_true")
     backlog_complete_op=backlog_sub.add_parser("complete-operation"); backlog_complete_op.add_argument("id"); backlog_complete_op.add_argument("operation"); backlog_complete_op.add_argument("--result",required=True); backlog_complete_op.add_argument("--project",default="."); backlog_complete_op.add_argument("--factory",default=None); backlog_complete_op.add_argument("--json",action="store_true")
     execution=sub.add_parser("execution"); execution_sub=execution.add_subparsers(dest="execution_command",required=True)
-    for name in ("inspect","next","handoff","evidence","metrics"):
+    for name in ("inspect","next","handoff","evidence","metrics","payload-ledger"):
         command=execution_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default=None); command.add_argument("--json",action="store_true")
         if name == "handoff": command.add_argument("--owner")
     complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--operation-id"); complete.add_argument("--owner"); complete.add_argument("--project",default="."); complete.add_argument("--factory",default=None); complete.add_argument("--json",action="store_true")
@@ -242,6 +242,10 @@ def main(argv: list[str] | None = None) -> int:
             data=service.lease(args.id,args.action,args.owner,args.ttl)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="handoff": service.handoff_execution(args.id,args.owner)
+        if args.execution_command=="payload-ledger":
+            data=service.delivered_payloads(args.id)
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True))
+            return 1 if data["gaps"] else 0
         if args.execution_command=="next":
             from .phase_brief import compact_prepared
             data=compact_prepared(service.prepare_phase(args.id))

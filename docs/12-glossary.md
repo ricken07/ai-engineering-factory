@@ -27,6 +27,9 @@
 - **Bound plan**: plan and verification specification fixed before an
   execution starts (`--bound-plan`, `--bound-verification`); the Runtime
   records the planning phase from them, unchanged and verified by hash.
+- **Payload ledger**: per-execution record of what the Runtime delivered to the
+  agent at each phase (snapshots, SHA-256, classification), checked with
+  `aief execution payload-ledger`.
 - **Rework**: return to implementation after a review that did not approve
   the change; bounded, recorded in `reworks`. See [29](29-evidence-chain-and-replay.md).
 - **Finding decision**: the human's explicit, justified decision that a

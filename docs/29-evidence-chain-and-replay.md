@@ -216,6 +216,53 @@ Ordinary projects remain backwards-compatible: omitted `review.waivers` means `e
 
 A review still blocks after `MAX_REWORKS = 3` returns. In scored research runs, the external study runner classifies `review-rework-exhausted` as failure and forbids discretionary rescue. AIEF persists the corresponding Runtime state as `blocked`; the experimental outcome classification belongs to the independent study harness.
 
+## Payload Ledger
+
+Input fingerprints show which artifacts an execution started from. They do not
+show what the agent was given to read. Each time `aief execution next` prepares
+a phase for an agent, the Runtime appends an entry to `payload-ledger.yaml`
+(`payload-ledger.schema.json`) with everything it delivered:
+
+| Item | Classification |
+|---|---|
+| Phase brief, snapshotted under `payloads/` | split into sections, see below |
+| `execution next` output, snapshotted as printed | `runtime-state` |
+| Core Skill instructions, manifest, output schema, output contracts | `procedural` |
+| Bound plan and verification, when bound | `task-plan` |
+
+Each item has a `base` (`execution`, `factory` or `project`), a path and a
+SHA-256. Snapshots keep every rendering: a phase that runs again after a rework
+gets a new brief, and the ledger keeps both, with `attempt` set to the rework
+number.
+
+The phase brief is also hashed section by section:
+
+| Section | Classification |
+|---|---|
+| Preamble, skill contract, authorized action | `procedural` |
+| Bound plan | `task-plan` |
+| Repositories, practices | `project-context` |
+| Task context | `task-context` |
+| Rework findings | `review-feedback` |
+| Human decisions on review findings | `human-decision` |
+
+A comparison between executions can then tell procedural instructions apart
+from task information, review feedback and human decisions.
+
+```bash
+aief execution payload-ledger <id> --json
+```
+
+The command prints the ledger and its gaps, and exits 1 when there is a gap:
+
+- a snapshot or delivered file whose hash changed;
+- a ledger whose fingerprint no longer matches its entries;
+- a brief section the ledger cannot classify (`unclassified`).
+
+The ledger is listed in the execution artifacts, so the evidence bundle
+fingerprints it. It records and classifies. Comparing ledgers across
+executions belongs to whoever runs the comparison.
+
 ## Replay
 
 Validations can be replayed with:

@@ -23,7 +23,7 @@ KIND_SCHEMAS = {
     "Gate": "gate.schema.json", "Artifact": "artifact.schema.json",
     "Handoff": "handoff.schema.json", "PolicyDecision": "policy-decision.schema.json",
     "TaskMemory": "task-memory.schema.json", "MemoryCandidate": "memory-candidate.schema.json",
-    "TaskBacklog": "task-backlog.schema.json",
+    "TaskBacklog": "task-backlog.schema.json", "PayloadLedger": "payload-ledger.schema.json",
     "KnowledgePromotion": "knowledge-promotion.schema.json",
     "McpBinding": "mcp-binding.schema.json",
     "IntegrationContract": "integration-contract.schema.json", "IntegrationLock": "integration-lock.schema.json",
