@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added comparator evidence for every study gate: `plan-criteria` (plan gate without bound plan), `governed-plan` (`before-implementation`), `proposal` (`apply-proposal`) and `submission-evidence` (`before-commit`, `before-submission`, submission gate), computed before the decision changes the execution and shown by `aief execution gate-check`.
 - Made the gate decision rule verifiable: `humanGates.decisionRule` is a rule document hashed (optionally pinned by `decisionRuleSha256`) and copied into each execution, and plan gate decisions store the `bound-plan-hashes` comparator evidence (expected frozen hashes from `--expect-plan-sha256` / `--expect-verification-sha256`, bound hashes, file integrity, planning reference); `aief execution gate-check` shows the approver the same evidence.
 - Added the human gate protocol: `humanGates` (approvers, response limit, decision rule) is snapshotted per execution. Every gate decision is recorded in `gateDecisions`, a gate past its response limit expires and cancels the execution, and `aief execution reject` lets a human refuse a gate with a rationale through an `OBSERVED` channel.
 - Added the payload ledger: each phase preparation records what the agent received (phase brief and `execution next` snapshots, Core Skill files, bound plan files) with SHA-256 and a classification per item and brief section; `aief execution payload-ledger` reports it and fails on any gap.

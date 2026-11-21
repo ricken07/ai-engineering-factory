@@ -28,7 +28,7 @@ from .output_contracts import contract_errors, public as public_contracts, resol
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
-from . import gate_protocol, plan_binding, payload_ledger
+from . import gate_evidence, gate_protocol, plan_binding, payload_ledger
 from .phase_brief import compact_prepared, write_phase_brief
 from .integration import MERGE_GATE, integrate, integration_targets
 from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
@@ -745,12 +745,13 @@ class RuntimeService:
         if self._expire_late_gates(execution):
             raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
         held=next((item for item in gate_protocol.holding_gates(execution.data) if item["kind"] == "phase-gate"), None)
+        evidence=self._gate_evidence(execution, held) if held else None
         gate_name=self._phase_gate_id(phase)
         actor=self._human_approval(execution, gate_name, owner, approver, _hook,
                                    terminal_command=f"aief execution approve {execution_id}",
                                    in_session="'/approve' (or '$approve')")
         execution.advance(approved=True)
-        if held: self._record_gate_decision(execution, held, "approved", actor)
+        if held: self._record_gate_decision(execution, held, "approved", actor, evidence=evidence)
         if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",actor)
         events = self._events(execution.data["task"])
         events.append(
@@ -869,13 +870,30 @@ class RuntimeService:
             raise
         return actor
 
-    @staticmethod
-    def _gate_evidence(execution: Execution, held: dict[str, Any]) -> dict[str, Any] | None:
-        """Comparator evidence the decision rule of a gate is applied to, when the Runtime can compute it."""
+    def _gate_evidence(self, execution: Execution, held: dict[str, Any]) -> dict[str, Any] | None:
+        """Comparator evidence the decision rule of a gate is applied to (see aief.gate_evidence)."""
         binding = execution.data.get("planBinding")
         phase = next((item for item in execution.data["phases"] if item["id"] == held.get("phase")), None)
-        if binding and phase is not None and phase.get("skill") == "create-plan":
-            return plan_binding.plan_gate_evidence(execution.root, binding)
+        gate = held["gate"]
+        if phase is not None and phase.get("skill") == "create-plan":
+            return plan_binding.plan_gate_evidence(execution.root, binding) if binding else gate_evidence.plan_criteria(execution.root)
+        if gate == "before-implementation":
+            bound = plan_binding.plan_gate_evidence(execution.root, binding) if binding else None
+            return gate_evidence.governed_plan(execution.root, execution.data, bound)
+        if gate == APPLY_GATE:
+            data = execution.data.get("proposal") or {}
+            runtime = runtime_root(self.project_root, self.project)
+
+            def patches_apply() -> str | None:
+                try:
+                    check_patches(data.get("patches", []), execution.root)
+                except ValueError as error:
+                    return str(error)
+                return None
+            return gate_evidence.proposal(execution.root, execution.data,
+                                          lambda: changed_roots(data.get("baseline", {}), runtime), patches_apply)
+        if gate in gate_evidence.SUBMISSION_GATES or (phase is not None and phase.get("skill") == "submit-change"):
+            return gate_evidence.submission(execution.root, execution.data)
         return None
 
     def gate_check(self, execution_id: str) -> dict[str, Any]:
@@ -893,10 +911,12 @@ class RuntimeService:
                 "decisionRule": protocol.get("decisionRule"), "approvers": protocol.get("approvers"), "gates": gates}
 
     def _record_gate_decision(self, execution: Execution, held: dict[str, Any], outcome: str,
-                              actor: dict[str, Any] | None = None, rationale: str | None = None) -> dict[str, Any]:
+                              actor: dict[str, Any] | None = None, rationale: str | None = None,
+                              evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+        """`evidence` is computed before the decision changes the execution (what the approver saw)."""
         clock = getattr(self, "clock", None) or SystemClock()
         record = gate_protocol.decision(held, outcome, timestamp(clock), gate_protocol.of_execution(execution.data),
-                                        actor, rationale, self._gate_evidence(execution, held))
+                                        actor, rationale, evidence)
         execution.data.setdefault("gateDecisions", []).append(record)
         execution.save()
         return record
@@ -953,13 +973,14 @@ class RuntimeService:
             raise RuntimeError("no human gate is waiting for a decision" + (f": {gate_id}" if gate_id else ""))
         actor = self._human_approval(execution, held["gate"], owner, approver, _hook,
                                      terminal_command=f"aief execution reject {execution_id} --gate {held['gate']} --reason <rationale>")
+        evidence = self._gate_evidence(execution, held)
         if held["kind"] == "phase-gate":
             phase = next(item for item in execution.data["phases"] if item["id"] == held["phase"])
             execution._complete_gate_wait(execution._phase_gate(phase))
         else:
             gate = next(item for item in execution.data["policyGates"] if item["id"] == held["gate"])
             gate["status"] = "rejected"; execution.complete_policy_gate(gate)
-        record = self._record_gate_decision(execution, held, "rejected", actor, reason.strip())
+        record = self._record_gate_decision(execution, held, "rejected", actor, reason.strip(), evidence)
         events = self._events(execution.data["task"])
         events.append("gate.rejected", execution=execution_id,
                       payload={"agent": execution.data.get("agent", {}).get("adapter"), "gate": held["gate"],
@@ -982,16 +1003,19 @@ class RuntimeService:
             "gate.approval-refused", execution=execution.data["metadata"]["id"],
             payload={"agent": execution.data.get("agent", {}).get("adapter"), **refusal, "actor": actor})
 
-    def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any]) -> None:
+    def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any],
+                             evidence: dict[str, Any] | None = None) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if gate and gate["status"] == "pending":
             held = next((item for item in gate_protocol.holding_gates(execution.data) if item["gate"] == gate_id),
                         {"kind": "policy-gate", "gate": gate_id, "phase": None, "trigger": gate.get("trigger"),
                          "timing": gate.setdefault("timing", {})})
+            if evidence is None:
+                evidence = self._gate_evidence(execution, held)
             gate.update({"status":"approved","approvedAt":timestamp(self.clock),"approvedBy":actor["id"],"actor":actor})
             execution.data.setdefault("roles", {})["approver"]={"type":"human","identity":actor["id"]}
             execution.complete_policy_gate(gate)
-            self._record_gate_decision(execution, held, "approved", actor)
+            self._record_gate_decision(execution, held, "approved", actor, evidence=evidence)
             execution.save()
 
     def _workspace_roots(self, execution: Execution) -> dict[str, str]:
@@ -1134,10 +1158,12 @@ class RuntimeService:
         actor=self._human_approval(execution, gate_id, owner, approver, _hook,
                                    terminal_command=f"aief execution approve-policy {execution_id} {gate_id}",
                                    in_session="'/approve' (or '$approve')")
+        # Evidence of what the approver decided on, before applying a proposal changes it.
+        evidence=self._gate_evidence(execution, {"kind": "policy-gate", "gate": gate_id, "phase": None})
         if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
         if gate_id == MERGE_GATE and execution.data.get("integration", {}).get("status") == "awaiting-approval":
             self._integrate(execution, actor)
-        self._approve_policy_gate(execution,gate_id,actor)
+        self._approve_policy_gate(execution,gate_id,actor,evidence)
         if gate_id == MERGE_GATE and execution.data["status"] == "completed":
             bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
             assert_schema(self.factory, "evidence-bundle.schema.json", bundle)

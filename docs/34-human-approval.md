@@ -453,10 +453,24 @@ An expired gate has no actor. Its `waitDurationMs` is the response limit,
 
 ### Comparator evidence
 
-A rule name alone does not show what a decision rested on. When the Runtime
-can compute the inputs of a gate's rule, it attaches them to the decision as
-`evidence`. For the plan gate of an execution with a bound plan, the
-comparator `bound-plan-hashes` checks each bound file three ways:
+A rule name alone does not show what a decision rested on. The Runtime
+computes the inputs of each gate's rule from recorded facts and attaches them
+to the decision as `evidence`. It computes them before the decision changes
+the execution (for example, before an approved proposal is applied), so the
+evidence is what the approver saw:
+
+| Gate | Comparator | Checks |
+|---|---|---|
+| Plan gate, bound plan | `bound-plan-hashes` | see below |
+| Plan gate, no bound plan | `plan-criteria` | acceptance criteria of `planning.yaml` present and well formed |
+| `before-implementation` | `governed-plan` | governed plan fingerprint recomputed and equal to the recorded one; policy decision equal to the recorded fingerprint; every enforcement point enforceable; planning completed; bound-plan hashes match when a plan is bound |
+| `apply-proposal` | `proposal` | each patch unchanged since it was proposed; workspace unchanged since the proposal; patches still apply (`git apply --check`) |
+| `before-commit`, `before-submission`, submission gate | `submission-evidence` | every submission evidence gap (planning, validation, review, evidence matrix, review independence, findings); required enforcement proven |
+
+Other gates carry no `evidence` until a comparator exists for them.
+
+For the plan gate of an execution with a bound plan, the comparator
+`bound-plan-hashes` checks each bound file three ways:
 
 | Check | Expected | Observed |
 |---|---|---|
@@ -473,8 +487,9 @@ aief execution gate-check <execution-id>
 ```
 
 It prints the waiting gates, their deadline, the rule document and the
-comparator evidence. Decisions on other gates carry no `evidence` until a
-comparator exists for them.
+comparator evidence. A deterministic rule document can then state each
+decision from the outcome alone. For example: approve on `match`; reject on
+`mismatch`, quoting the failing checks.
 
 ## See also
 
