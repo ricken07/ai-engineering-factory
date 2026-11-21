@@ -363,6 +363,71 @@ approvalRefusals:
 An agent that tries to approve its own gate is an observed policy violation,
 not a silent no-op.
 
+## Rejecting a gate
+
+A human who refuses the change at a gate runs, in their own terminal:
+
+```bash
+aief execution reject <execution-id> --reason "<rationale>" [--gate <gate>] [--approver <name>]
+```
+
+The rejection goes through the same channel check as an approval: it must be
+`OBSERVED`, and a rejection relayed by an agent is refused and recorded. A
+rationale is required. The gate is closed as `rejected`, the execution is
+cancelled with the rationale, and a `gate.rejected` event carries the actor
+and the rationale.
+
+## Human gate protocol
+
+A project can fix in advance how its human gates are decided:
+
+```yaml
+humanGates:
+  approvers: [alice, bob]      # empty: any OBSERVED human
+  responseLimitMinutes: 60     # null: a gate waits indefinitely
+  decisionRule: gate-rule-v1   # reference of the rule approvers apply
+```
+
+The protocol is snapshotted when an execution starts, as
+`reproducibility.humanGateProtocol`. A later configuration change does not
+alter a running execution. The Runtime applies it as follows:
+
+- **Approvers.** An `OBSERVED` decision from an identity outside `approvers`
+  is refused and recorded in `approvalRefusals`. This applies to approvals,
+  rejections and finding waivers. The identity is the one the channel
+  observed, not an authenticated principal.
+- **Response limit.** A gate that holds the execution longer than
+  `responseLimitMinutes` expires. The time is measured from the moment the
+  gate holds the execution, not from the moment a policy requires it. Time
+  does not trigger the Runtime by itself: the first command that looks at the
+  gate after the deadline applies the expiry (`execution next`, `approve`,
+  `approve-policy` or `reject`). That command dates the expiry at the
+  deadline, records it, emits `gate.expired` and cancels the execution. A
+  decision that arrives later is refused.
+- **Decision rule.** The Runtime records the rule with every decision. It
+  cannot judge whether the human followed it.
+
+Every decision is kept in `gateDecisions`:
+
+```yaml
+gateDecisions:
+  - gate: plan-gate
+    kind: phase-gate          # or policy-gate
+    decision: approved        # approved | rejected | expired
+    phase: planning
+    trigger: phase:planning   # for a policy gate: the reassessment that required it
+    requestedAt: 2026-11-21T09:00:00+00:00
+    waitStartedAt: 2026-11-21T09:00:00+00:00
+    decidedAt: 2026-11-21T09:04:00+00:00
+    waitDurationMs: {value: 240000, availability: OBSERVED}
+    decisionRule: gate-rule-v1
+    responseLimitMinutes: 60
+    actor: {id: alice, type: human, channel: interactive-terminal, assurance: OBSERVED}
+```
+
+An expired gate has no actor. Its `waitDurationMs` is the response limit,
+`DERIVED`. A rejection also carries its `rationale`.
+
 ## See also
 
 - [05 — Policy Resolution](05-policy-resolution.md): gates and proposed changes

@@ -57,6 +57,11 @@ autonomy:
 # The default preserves ordinary use; scored research runs explicitly disable waivers.
 review:
   waivers: enabled
+# Human gate protocol, snapshotted per execution; the defaults keep ordinary use.
+humanGates:
+  approvers: []
+  responseLimitMinutes: null
+  decisionRule: null
 policyRefs: []
 engineering:
   inheritOrganization: true

@@ -96,6 +96,31 @@
       },
       "additionalProperties": false
     },
+    "gateDecisions": {
+      "description": "Every human gate decision (approved, rejected, expired) with its timing, actor and the protocol it was taken under.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gate", "kind", "decision", "at", "decidedAt"],
+        "properties": {
+          "gate": {"type": "string"},
+          "kind": {"enum": ["phase-gate", "policy-gate"]},
+          "decision": {"enum": ["approved", "rejected", "expired"]},
+          "at": {"type": "string", "format": "date-time"},
+          "phase": {"type": "string"},
+          "trigger": {"type": "string"},
+          "requestedAt": {"type": ["string", "null"]},
+          "waitStartedAt": {"type": ["string", "null"]},
+          "decidedAt": {"type": "string"},
+          "waitDurationMs": {"$ref": "#/$defs/measurement"},
+          "decisionRule": {"type": ["string", "null"]},
+          "responseLimitMinutes": {"type": ["integer", "null"]},
+          "rationale": {"type": "string"},
+          "actor": {"type": "object", "properties": {"id": {"type": "string"}, "type": {"type": "string"}, "channel": {"type": "string"}, "assurance": {"type": "string"}}, "additionalProperties": false}
+        },
+        "additionalProperties": false
+      }
+    },
     "planBinding": {
       "description": "Plan and verification specification bound before the execution started. The Runtime copied them unchanged into the execution directory and records the planning phase from them.",
       "type": "object",
@@ -136,7 +161,7 @@
     },
     "policyGates": {
       "type":"array",
-      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected","not-triggered","withdrawn"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"},"actor":{"$ref":"actor-identity.schema.json"},"timing":{"$ref":"#/$defs/gateTiming"}},"additionalProperties":false}
+      "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected","expired","not-triggered","withdrawn"]},"trigger":{"type":["string","null"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"},"actor":{"$ref":"actor-identity.schema.json"},"timing":{"$ref":"#/$defs/gateTiming"}},"additionalProperties":false}
     },
     "risk": {
       "$ref": "common.schema.json#/$defs/riskLevel"

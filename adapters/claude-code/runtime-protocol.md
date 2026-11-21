@@ -184,7 +184,10 @@ session. When your context then contains `AIEF: the human approved ...`, the
 approval hook recorded it: continue with `aief execution next`. Without that
 line nothing was approved: give the human the exact `aief execution
 approve-policy` (or `aief execution approve`) command to run in their own
-terminal, and wait. See `docs/34-human-approval.md`.
+terminal, and wait. A human who refuses the change runs `aief execution reject
+<id> --reason <rationale>` in their own terminal; never run it yourself. When
+`execution next` reports `cancelled` because a gate expired or was rejected,
+stop. See `docs/34-human-approval.md`.
 
 When `execution next` reports `blocked` because the current phase's
 `recovery.status` is `waiting-user`, do not resolve the question in

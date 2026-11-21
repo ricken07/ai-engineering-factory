@@ -28,7 +28,7 @@ from .output_contracts import contract_errors, public as public_contracts, resol
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
-from . import plan_binding, payload_ledger
+from . import gate_protocol, plan_binding, payload_ledger
 from .phase_brief import compact_prepared, write_phase_brief
 from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
 from .governance import governed_execution_plan, assert_action_authorized
@@ -231,6 +231,7 @@ class RuntimeService:
             "environmentIdentifier": self._observed_value(experiment.get("environmentIdentifier")),
             # Snapshot at start: the policy cannot be relaxed by changing project.yaml mid-run.
             "reviewWaivers": self._observed_value(self.project.get("review", {}).get("waivers", "enabled")),
+            "humanGateProtocol": self._observed_value(gate_protocol.from_project(self.project)),
             **({f"bound{role.capitalize()}Fingerprint": self._observed_value(binding[role]["sha256"])
                 for role in ("plan", "verification") if role in binding}
                if (binding := execution.data.get("planBinding")) else {}),
@@ -614,7 +615,7 @@ class RuntimeService:
         gates={item["id"]:item for item in execution.data.get("policyGates",[])}
         for identifier in decision["requiredGates"]:
             if identifier not in gates:
-                gates[identifier] = {"id":identifier,"status":"pending"}
+                gates[identifier] = {"id":identifier,"status":"pending","trigger":trigger}
                 execution.request_policy_gate(gates[identifier])
         execution.data.update({"policyDecision":name,"governedExecutionPlan":plan_name,"risk":decision["effectiveRisk"],
                                "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"]},
@@ -719,8 +720,12 @@ class RuntimeService:
             OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner,approver=approver).data)
             return self.execution(execution_id)
         phase=execution.next_phase()
+        if self._expire_late_gates(execution):
+            raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
+        held=next((item for item in gate_protocol.holding_gates(execution.data) if item["kind"] == "phase-gate"), None)
         actor=self._human_approval(execution, phase["id"] if phase else "phase-gate", owner, approver, _hook)
         execution.advance(approved=True)
+        if held: self._record_gate_decision(execution, held, "approved", actor)
         if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",actor)
         events = self._events(execution.data["task"])
         events.append(
@@ -758,10 +763,91 @@ class RuntimeService:
                     f"the human types '/approve' (or '$approve') in the agent session where the approval hook is "
                     f"installed, or runs 'aief execution approve-policy {execution.data['metadata']['id']} {gate}' "
                     f"in their own terminal")
+            approvers = gate_protocol.of_execution(execution.data)["approvers"]
+            if approvers and actor["id"] not in approvers:
+                raise PermissionError(f"{actor['id']} is not an approver of this execution's human gate protocol "
+                                      f"(humanGates.approvers: {', '.join(approvers)})")
         except PermissionError as error:
             self._record_approval_refusal(execution, gate, owner, approver, actor, str(error))
             raise
         return actor
+
+    def _record_gate_decision(self, execution: Execution, held: dict[str, Any], outcome: str,
+                              actor: dict[str, Any] | None = None, rationale: str | None = None) -> dict[str, Any]:
+        clock = getattr(self, "clock", None) or SystemClock()
+        record = gate_protocol.decision(held, outcome, timestamp(clock), gate_protocol.of_execution(execution.data),
+                                        actor, rationale)
+        execution.data.setdefault("gateDecisions", []).append(record)
+        execution.save()
+        return record
+
+    def _expire_late_gates(self, execution: Execution) -> bool:
+        """Cancels the execution when a gate held it longer than the protocol allows.
+
+        Time does not trigger the Runtime by itself: the expiry is applied by
+        the first command that looks at the gate after its deadline, and dated
+        at the deadline."""
+        if execution.data["status"] in {"completed", "failed", "cancelled"}:
+            return False
+        protocol = gate_protocol.of_execution(execution.data)
+        clock = getattr(self, "clock", None) or SystemClock()
+        now = clock.now()
+        late = [(held, deadline) for held in gate_protocol.holding_gates(execution.data)
+                if (deadline := gate_protocol.deadline(held, protocol)) is not None and now > deadline]
+        if not late:
+            return False
+        events = self._events(execution.data["task"])
+        for held, deadline in late:
+            record = gate_protocol.decision(held, "expired", timestamp(clock), protocol)
+            record["decidedAt"] = deadline.isoformat()
+            # The wait ended at the deadline, not when a command noticed it.
+            record["waitDurationMs"] = {"value": protocol["responseLimitMinutes"] * 60_000, "availability": "DERIVED"}
+            execution.data.setdefault("gateDecisions", []).append(record)
+            for gate in execution.data.get("policyGates", []):
+                if gate["id"] == held["gate"] and held["kind"] == "policy-gate":
+                    gate["status"] = "expired"
+            events.append("gate.expired", execution=execution.data["metadata"]["id"],
+                          payload={"agent": execution.data.get("agent", {}).get("adapter"), "gate": held["gate"],
+                                   "deadline": deadline.isoformat(), "responseLimitMinutes": protocol["responseLimitMinutes"]})
+        reason = "human gate expired: " + ", ".join(held["gate"] for held, _ in late)
+        execution.cancel(reason)
+        self._append_closed_gates(execution, events)
+        events.append("execution.cancelled", execution=execution.data["metadata"]["id"],
+                      payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": reason})
+        return True
+
+    @measured_runtime
+    def reject_gate(self, execution_id: str, reason: str, gate_id: str | None = None, owner: str | None = None,
+                    approver: str | None = None, _hook: dict[str, Any] | None = None) -> Execution:
+        """A human refuses the change at a gate: the execution is cancelled with the rationale."""
+        execution = self.execution(execution_id)
+        if _hook is None: self._assert_lease(execution, owner)
+        if not (reason or "").strip():
+            raise ValueError("a rationale is required to reject a gate")
+        if self._expire_late_gates(execution):
+            raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
+        held_gates = gate_protocol.holding_gates(execution.data)
+        held = next((item for item in held_gates if gate_id in {None, item["gate"], item.get("phase")}), None)
+        if held is None:
+            raise RuntimeError("no human gate is waiting for a decision" + (f": {gate_id}" if gate_id else ""))
+        actor = self._human_approval(execution, held.get("phase") or held["gate"], owner, approver, _hook)
+        if held["kind"] == "phase-gate":
+            phase = next(item for item in execution.data["phases"] if item["id"] == held["phase"])
+            execution._complete_gate_wait(execution._phase_gate(phase))
+        else:
+            gate = next(item for item in execution.data["policyGates"] if item["id"] == held["gate"])
+            gate["status"] = "rejected"; execution.complete_policy_gate(gate)
+        record = self._record_gate_decision(execution, held, "rejected", actor, reason.strip())
+        events = self._events(execution.data["task"])
+        events.append("gate.rejected", execution=execution_id,
+                      payload={"agent": execution.data.get("agent", {}).get("adapter"), "gate": held["gate"],
+                               "phase": held.get("phase"), "status": "rejected", "rejectedBy": actor["id"],
+                               "actor": actor, "rationale": record["rationale"]})
+        execution.cancel(f"gate {held['gate']} rejected: {reason.strip()}")
+        self._append_closed_gates(execution, events)
+        events.append("execution.cancelled", execution=execution_id,
+                      payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": execution.data["cancelledReason"]})
+        return execution
 
     def _record_approval_refusal(self, execution: Execution, gate: str, owner: str | None, approver: str | None,
                                  actor: dict[str, Any] | None, reason: str) -> None:
@@ -777,9 +863,13 @@ class RuntimeService:
     def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any]) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if gate and gate["status"] == "pending":
+            held = next((item for item in gate_protocol.holding_gates(execution.data) if item["gate"] == gate_id),
+                        {"kind": "policy-gate", "gate": gate_id, "phase": None, "trigger": gate.get("trigger"),
+                         "timing": gate.setdefault("timing", {})})
             gate.update({"status":"approved","approvedAt":timestamp(self.clock),"approvedBy":actor["id"],"actor":actor})
             execution.data.setdefault("roles", {})["approver"]={"type":"human","identity":actor["id"]}
             execution.complete_policy_gate(gate)
+            self._record_gate_decision(execution, held, "approved", actor)
             execution.save()
 
     def _workspace_roots(self, execution: Execution) -> dict[str, str]:
@@ -917,6 +1007,8 @@ class RuntimeService:
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
         if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
+        if self._expire_late_gates(execution):
+            raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
         actor=self._human_approval(execution, gate_id, owner, approver, _hook)
         if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
         self._approve_policy_gate(execution,gate_id,actor)
@@ -1097,6 +1189,9 @@ class RuntimeService:
     @measured_runtime
     def prepare_phase(self, execution_id: str) -> dict[str, Any]:
         execution = self.execution(execution_id)
+        if self._expire_late_gates(execution):
+            return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[],
+                    "cancelledReason":execution.data["cancelledReason"]}
         phase = execution.next_phase()
         if phase is None: return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[]}
         task = TaskRegistry(self.project_root).load(execution.data["task"])

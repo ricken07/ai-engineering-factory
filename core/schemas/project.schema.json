@@ -84,6 +84,16 @@
       },
       "additionalProperties": false
     },
+    "humanGates": {
+      "description": "Human gate protocol, snapshotted when an execution starts: allowed approvers, response limit and the decision rule approvers apply.",
+      "type": "object",
+      "properties": {
+        "approvers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "responseLimitMinutes": {"type": ["integer", "null"], "minimum": 1},
+        "decisionRule": {"type": ["string", "null"], "minLength": 1}
+      },
+      "additionalProperties": false
+    },
     "repositories": {
       "type": "array",
       "items": {
