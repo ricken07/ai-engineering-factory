@@ -132,6 +132,15 @@ class Execution:
     def _gate_timing(gate: dict[str, Any]) -> dict[str, Any]:
         return gate.setdefault("timing", {"requestedAt": None, "decidedAt": None, "durationMs": unavailable_metric()})
 
+    @staticmethod
+    def _phase_gate(phase: dict[str, Any]) -> dict[str, Any]:
+        """Gate view of a phase approval: its `gateTiming` is the timing itself.
+
+        Executions persisted before this fix nest the timing under
+        `gateTiming.timing`; they keep that shape until the gate ends."""
+        timing = phase["gateTiming"]
+        return timing if "timing" in timing else {"timing": timing}
+
     def _request_gate(self, gate: dict[str, Any]) -> None:
         timing = self._gate_timing(gate)
         if timing.get("requestedAt") is None:
@@ -200,7 +209,7 @@ class Execution:
             closed.append({"gate": gate["id"], "status": gate["status"]})
         for phase in self.data.get("phases", []):
             if "gateTiming" in phase:
-                self._complete_gate_wait(phase["gateTiming"], closed=True)
+                self._complete_gate_wait(self._phase_gate(phase), closed=True)
         return closed
 
     def observe_actor(self, role: str, actor: dict[str, Any]) -> None:
@@ -229,7 +238,7 @@ class Execution:
         if phase["status"] == "waiting-approval":
             if not approved:
                 return "waiting-approval"
-            if "gateTiming" in phase: self._complete_gate_wait(phase["gateTiming"])
+            if "gateTiming" in phase: self._complete_gate_wait(self._phase_gate(phase))
             phase["status"] = "completed"
             self._complete_phase_timing(phase)
             self.data["status"] = "completed" if self.next_phase() is None else "running"
@@ -243,7 +252,9 @@ class Execution:
             self._persist_output(phase, output)
         if "gate" in phase and not approved:
             phase["status"] = "waiting-approval"; self.data["status"] = "waiting-approval"
-            phase["gateTiming"] = {"gate":phase["gate"].get("id", "phase-gate")}; self._start_gate_wait(phase["gateTiming"])
+            phase["gateTiming"] = {"gate":phase["gate"].get("id", "phase-gate"), "requestedAt": None, "decidedAt": None,
+                                   "durationMs": unavailable_metric()}
+            self._start_gate_wait(self._phase_gate(phase))
             self.record_runtime_duration(runtime_started); self.save(); return "waiting-approval"
         phase["status"] = "completed"
         self._complete_phase_timing(phase)
