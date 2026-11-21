@@ -486,7 +486,7 @@ class RuntimeService:
         if existing is None:
             actor = self._human_approval(
                 execution, f"waive-finding-{finding}", owner, approver, _hook,
-                terminal_command=f"aief execution waive-finding {execution_id} {finding} --reason <justification>",
+                terminal_command=f"aief execution waive-finding {execution_id} {finding} --reason <justification>", action="waiver",
                 in_session=f"'/waive {finding} <justification>' (or '$waive {finding} <justification>')")
             existing = {"review": name, "reviewSha256": sha, "finding": finding, "summary": label(findings[finding - 1]),
                         "decision": WAIVED, "justification": justification.strip(), "at": timestamp(self.clock), "actor": actor}
@@ -856,7 +856,7 @@ class RuntimeService:
 
     def _human_approval(self, execution: Execution, gate: str, owner: str | None, approver: str | None,
                         hook: dict[str, Any] | None = None, *, terminal_command: str,
-                        in_session: str | None = None) -> dict[str, Any]:
+                        in_session: str | None = None, action: str = "approval") -> dict[str, Any]:
         """Approver identity as the Runtime established it (see aief.approval).
 
         A human gate is a mandatory control: it passes only when the Runtime
@@ -868,7 +868,7 @@ class RuntimeService:
         try:
             actor = approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
                                                   lease=ExecutionLease(execution.root).active(),
-                                                  confirm=approval.terminal_confirm, hook=hook)
+                                                  confirm=approval.terminal_confirm, hook=hook, action=action)
             if actor["assurance"] != approval.REQUIRED_ASSURANCE:
                 how = (f"the human types {in_session} in the agent session where the approval hook is installed, "
                        f"or runs '{terminal_command}' in their own terminal" if in_session
@@ -1016,7 +1016,7 @@ class RuntimeService:
         if held is None:
             raise RuntimeError("no human gate is waiting for a decision" + (f": {gate_id}" if gate_id else ""))
         actor = self._human_approval(execution, held["gate"], owner, approver, _hook,
-                                     terminal_command=f"aief execution reject {execution_id} --gate {held['gate']} --reason <rationale>")
+                                     terminal_command=f"aief execution reject {execution_id} --gate {held['gate']} --reason <rationale>", action="rejection")
         evidence = self._gate_evidence(execution, held)
         if held["kind"] == "phase-gate":
             phase = next(item for item in execution.data["phases"] if item["id"] == held["phase"])

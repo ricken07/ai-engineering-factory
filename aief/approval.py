@@ -90,7 +90,9 @@ def human_approval_actor(
     confirm: Confirm = terminal_confirm,
     env: Mapping[str, str] | None = None,
     hook: dict[str, Any] | None = None,
+    action: str = "approval",
 ) -> dict[str, Any]:
+    """`action` names the decision at the terminal: approval, rejection or waiver."""
     env = os.environ if env is None else env
     execution_id = execution["metadata"]["id"]
     agents = agent_identities(execution, lease)
@@ -106,11 +108,11 @@ def human_approval_actor(
     if relayed_by or harness:
         return actor_identity(approver or "human", "human", "adapter", "DECLARED",
                               channel="agent-relay", relayedBy=relayed_by, **observations)
-    answer = confirm(f"Confirm {gate} for execution {execution_id}? Type '{gate}' to confirm: ")
+    answer = confirm(f"Confirm the {action} of {gate} for execution {execution_id}? Type '{gate}' to confirm: ")
     if answer is None:
         return actor_identity(approver or observations["osUser"] or "human", "human", "runtime", "DECLARED",
                               channel="non-interactive", **observations)
     if answer != gate:
-        raise PermissionError(f"approval of {gate} was not confirmed at the terminal")
+        raise PermissionError(f"{action} of {gate} was not confirmed at the terminal")
     return actor_identity(approver or observations["osUser"] or "human", "human", "terminal-confirmation",
                           "OBSERVED", channel="interactive-terminal", **observations)

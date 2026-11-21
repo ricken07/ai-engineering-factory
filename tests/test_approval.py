@@ -26,6 +26,13 @@ def test_wrong_terminal_confirmation_refuses():
         approve(confirm=lambda prompt: "yes")
 
 
+def test_terminal_confirmation_names_the_decision():
+    prompts = []
+    with pytest.raises(PermissionError, match="^rejection of before-commit was not confirmed"):
+        approve(action="rejection", confirm=lambda prompt: prompts.append(prompt) or "")
+    assert prompts[0].startswith("Confirm the rejection of before-commit")
+
+
 def test_agent_relay_is_declared_and_never_asks():
     asked = []
     actor = approve(relayed_by="codex:impl-2", lease={"owner": "codex:impl-2"},
