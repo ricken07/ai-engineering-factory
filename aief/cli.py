@@ -115,7 +115,8 @@ def approval_command(args: argparse.Namespace) -> int:
         if out: sys.stdout.write(out)
         if err: sys.stderr.write(err+"\n")
         return code
-    root=find_project(Path(args.project))
+    try: root=find_project(Path(args.project))
+    except FileNotFoundError as exc: print(f"ERROR: {exc}"); return 1
     if args.approval_command == "install-hook":
         path=approval_hook.install(root,args.agent)
         print(f"approval hook installed in {path}")

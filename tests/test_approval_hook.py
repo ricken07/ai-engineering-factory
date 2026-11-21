@@ -52,3 +52,9 @@ def test_install_is_idempotent_and_denies_the_entry_point_to_the_agent(tmp_path:
     assert codex["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] == "aief approval hook --agent codex"
     assert installed(tmp_path, "claude-code") and installed(tmp_path, "codex")
     assert 'pattern = ["aief", "approval"]' in (tmp_path / approval_hook.CODEX_RULES).read_text()
+
+
+def test_hook_commands_report_a_missing_project(tmp_path: Path, capsys):
+    from aief.cli import main
+    assert main(["approval", "hook-status", "--agent", "codex", "--project", str(tmp_path)]) == 1
+    assert capsys.readouterr().out.startswith("ERROR: no .ai/project.yaml found")
