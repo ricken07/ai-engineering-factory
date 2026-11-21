@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 - Tests set a neutral Git identity, so that their commits and the Runtime's integration merge do not depend on the machine's Git configuration (a CI runner has none); the quality workflow can also be run manually.
 - Added an integration test of the payload comparison on a ledger the Runtime wrote: bound L2 files, two review rework loops and an L1 context rendered by the launcher; the review feedback is counted against the rework budget and reported as intervention.

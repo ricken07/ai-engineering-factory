@@ -254,7 +254,7 @@ Define the installation parameters:
 export AIEF_REPOSITORY_URL="<FACTORY_GIT_URL>"
 
 # Immutable version requested by projects.
-export AIEF_VERSION="1.15.0"
+export AIEF_VERSION="1.1.0"
 
 # Organizational local root. This folder belongs to no business project.
 export AIEF_INSTALL_ROOT="$HOME/.aief/ai-engineering-factory"

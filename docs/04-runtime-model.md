@@ -44,7 +44,8 @@ Recommended workstation layout:
 ~/.aief/ai-engineering-factory/
 ├── 0.1.0/
 ├── 0.2.0/
-└── 1.0.0/
+├── 1.0.0/
+└── 1.1.0/
 
 ~/workspace/
 └── sample-project/
