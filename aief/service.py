@@ -229,6 +229,8 @@ class RuntimeService:
             "experimentalCondition": self._observed_value(experiment.get("condition")),
             "repeatIndex": self._observed_value(experiment.get("repeatIndex")),
             "environmentIdentifier": self._observed_value(experiment.get("environmentIdentifier")),
+            # Snapshot at start: the policy cannot be relaxed by changing project.yaml mid-run.
+            "reviewWaivers": self._observed_value(self.project.get("review", {}).get("waivers", "enabled")),
             **({f"bound{role.capitalize()}Fingerprint": self._observed_value(binding[role]["sha256"])
                 for role in ("plan", "verification") if role in binding}
                if (binding := execution.data.get("planBinding")) else {}),
@@ -444,6 +446,11 @@ class RuntimeService:
         and the Execution continues towards submission."""
         from .findings import WAIVED, blocking_findings, label, review_sha256, unresolved
         execution = self.execution(execution_id)
+        waiver_mode = execution.data.get("reproducibility", {}).get("reviewWaivers", {}).get("value", "enabled")
+        if waiver_mode == "disabled":
+            reason = "review waivers are disabled for this execution (review.waivers: disabled)"
+            self._record_approval_refusal(execution, f"waive-finding-{finding}", owner, approver, None, reason)
+            raise PermissionError(reason)
         if not (justification or "").strip():
             raise ValueError("a justification is required to decide that a finding does not block the change")
         name, rework = self._waivable_review(execution)
