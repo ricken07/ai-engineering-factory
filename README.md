@@ -246,10 +246,11 @@ AIEF documentation is organized by use case and audience, not by file number. **
 | [23 — First Steps](docs/23-first-steps.md) | Developers | You're running your first command |
 | [16 — Organization Engineering Context](docs/16-organization-engineering-context.md) | Architects | You're defining organization practices |
 | [13 — Agent Adapters & MCP](docs/13-agent-adapters-and-mcp.md) | Adapter developers | You're extending AIEF for a new agent |
+| [34 — Human Approval](docs/34-human-approval.md) | Developers, project leads | You approve gates or set up `/approve` in a project |
 | [32 — Runtime Observability](docs/32-runtime-observability.md) | Operators, debuggers | You need to understand how to observe execution |
 | [33 — Evaluation Harness](docs/33-evaluation-harness.md) | QA, developers | You're testing AIEF or an adapter |
 
-**All 35 reference documents** are indexed, cross-referenced and organized in [`docs/INDEX.md`](docs/INDEX.md).
+**All 36 reference documents** are indexed, cross-referenced and organized in [`docs/INDEX.md`](docs/INDEX.md).
 
 ## Security
 

@@ -555,14 +555,17 @@ class RuntimeService:
 
     @measured_runtime
     def approve_execution(self, execution_id: str, operation_id: str | None = None, owner: str | None = None,
-                          approver: str | None = None) -> Execution:
-        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+                          approver: str | None = None, _hook: dict[str, Any] | None = None) -> Execution:
+        execution=self.execution(execution_id)
+        # A harness-delivered approval comes from the human while the agent
+        # waits for it; it is not a mutation by the leasing session.
+        if _hook is None: self._assert_lease(execution,owner)
         payload={"decision":"approve"}
         if operation_id:
             OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner,approver=approver).data)
             return self.execution(execution_id)
         phase=execution.next_phase()
-        actor=self._human_approval(execution, phase["id"] if phase else "phase-gate", owner, approver)
+        actor=self._human_approval(execution, phase["id"] if phase else "phase-gate", owner, approver, _hook)
         execution.advance(approved=True)
         if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",actor)
         events = self._events(execution.data["task"])
@@ -581,20 +584,22 @@ class RuntimeService:
             )
         return execution
 
-    def _human_approval(self, execution: Execution, gate: str, owner: str | None, approver: str | None) -> dict[str, Any]:
+    def _human_approval(self, execution: Execution, gate: str, owner: str | None, approver: str | None,
+                        hook: dict[str, Any] | None = None) -> dict[str, Any]:
         """Approver identity as the Runtime established it (see aief.approval).
 
         An owner is the agent session that holds the lease: it relays a human
         decision, it never is the approver."""
         actor = approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
                                               lease=ExecutionLease(execution.root).active(),
-                                              confirm=approval.terminal_confirm)
+                                              confirm=approval.terminal_confirm, hook=hook)
         plan_name = execution.data.get("governedExecutionPlan")
         plan = load_yaml(execution.root / plan_name) if plan_name and (execution.root / plan_name).is_file() else {}
         if plan.get("requirements", {}).get("approvalAssurance") == "OBSERVED" and actor["assurance"] != "OBSERVED":
             raise PermissionError(
                 f"a {plan.get('risk', {}).get('level', 'governed')}-risk execution requires a human approval typed at a "
-                f"terminal (OBSERVED), not {actor['channel']}: the human runs the approval command in their own terminal")
+                f"terminal or delivered by the harness (OBSERVED), not {actor['channel']}: the human types '/approve' "
+                f"(or '$approve') in the agent session where the approval hook is installed, or approves in their own terminal")
         return actor
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any]) -> None:
@@ -733,13 +738,14 @@ class RuntimeService:
 
     @measured_runtime
     def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None,
-                            approver: str | None = None) -> Execution:
-        execution=self.execution(execution_id); self._assert_lease(execution,owner)
+                            approver: str | None = None, _hook: dict[str, Any] | None = None) -> Execution:
+        execution=self.execution(execution_id)
+        if _hook is None: self._assert_lease(execution,owner)
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
         if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
-        actor=self._human_approval(execution, gate_id, owner, approver)
+        actor=self._human_approval(execution, gate_id, owner, approver, _hook)
         if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
         self._approve_policy_gate(execution,gate_id,actor)
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()

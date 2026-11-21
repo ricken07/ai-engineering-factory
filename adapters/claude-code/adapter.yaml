@@ -37,3 +37,4 @@ mappings:
     record-project-knowledge: core/skills/record-project-knowledge/skill.yaml
   capabilities:
     mcp: adapters/claude-code/mappings/mcp.yaml
+    approval-hook: adapters/claude-code/hooks/approval.json

@@ -104,6 +104,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | [09 — Governance & Versioning](09-governance.md) | Semantic versioning, the published Git tag as the organization's single reference, release process, review requirements for schema/policy/workflow changes, compatibility checks, ownership model | Governance, release managers |
 | [10 — Security Baseline](10-security.md) | Security principles, least privilege, no secrets in prompts, destructive operations, critical changes, permission templates | Security, operators |
 | [20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md) | Policies re-evaluated after impact analysis and planning. Monotonic risk/scope. Escalation audit trail. | Governance, operators |
+| [34 — Human Approval](34-human-approval.md) | Approving gates with `/approve` in the agent session (harness hook) or in a terminal; recorded approver assurance; `OBSERVED` required at critical risk. | Developers, governance, operators |
 
 **What you'll learn:**
 - How to declare policies at Factory, project, repository or task level
@@ -218,7 +219,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | Topic | Primary | Secondary |
 |-------|---------|-----------|
 | **Permissions** | [25 — Agent Permissions](25-agent-permissions.md) | [10 — Security Baseline](10-security.md), [04 — Runtime Model](04-runtime-model.md) |
-| **Policy and Risk** | [05 — Policy Resolution](05-policy-resolution.md) | [20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md), [09 — Governance](09-governance.md) |
+| **Policy and Risk** | [05 — Policy Resolution](05-policy-resolution.md) | [20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md), [34 — Human Approval](34-human-approval.md), [09 — Governance](09-governance.md) |
 | **Organization Practices** | [16 — Org Engineering Context](16-organization-engineering-context.md) | [24 — Organization Knowledge Catalog](24-organization-knowledge-catalog.md), [21 — Effective Context](21-effective-engineering-context.md) |
 | **Context Loading** | [06 — Context & Knowledge Lifecycle](06-context-and-memory.md) | [21 — Effective Context](21-effective-engineering-context.md) |
 | **Task Execution** | [11 — Task Lifecycle](11-lifecycle.md) | [04 — Runtime Model](04-runtime-model.md), [26 — Execution Log](26-task-execution-log.md) |
@@ -252,7 +253,7 @@ The **README** provides:
 
 This **INDEX** provides:
 - Organized navigation by task and use case
-- All 35 reference documents
+- All 36 reference documents
 - Cross-references between related docs
 - Where to start based on your role
 

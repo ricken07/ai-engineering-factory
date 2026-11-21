@@ -3,6 +3,12 @@
 A gate approval carries human accountability, so the Runtime records how the
 approver's identity was established instead of assuming one:
 
+- typed in the agent session and delivered by the harness: the human's
+  `/approve` message reached the Runtime through the harness
+  `UserPromptSubmit` hook before the model saw it (see
+  aief.approval_hook). The harness, not the model, reports the message, so
+  the approval is `OBSERVED`. It is not authentication either: whoever can
+  write to the session's input, or run the hook entry point, can approve.
 - typed at an interactive terminal: the Runtime asked, on the controlling
   terminal of the command, to retype the gate id, and read it there. Agent
   sessions run without a controlling terminal, so the approval is `OBSERVED`
@@ -76,12 +82,18 @@ def human_approval_actor(
     lease: dict[str, Any] | None,
     confirm: Confirm = terminal_confirm,
     env: Mapping[str, str] | None = None,
+    hook: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     env = os.environ if env is None else env
     execution_id = execution["metadata"]["id"]
     agents = agent_identities(execution, lease)
     if approver and approver in agents:
         raise PermissionError(f"an agent identity of this execution cannot approve its gates: {approver}")
+    if hook is not None:
+        os_user = _os_user()
+        return actor_identity(approver or os_user or "human", "human", "harness-hook", "OBSERVED",
+                              channel="harness-hook", execution=execution_id, gate=gate, osUser=os_user,
+                              harness=hook.get("agent"), session=hook.get("session"), prompt=hook.get("prompt"))
     harness = agent_harness(env)
     observations = {"execution": execution_id, "gate": gate, "osUser": _os_user(), "harness": harness}
     if relayed_by or harness:

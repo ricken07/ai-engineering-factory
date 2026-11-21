@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {"hooks": [{"type": "command", "command": "aief approval hook --agent claude-code", "timeout": 120}]}
+    ]
+  }
+}

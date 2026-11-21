@@ -1,5 +1,5 @@
 from __future__ import annotations
-import argparse, json, os
+import argparse, json, os, sys
 from pathlib import Path
 import yaml
 from .yamlio import load_yaml
@@ -97,10 +97,38 @@ def parser() -> argparse.ArgumentParser:
     for name in ("inspect","prepare","verify","status","rollback"):
         command=workspace_sub.add_parser(name); command.add_argument("id"); command.add_argument("--project",default="."); command.add_argument("--factory",default=None); command.add_argument("--json",action="store_true")
         if name in {"prepare","rollback"}: command.add_argument("--execute",action="store_true")
+    approval=sub.add_parser("approval"); approval_sub=approval.add_subparsers(dest="approval_command",required=True)
+    approval_hook=approval_sub.add_parser("hook"); approval_hook.add_argument("--agent",choices=["codex","claude-code"],required=True); approval_hook.add_argument("--factory",default=None)
+    for name in ("install-hook","hook-status"):
+        command=approval_sub.add_parser(name); command.add_argument("--agent",choices=["codex","claude-code"],required=True); command.add_argument("--project",default=".")
     return root
+
+def approval_command(args: argparse.Namespace) -> int:
+    from . import approval_hook
+    if args.approval_command == "hook":
+        # Called by the harness with the human's message as JSON on stdin.
+        try: payload=json.load(sys.stdin)
+        except ValueError: return 0
+        def open_service(cwd: Path) -> RuntimeService:
+            root=find_project(cwd); return RuntimeService(root, resolve_factory(args.factory, root))
+        code,out,err=approval_hook.handle(payload,args.agent,open_service)
+        if out: sys.stdout.write(out)
+        if err: sys.stderr.write(err+"\n")
+        return code
+    root=find_project(Path(args.project))
+    if args.approval_command == "install-hook":
+        path=approval_hook.install(root,args.agent)
+        print(f"approval hook installed in {path}")
+        if args.agent == "codex":
+            print(f"rule installed in {root / approval_hook.CODEX_RULES}; trust the hook with /hooks in Codex")
+        return 0
+    state=approval_hook.installed(root,args.agent)
+    print(f"approval hook for {args.agent}: {'installed' if state else 'absent'} ({root / approval_hook.CONFIG[args.agent]})")
+    return 0 if state else 1
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "approval": return approval_command(args)
     if args.command in {"setup-adapter", "uninstall-adapter", "verify-adapter"}:
         try: args.factory = str(resolve_adapter_factory(args.factory))
         except FileNotFoundError as exc: print(f"ERROR: {exc}"); return 1

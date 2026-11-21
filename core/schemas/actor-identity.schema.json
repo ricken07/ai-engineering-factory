@@ -6,7 +6,7 @@
   "properties": {
     "id": {"type": ["string", "null"]},
     "type": {"enum": ["agent", "runtime", "human", "provider"]},
-    "source": {"enum": ["runtime-session", "adapter", "authenticated-human", "terminal-confirmation", "runtime", "provider", "artifact"]},
+    "source": {"enum": ["runtime-session", "adapter", "authenticated-human", "terminal-confirmation", "harness-hook", "runtime", "provider", "artifact"]},
     "assurance": {"enum": ["DECLARED", "OBSERVED", "TRUSTED", "UNVERIFIED"]},
     "session": {"type": "string"},
     "adapter": {"type": "string"},
@@ -14,9 +14,10 @@
     "model": {"type": "string"},
     "role": {"type": "string"},
     "gate": {"description": "Gate or phase a human approval applies to.", "type": "string"},
-    "channel": {"description": "How a human approval reached the Runtime.", "enum": ["interactive-terminal", "agent-relay", "non-interactive"]},
+    "channel": {"description": "How a human approval reached the Runtime.", "enum": ["interactive-terminal", "harness-hook", "agent-relay", "non-interactive"]},
     "osUser": {"description": "Operating-system account that ran the approval command.", "type": "string"},
     "harness": {"description": "Agent harness detected in the environment of the approval command.", "type": "string"},
+    "prompt": {"description": "Identifier the harness gave the human message that carried an approval.", "type": "string"},
     "relayedBy": {"description": "Lease owner of the agent session that relayed a human approval.", "type": "string"},
     "handoffFrom": {"description": "Owner that handed the execution off (aief execution handoff) before this actor took it.", "type": "string"}
   },

@@ -377,6 +377,24 @@ ls -la "$HOME/.claude/skills/implement"
 If either test fails, the corresponding agent will not be able to discover its
 native `implement` command.
 
+### Enabling `/approve` in the Project
+
+Gate approvals are typed by the human in the agent session (`/approve` in
+Claude Code, `$approve` in Codex). The harness delivers them to the Runtime
+through a project hook; projects created with `aief init` already have it.
+For an existing project:
+
+```bash
+# Adds the UserPromptSubmit hook and the rule that denies its entry point to the agent.
+aief approval install-hook --agent claude-code --project .
+aief approval install-hook --agent codex --project .
+# Exits 0 when the hook is configured.
+aief approval hook-status --agent claude-code --project .
+```
+
+In Codex, trust the hook once with `/hooks`. See
+[34 — Human Approval](34-human-approval.md).
+
 ### Uninstalling or Reinstalling an Adapter
 
 `uninstall-adapter` mirrors `setup-adapter`'s dry-run/`--execute` pattern and

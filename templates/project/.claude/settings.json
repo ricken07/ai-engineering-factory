@@ -64,7 +64,21 @@
       "Bash(git push --force*)",
       "Bash(git reset --hard*)",
       "Bash(git clean -f*)",
-      "Bash(rm -rf *)"
+      "Bash(rm -rf *)",
+      "Bash(aief approval *)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "aief approval hook --agent claude-code",
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }

@@ -37,3 +37,4 @@ mappings:
     record-project-knowledge: core/skills/record-project-knowledge/skill.yaml
   capabilities:
     mcp: adapters/codex/mappings/mcp.yaml
+    approval-hook: adapters/codex/hooks/approval.json

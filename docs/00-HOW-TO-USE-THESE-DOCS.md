@@ -69,6 +69,7 @@ AIEF's documentation is organized by **task and audience**, not by file number. 
 | Import a documentation backlog | [Backlog Import Runtime](30-backlog-import-runtime.md) | [Task Tracking & Provider](17-task-tracking-provider-runtime.md) |
 | Test AIEF or an adapter | [Evaluation Harness](33-evaluation-harness.md) | [Runtime Conformance](33-evaluation-harness.md) |
 | Understand task dependencies | [Task Ordering & Readiness](31-task-ordering-and-readiness.md) | [Task Lifecycle](11-lifecycle.md) |
+| Approve a gate | [Human Approval](34-human-approval.md) | [Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md) |
 | Look up a term | [Glossary](12-glossary.md) | (Usually enough) |
 
 ### 3. By Category (Browse the organized topics)

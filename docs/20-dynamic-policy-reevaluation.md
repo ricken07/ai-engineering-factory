@@ -63,36 +63,11 @@ aief execution approve-policy <execution-id> before-implementation \
 
 ### Approver identity
 
-A gate approval carries human accountability, so the Runtime records how it
-established who approved, on the gate's `actor`, instead of assuming a
-`human`:
-
-| Channel | When | Assurance |
-|---|---|---|
-| `interactive-terminal` | the command has a controlling terminal, outside an agent harness; the Runtime asks there to retype the gate id | `OBSERVED` |
-| `agent-relay` | `--owner` names the agent session holding the lease, or the command runs inside an agent harness (`CLAUDECODE`, `CODEX_SANDBOX`) | `DECLARED` |
-| `non-interactive` | any other call without a terminal | `DECLARED` |
-
-`--approver` names the person; without it, an interactive approval records
-the operating-system account and a relayed one records `human`. The account,
-the detected harness and the relaying session are kept as observations.
-`OBSERVED` is not authentication: it shows that someone typed the
-confirmation at a terminal the agent sessions do not have, not who it was.
-Whatever the channel, an agent identity of the execution (producer,
-reviewer, lease owner, handoff sender) is refused as approver, so a session
-cannot record its own decision as a human one.
-
-The human approval policy sets the minimum assurance. At `critical` risk
-(`approvalAssurance: OBSERVED` in `core/policies/human-approval-policy.yaml`),
-every human approval of the execution, phase approvals and policy gates
-alike, must be typed at a terminal: a relayed or non-interactive approval is
-refused and the gate stays pending. The requirement is carried by the
-`PolicyDecision` (`gates.approvalAssurance`) and the `GovernedExecutionPlan`
-(`requirements.approvalAssurance`), so a reassessment that raises the risk to
-`critical` applies it to the gates still pending. Below `critical`, a
-`DECLARED` approval is accepted and recorded as such.
-
-`before-implementation` protects the implementation phase. `before-commit` and `before-submission` protect submission. Merge remains outside the current local Runtime and therefore cannot be implicitly authorized.
+Every gate approval records how the Runtime established who approved:
+`OBSERVED` when the human typed `/approve` in an agent session with the
+approval hook installed, or approved in their own terminal; `DECLARED` when an
+agent relayed it. At `critical` risk only `OBSERVED` approvals are accepted.
+See [34 — Human Approval](34-human-approval.md).
 
 ## Resolution rules
 

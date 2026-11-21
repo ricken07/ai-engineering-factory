@@ -63,3 +63,10 @@ prefix_rule(
     justification = "Git clean can delete untracked developer files; inspect the workspace instead",
     match = ["git clean -fd", "git clean -fdx"],
 )
+
+# The approval hook (.codex/hooks.json) is run by the Codex harness, never by the agent.
+prefix_rule(
+    pattern = ["aief", "approval"],
+    decision = "forbidden",
+    justification = "Only the harness delivers a human approval to the Runtime",
+)
