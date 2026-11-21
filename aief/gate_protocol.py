@@ -133,6 +133,11 @@ def decision(held: dict[str, Any], outcome: str, at: str, protocol: dict[str, An
     for key, value in (("phase", held.get("phase")), ("trigger", held.get("trigger")), ("rationale", rationale)):
         if value:
             record[key] = value
+    if held.get("integration") and outcome != "expired" and record["waitStartedAt"]:
+        # The integration wait does not hold the execution, so no monotonic
+        # clock measured it: it is derived from the two recorded instants.
+        elapsed = datetime.fromisoformat(record["decidedAt"]) - datetime.fromisoformat(record["waitStartedAt"])
+        record["waitDurationMs"] = {"value": max(0, round(elapsed.total_seconds() * 1000)), "availability": "DERIVED"}
     if evidence is not None:
         record["evidence"] = evidence
     if actor is not None:

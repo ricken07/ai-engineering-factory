@@ -1048,10 +1048,10 @@ class RuntimeService:
             payload={"agent": execution.data.get("agent", {}).get("adapter"), **refusal, "actor": actor})
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any],
-                             evidence: dict[str, Any] | None = None) -> None:
+                             evidence: dict[str, Any] | None = None, held: dict[str, Any] | None = None) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if gate and gate["status"] == "pending":
-            held = next((item for item in gate_protocol.holding_gates(execution.data) if item["gate"] == gate_id),
+            held = held or next((item for item in gate_protocol.holding_gates(execution.data) if item["gate"] == gate_id),
                         {"kind": "policy-gate", "gate": gate_id, "phase": None, "trigger": gate.get("trigger"),
                          "timing": gate.setdefault("timing", {})})
             if evidence is None:
@@ -1204,10 +1204,12 @@ class RuntimeService:
                                    in_session="'/approve' (or '$approve')")
         # Evidence of what the approver decided on, before applying a proposal changes it.
         evidence=self._gate_evidence(execution, {"kind": "policy-gate", "gate": gate_id, "phase": None})
+        # What held the decision, taken before integrating ends the integration wait.
+        held=next((item for item in gate_protocol.holding_gates(execution.data) if item["gate"] == gate_id), None)
         if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
         if gate_id == MERGE_GATE and execution.data.get("integration", {}).get("status") == "awaiting-approval":
             self._integrate(execution, actor)
-        self._approve_policy_gate(execution,gate_id,actor,evidence)
+        self._approve_policy_gate(execution,gate_id,actor,evidence,held)
         if gate_id == MERGE_GATE and execution.data["status"] == "completed":
             bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
             assert_schema(self.factory, "evidence-bundle.schema.json", bundle)

@@ -180,6 +180,9 @@ def test_human_terminal_decides_before_merge_while_an_agent_holds_the_lease(tmp_
         assert current.data["integration"]["status"] == expected
         decision = next(item for item in current.data["gateDecisions"] if item["gate"] == "before-merge")
         assert decision["actor"]["channel"] == "interactive-terminal"
+        # The human wait runs from the integration request to the decision.
+        assert decision["waitStartedAt"] == current.data["integration"]["requestedAt"]
+        assert decision["waitDurationMs"]["availability"] == "DERIVED" and decision["waitDurationMs"]["value"] >= 0
 
 
 def test_an_agent_holding_the_lease_cannot_decide_before_merge(tmp_path: Path, monkeypatch):
