@@ -54,6 +54,9 @@ taskTracking:
 autonomy:
   default: L1
   maximum: L2
+# The default preserves ordinary use; scored research runs explicitly disable waivers.
+review:
+  waivers: enabled
 policyRefs: []
 engineering:
   inheritOrganization: true
