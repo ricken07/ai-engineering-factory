@@ -39,9 +39,9 @@ def _task_reference(text: str) -> str | None:
     """Tracker reference that identifies the task, if the request names one.
 
     An issue URL or a qualified `group/project#42` reference is explicit
-    wherever it appears. A bare key such as `EGW-327` only identifies the task
-    when it is the first or last word of the request (`/fix EGW-327`,
-    "Corrige le bug EGW-327"): in the middle of a sentence it usually names a
+    wherever it appears. A bare key such as `PROJ-327` only identifies the task
+    when it is the first or last word of the request (`/fix PROJ-327`,
+    "Corrige le bug PROJ-327"): in the middle of a sentence it usually names a
     decision, a document or a related item ("la migration ARCH-01 de api"),
     and taking it as the task id would merge unrelated tasks.
     """

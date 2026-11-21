@@ -17,9 +17,9 @@ event:
 factory:
   version: 1.15.0
 project:
-  id: emmany
+  id: sample-project
 task:
-  id: EGW-142
+  id: PROJ-142
 execution:      # absent for request.created and intent.resolved,
   id: exec-142  # which precede Execution creation
 payload: {}     # event-specific data, redacted (see Security)

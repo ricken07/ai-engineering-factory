@@ -1,7 +1,7 @@
 apiVersion: aief.dev/v1alpha1
 kind: IntegrationLock
 metadata:
-  id: emmany-integrations
+  id: sample-project-integrations
 factoryVersion: 1.7.0
 integrations:
 - provider: confluence

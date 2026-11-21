@@ -45,7 +45,7 @@ def evaluation_run(level: str, repeat: int, task: str, repository: str, starting
 
 # --------------------------------------------------------------------------
 # Fixtures — a single minimal, reusable seed project per scenario. Multi-repo
-# scenarios reuse the existing examples/emmany fixture rather than a new one.
+# scenarios reuse the existing examples/sample-project fixture rather than a new one.
 # --------------------------------------------------------------------------
 
 def _seed_project(factory: Path, workdir: Path, *, autonomy: dict[str, str] | None = None,
@@ -127,10 +127,10 @@ def run_ambiguous_request(factory: Path, workdir: Path, agent: str) -> dict[str,
 
 
 def run_multi_repo_change(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
-    project_root = factory / "examples" / "emmany"
+    project_root = factory / "examples" / "sample-project"
     project = load_yaml(project_root / ".ai" / "project.yaml")
-    api = resolve_engineering_context(factory, project_root, project, "egw-api", "implement-change")
-    app = resolve_engineering_context(factory, project_root, project, "egw-app", "implement-change")
+    api = resolve_engineering_context(factory, project_root, project, "backend", "implement-change")
+    app = resolve_engineering_context(factory, project_root, project, "frontend", "implement-change")
     api_ids = {item["id"] for item in api["practices"]}
     app_ids = {item["id"] for item in app["practices"]}
     return {"apiHasJavaConventions": "java-coding-conventions" in api_ids,
@@ -207,21 +207,21 @@ def run_human_gate(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
 
 
 def run_policy_conflict(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
-    project_root = factory / "examples" / "emmany"
+    project_root = factory / "examples" / "sample-project"
     project = copy.deepcopy(load_yaml(project_root / ".ai" / "project.yaml"))
     project["engineering"]["practices"]["secret-management"] = {"mode": "disable"}
     try:
-        resolve_engineering_context(factory, project_root, project, "egw-api", "implement-change")
+        resolve_engineering_context(factory, project_root, project, "backend", "implement-change")
         return {"error": None}
     except PracticeConflict:
         return {"error": "PRACTICE_CONFLICT"}
 
 
 def run_organization_practice_override(factory: Path, workdir: Path, agent: str) -> dict[str, Any]:
-    project_root = factory / "examples" / "emmany"
+    project_root = factory / "examples" / "sample-project"
     project = copy.deepcopy(load_yaml(project_root / ".ai" / "project.yaml"))
     project["engineering"]["practices"]["java-coding-conventions"] = {"mode": "override", "ref": ".ai/context/conventions.md"}
-    context = resolve_engineering_context(factory, project_root, project, "egw-api", "implement-change")
+    context = resolve_engineering_context(factory, project_root, project, "backend", "implement-change")
     practice = next(item for item in context["practices"] if item["id"] == "java-coding-conventions")
     return {"source": practice["source"], "overridden": bool(practice.get("overrides"))}
 
@@ -267,7 +267,7 @@ SCENARIOS: dict[str, Scenario] = {
         Scenario("ambiguous-request", "an ambiguous request with no clear mutating verb", "intake resolves its intent",
                   "analyze-task is selected as the conservative, non-mutating fallback",
                   run_ambiguous_request, lambda o: o["workflow"] == "analyze-task" and o["mutating"] is False),
-        Scenario("multi-repo-change", "a poly-repo project with Java and Flutter repositories", "context is resolved per repository",
+        Scenario("multi-repo-change", "a poly-repo project with Java and React repositories", "context is resolved per repository",
                   "Java conventions reach the Java repository only",
                   run_multi_repo_change, lambda o: o["apiHasJavaConventions"] is True and o["appHasJavaConventions"] is False,
                   agent_parametrized=False),

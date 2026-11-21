@@ -136,12 +136,12 @@ never reaches the pipeline above.
 Create only the normalized task:
 
 ```bash
-aief intake "Corrige le bug EGW-327" --project . --factory /opt/factory/1.7.0 --json
+aief intake "Corrige le bug PROJ-327" --project . --factory /opt/factory/1.7.0 --json
 ```
 
 A tracker reference becomes the task identifier when the request names it as
 such. An issue URL or a qualified `group/project#42` reference counts wherever
-it appears. A bare key such as `EGW-327` counts only as the first or last word
+it appears. A bare key such as `PROJ-327` counts only as the first or last word
 of the request: in the middle of a sentence ("la migration ARCH-01 de api")
 it usually names a decision or a document, and the task gets a local
 identifier instead.
@@ -159,7 +159,7 @@ Order is derived from `dependsOn`, never declared in a side file. See
 Create an execution from a command shortcut:
 
 ```bash
-aief run "/implement EGW-142" --agent codex \
+aief run "/implement PROJ-142" --agent codex \
   --agent-session codex:session-42 --project . --factory /opt/factory/1.7.0
 ```
 
@@ -168,7 +168,7 @@ explicitly agreed to route it through the Factory (`activation.mode: auto`,
 the default):
 
 ```bash
-aief run "Implémente EGW-142" --agent claude-code \
+aief run "Implémente PROJ-142" --agent claude-code \
   --agent-session claude-code:session-7 --activation-confirmed \
   --project . --factory /opt/factory/1.7.0
 ```
@@ -212,11 +212,11 @@ This operation can upgrade a local task from `recommended` to `required`. A requ
 
 | Request | Normalized intent | Workflow | Task kind |
 | --- | --- | --- | --- |
-| `/implement EGW-142` | implement | implement-task | external |
-| `Implémente EGW-142` | implement | implement-task | external |
+| `/implement PROJ-142` | implement | implement-task | external |
+| `Implémente PROJ-142` | implement | implement-task | external |
 | `Les callbacks FAILED restent PENDING, corrige ce bug` | fix | fix-bug | local |
 | `Refactore PaymentOrchestrator sans changer son comportement` | refactor | refactor-code | local |
-| `$test EGW-142` | test | add-tests | external |
+| `$test PROJ-142` | test | add-tests | external |
 | `/review !214` | review | review-change | external |
 | `Explique la gestion des webhooks` | analyze | analyze-task | local informational |
 | `Regarde PaymentOrchestrator` | analyze, ambiguous | analyze-task | local informational |

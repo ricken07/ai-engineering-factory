@@ -20,7 +20,7 @@ The log contains no private reasoning, secrets, or complete conversation transcr
 Example:
 
 ```json
-{"event":{"id":"event-abc123","type":"policy.reclassified","timestamp":"2026-09-02T10:00:00Z"},"factory":{"version":"1.15.0"},"project":{"id":"emmany"},"task":{"id":"EGW-142"},"execution":{"id":"exec-142"},"payload":{"status":"decided","risk":"high","authorizedAutonomy":"L2","requiredGates":["before-implementation"]}}
+{"event":{"id":"event-abc123","type":"policy.reclassified","timestamp":"2026-09-02T10:00:00Z"},"factory":{"version":"1.15.0"},"project":{"id":"sample-project"},"task":{"id":"PROJ-142"},"execution":{"id":"exec-142"},"payload":{"status":"decided","risk":"high","authorizedAutonomy":"L2","requiredGates":["before-implementation"]}}
 ```
 
 Query:

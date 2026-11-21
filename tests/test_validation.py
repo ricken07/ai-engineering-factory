@@ -10,7 +10,7 @@ def test_package_is_valid():
 
 
 def test_project_template_is_valid_against_factory_contracts():
-    assert validate_project(Path("examples/emmany"), Path(".")) == []
+    assert validate_project(Path("examples/sample-project"), Path(".")) == []
 
 
 def test_project_template_includes_valid_agent_permission_baseline():

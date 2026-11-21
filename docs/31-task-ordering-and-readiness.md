@@ -25,9 +25,9 @@ Version 1.15.0 fills this gap without introducing a scheduler: dependency is
 
 ```yaml
 kind: Task
-metadata: {id: EGW-142}
-parent: EGW-100          # hierarchy — does not order or block
-dependsOn: [EGW-141]     # sequence — orders and blocks
+metadata: {id: PROJ-142}
+parent: PROJ-100          # hierarchy — does not order or block
+dependsOn: [PROJ-141]     # sequence — orders and blocks
 objective: {summary: ...}
 ```
 
@@ -88,10 +88,10 @@ The output is a `TaskBacklog` artifact validated against
 
 ```yaml
 kind: TaskBacklog
-project: emmany-gateway
+project: sample-project
 filter: ready
 tasks:
-  - task: EGW-141
+  - task: PROJ-141
     position: 1
     state: pending
     readiness: ready

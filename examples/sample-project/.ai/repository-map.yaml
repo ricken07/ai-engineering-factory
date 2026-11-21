@@ -1,0 +1,15 @@
+apiVersion: aief.dev/v1alpha1
+kind: RepositoryMap
+metadata: {id: sample-project-repositories}
+repositories:
+  backend:
+    responsibilities: [business-api, persistence, external-integrations]
+    exposes: [REST-API]
+    consumes: [external-services]
+  frontend:
+    responsibilities: [user-interface]
+    exposes: []
+    consumes: [backend]
+relationships:
+  - {from: frontend, to: backend, type: REST}
+criticalDomains: [authentication, personal-data]

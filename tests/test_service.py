@@ -24,7 +24,7 @@ def validator(schema_name: str) -> Draft202012Validator:
 def test_runtime_service_creates_schema_valid_execution_and_handoff(tmp_path: Path):
     project = tmp_path / "project"
     initialize(Path("templates/project"), project)
-    execution = RuntimeService(project, Path(".")).start("/implement EGW-142", "codex")
+    execution = RuntimeService(project, Path(".")).start("/implement PROJ-142", "codex")
     assert not list(validator("execution.schema.json").iter_errors(execution.data))
     handoff = yaml.safe_load(execution.handoff(Path(".")).read_text())
     assert not list(validator("handoff.schema.json").iter_errors(handoff))

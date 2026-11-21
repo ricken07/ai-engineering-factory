@@ -1,0 +1,14 @@
+apiVersion: aief.dev/v1alpha1
+kind: MemoryCandidate
+metadata:
+  id: PROJ-142-MC-01
+  name: Normalize external failures
+sourceTask: PROJ-142
+statement: External failure information is normalized before exposure through public contracts.
+evidence:
+- PROJ-142/validation.yaml
+- PROJ-142/review.yaml
+target: project-memory
+rationale: The verified rule applies beyond the source task.
+conflicts: []
+status: proposed

@@ -70,7 +70,7 @@ judge an LLM experiment.
 Un seul projet minimal réutilisable (`templates/project`, via
 `_seed_project`), avec des surcharges ciblées (autonomie, dépôts,
 `taskTracking`) selon le scénario. Les scénarios multi-repo réutilisent
-`examples/emmany`, déjà existant, plutôt que d'introduire une deuxième
+`examples/sample-project`, déjà existant, plutôt que d'introduire une deuxième
 fixture. Chaque scénario est reproductible : mêmes entrées, mêmes sorties,
 sur toute machine (`tests/test_scenarios.py::test_scenarios_are_reproducible_across_independent_runs`).
 

@@ -17,21 +17,21 @@ from aief.service import RuntimeService
 
 
 def test_explicit_and_natural_requests_share_the_same_workflow():
-    command = resolve_intent(create_request("/fix EGW-327"))
-    natural = resolve_intent(create_request("Corrige le bug EGW-327"))
+    command = resolve_intent(create_request("/fix PROJ-327"))
+    natural = resolve_intent(create_request("Corrige le bug PROJ-327"))
     assert command["workflow"] == natural["workflow"] == "fix-bug"
-    assert command["taskReference"] == natural["taskReference"] == "EGW-327"
+    assert command["taskReference"] == natural["taskReference"] == "PROJ-327"
     assert command["source"] == "explicit-command"
 
 
 def test_gitlab_issue_url_and_qualified_reference_are_preserved():
-    url="https://gitlab.com/example-organization/emmany/egw-api/-/issues/42"
+    url="https://gitlab.com/example-organization/sample-project/backend/-/issues/42"
     url_resolution=resolve_intent(create_request(f"/implement {url}"))
     url_task=normalize_task(create_request(f"/implement {url}"),url_resolution)
     assert url_resolution["taskReference"] == url
     assert url_task["source"] == {"type":"issue","reference":url,"provider":"gitlab"}
 
-    qualified="example-organization/emmany/egw-api#42"
+    qualified="example-organization/sample-project/backend#42"
     qualified_task=normalize_task(create_request(f"Corrige {qualified}"),resolve_intent(create_request(f"Corrige {qualified}")))
     assert qualified_task["source"]["reference"] == qualified
     assert qualified_task["source"]["provider"] == "gitlab"
@@ -85,20 +85,20 @@ def test_adapter_expected_workflow_fails_closed(tmp_path):
 
 
 def test_native_command_always_activates_regardless_of_mode():
-    command = resolve_intent(create_request("/implement EGW-1"))
+    command = resolve_intent(create_request("/implement PROJ-1"))
     enforce_activation(command, "auto", confirmed=False)
     enforce_activation(command, "manual", confirmed=False)
 
 
 def test_auto_mode_requires_confirmation_for_natural_language():
-    natural = resolve_intent(create_request("Corrige le bug EGW-1"))
+    natural = resolve_intent(create_request("Corrige le bug PROJ-1"))
     with pytest.raises(ActivationRequired, match="activation.mode is 'auto'"):
         enforce_activation(natural, "auto", confirmed=False)
     enforce_activation(natural, "auto", confirmed=True)
 
 
 def test_manual_mode_never_routes_natural_language_even_when_confirmed():
-    natural = resolve_intent(create_request("Corrige le bug EGW-1"))
+    natural = resolve_intent(create_request("Corrige le bug PROJ-1"))
     with pytest.raises(ActivationDeclined, match="activation.mode is 'manual'"):
         enforce_activation(natural, "manual", confirmed=False)
     with pytest.raises(ActivationDeclined, match="activation.mode is 'manual'"):
@@ -116,8 +116,8 @@ def test_service_reads_activation_mode_from_project_yaml(tmp_path):
 
     service = RuntimeService(project, Path("."))
     with pytest.raises(ActivationDeclined):
-        service.intake("Corrige le bug EGW-1")
-    result = service.intake("/fix EGW-1")
+        service.intake("Corrige le bug PROJ-1")
+    result = service.intake("/fix PROJ-1")
     assert result["intent"]["workflow"] == "fix-bug"
 
 
@@ -127,9 +127,9 @@ def test_service_default_auto_mode_blocks_unconfirmed_natural_language_and_accep
     service = RuntimeService(project, Path("."))
 
     with pytest.raises(ActivationRequired):
-        service.intake("Corrige le bug EGW-1")
+        service.intake("Corrige le bug PROJ-1")
 
-    result = service.intake("Corrige le bug EGW-1", confirmed=True)
+    result = service.intake("Corrige le bug PROJ-1", confirmed=True)
     assert result["intent"]["workflow"] == "fix-bug"
 
 
@@ -137,5 +137,5 @@ def test_a_key_inside_a_sentence_does_not_become_the_task_id():
     mention = resolve_intent(create_request("/document la migration des packages ARCH-01 de api est terminée"))
     assert "taskReference" not in mention
     assert normalize_task(create_request("/document la migration ARCH-01 est terminée"), mention)["metadata"]["id"].startswith("local-")
-    assert resolve_intent(create_request("/fix EGW-327 le webhook est perdu"))["taskReference"] == "EGW-327"
-    assert resolve_intent(create_request("Corrige le bug EGW-327."))["taskReference"] == "EGW-327"
+    assert resolve_intent(create_request("/fix PROJ-327 le webhook est perdu"))["taskReference"] == "PROJ-327"
+    assert resolve_intent(create_request("Corrige le bug PROJ-327."))["taskReference"] == "PROJ-327"

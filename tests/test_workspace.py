@@ -36,7 +36,7 @@ def manager(tmp_path: Path, mode: str = "require-clean", dirty: bool = False):
 
 def test_dirty_workspace_blocks_and_preserves_developer_changes(tmp_path: Path):
     workspace, repo = manager(tmp_path, dirty=True)
-    state = workspace.inspect(["api"], "EGW-142")
+    state = workspace.inspect(["api"], "PROJ-142")
     assert state["decision"]["status"] == "blocked"
     assert state["decision"]["reasons"][0]["reason"] == "unrelated-local-changes"
     assert (repo / "developer.txt").read_text() == "do not touch\n"
@@ -45,40 +45,40 @@ def test_dirty_workspace_blocks_and_preserves_developer_changes(tmp_path: Path):
 
 def test_clean_workspace_requires_explicit_task_branch_creation(tmp_path: Path):
     workspace, repo = manager(tmp_path)
-    plan = workspace.prepare(["api"], "EGW-142")
+    plan = workspace.prepare(["api"], "PROJ-142")
     assert plan["decision"]["status"] == "branch-required"
     assert git(repo, "branch", "--show-current") == "main"
-    prepared = workspace.prepare(["api"], "EGW-142", execute=True)
+    prepared = workspace.prepare(["api"], "PROJ-142", execute=True)
     assert prepared["decision"]["status"] == "ready"
-    assert git(repo, "branch", "--show-current") == "aief/egw-142"
+    assert git(repo, "branch", "--show-current") == "aief/proj-142"
     assert workspace.verify()["status"] == "ready"
 
 
 def test_worktree_mode_isolates_execution_from_original_repository(tmp_path: Path):
     workspace, repo = manager(tmp_path, mode="worktree", dirty=True)
-    planned = workspace.prepare(["api"], "EGW-142")
+    planned = workspace.prepare(["api"], "PROJ-142")
     assert planned["decision"]["status"] == "isolation-required"
-    prepared = workspace.prepare(["api"], "EGW-142", execute=True)
+    prepared = workspace.prepare(["api"], "PROJ-142", execute=True)
     execution_path = Path(prepared["repositories"]["api"]["executionPath"])
     assert execution_path.is_dir()
-    assert git(execution_path, "branch", "--show-current") == "aief/egw-142"
+    assert git(execution_path, "branch", "--show-current") == "aief/proj-142"
     assert git(repo, "branch", "--show-current") == "main"
     assert (repo / "developer.txt").read_text() == "do not touch\n"
 
 
 def test_repeated_worktree_preparation_keeps_the_execution_bound(tmp_path: Path):
     workspace, repo = manager(tmp_path, mode="worktree")
-    prepared = workspace.prepare(["api"], "EGW-142", execute=True)
-    assert workspace.prepare(["api"], "EGW-142", execute=True) == prepared
-    assert workspace.inspect(["api"], "EGW-142")["decision"]["status"] == "isolation-required"
+    prepared = workspace.prepare(["api"], "PROJ-142", execute=True)
+    assert workspace.prepare(["api"], "PROJ-142", execute=True) == prepared
+    assert workspace.inspect(["api"], "PROJ-142")["decision"]["status"] == "isolation-required"
     assert workspace.load() == prepared
 
 
 def test_preparation_adopts_the_worktree_of_a_lost_state(tmp_path: Path):
     workspace, repo = manager(tmp_path, mode="worktree")
-    prepared = workspace.prepare(["api"], "EGW-142", execute=True)
+    prepared = workspace.prepare(["api"], "PROJ-142", execute=True)
     workspace.state_path.unlink()
-    again = workspace.prepare(["api"], "EGW-142", execute=True)
+    again = workspace.prepare(["api"], "PROJ-142", execute=True)
     assert again["decision"]["status"] == "ready" and again["operations"][0]["adopted"] is True
     assert again["repositories"]["api"]["executionPath"] == prepared["repositories"]["api"]["executionPath"]
 
@@ -97,7 +97,7 @@ def test_polyrepo_snapshot_blocks_if_one_repository_is_dirty(tmp_path: Path):
     execution=root/".ai/runtime/executions/exec-1"; execution.mkdir(parents=True)
     project={"workspaceSafety":{"mode":"require-clean"},"repositories":[
         {"id":"api","path":"api","role":"backend"},{"id":"app","path":"app","role":"frontend"}]}
-    state=WorkspaceManager(root,project,execution).inspect(["api","app"],"EGW-142")
+    state=WorkspaceManager(root,project,execution).inspect(["api","app"],"PROJ-142")
     assert state["repositories"]["api"]["clean"] is True
     assert state["repositories"]["app"]["clean"] is False
     assert state["decision"]["status"] == "blocked"
@@ -106,7 +106,7 @@ def test_polyrepo_snapshot_blocks_if_one_repository_is_dirty(tmp_path: Path):
 def test_wrong_base_branch_blocks_strict_mode(tmp_path: Path):
     workspace, repo = manager(tmp_path)
     git(repo, "switch", "-c", "developer-work")
-    state = workspace.inspect(["api"], "EGW-142")
+    state = workspace.inspect(["api"], "PROJ-142")
     assert state["decision"]["status"] == "blocked"
     assert state["decision"]["reasons"][0]["reason"] == "wrong-base-branch"
 
@@ -117,7 +117,7 @@ def test_worktree_uses_configured_base_commit_not_developer_head(tmp_path: Path)
     git(repo, "switch", "-c", "developer-work")
     (repo / "developer-commit.txt").write_text("private\n")
     git(repo, "add", "developer-commit.txt"); git(repo, "commit", "-m", "developer work")
-    state = workspace.prepare(["api"], "EGW-142", execute=True)
+    state = workspace.prepare(["api"], "PROJ-142", execute=True)
     isolated = Path(state["repositories"]["api"]["executionPath"])
     assert git(isolated, "rev-parse", "HEAD") == base
     assert not (isolated / "developer-commit.txt").exists()
@@ -125,7 +125,7 @@ def test_worktree_uses_configured_base_commit_not_developer_head(tmp_path: Path)
 
 def test_rollback_only_removes_clean_execution_owned_worktree(tmp_path: Path):
     workspace, repo = manager(tmp_path, mode="worktree")
-    state = workspace.prepare(["api"], "EGW-142", execute=True)
+    state = workspace.prepare(["api"], "PROJ-142", execute=True)
     isolated = Path(state["repositories"]["api"]["executionPath"])
     plan = workspace.rollback()
     assert isolated.exists() and plan["rollbackOperations"][0]["command"][1:3] == ["worktree", "remove"]
@@ -136,7 +136,7 @@ def test_rollback_only_removes_clean_execution_owned_worktree(tmp_path: Path):
 
 def test_rollback_refuses_to_discard_execution_changes(tmp_path: Path):
     workspace, _ = manager(tmp_path, mode="worktree")
-    state = workspace.prepare(["api"], "EGW-142", execute=True)
+    state = workspace.prepare(["api"], "PROJ-142", execute=True)
     isolated = Path(state["repositories"]["api"]["executionPath"])
     (isolated / "agent-change.txt").write_text("keep\n")
     with pytest.raises(RuntimeError, match="rollback refused"):
@@ -147,7 +147,7 @@ def test_rollback_refuses_to_discard_execution_changes(tmp_path: Path):
 def test_workspace_snapshot_is_schema_valid(tmp_path: Path):
     from aief.validation import assert_schema
     workspace, _ = manager(tmp_path)
-    state = workspace.inspect(["api"], "EGW-142")
+    state = workspace.inspect(["api"], "PROJ-142")
     assert_schema(Path("."), "workspace-snapshot.schema.json", state)
 
 
@@ -165,10 +165,10 @@ def module_manager(tmp_path: Path, mode: str = "require-clean"):
 
 def test_modules_sharing_one_git_root_share_one_task_branch(tmp_path: Path):
     workspace, root = module_manager(tmp_path)
-    state = workspace.prepare(["api", "app"], "EGW-142", execute=True)
+    state = workspace.prepare(["api", "app"], "PROJ-142", execute=True)
     assert state["decision"]["status"] == "ready"
     assert len(state["operations"]) == 1
-    assert git(root, "branch", "--show-current") == "aief/egw-142"
+    assert git(root, "branch", "--show-current") == "aief/proj-142"
     assert {item["gitRoot"] for item in state["repositories"].values()} == {str(root.resolve())}
     assert workspace.verify()["status"] == "ready"
     assert workspace.rollback(execute=True)["decision"]["status"] == "rolled-back"
@@ -177,7 +177,7 @@ def test_modules_sharing_one_git_root_share_one_task_branch(tmp_path: Path):
 
 def test_modules_sharing_one_git_root_share_one_worktree(tmp_path: Path):
     workspace, root = module_manager(tmp_path, mode="worktree")
-    state = workspace.prepare(["api", "app"], "EGW-142", execute=True)
+    state = workspace.prepare(["api", "app"], "PROJ-142", execute=True)
     assert len(state["operations"]) == 1
     api, app = state["repositories"]["api"], state["repositories"]["app"]
     assert api["worktreeRoot"] == app["worktreeRoot"]
@@ -191,5 +191,5 @@ def test_modules_sharing_one_git_root_share_one_worktree(tmp_path: Path):
 def test_dirty_module_blocks_every_module_of_the_shared_root(tmp_path: Path):
     workspace, root = module_manager(tmp_path)
     (root / "app" / "wip.txt").write_text("developer change\n")
-    state = workspace.inspect(["api"], "EGW-142")
+    state = workspace.inspect(["api"], "PROJ-142")
     assert state["decision"]["status"] == "blocked"

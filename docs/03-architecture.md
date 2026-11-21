@@ -45,7 +45,7 @@ Forbidden:
 Core -> Spring
 Core -> GitLab
 Core -> Claude Code
-Core -> Emmany
+Core -> Project
 ```
 
 ## Filesystem layout

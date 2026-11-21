@@ -7,7 +7,7 @@ INTENT_WORKFLOW = {
     "document":"update-documentation", "promote":"promote-knowledge",
 }
 def test_commands_and_language_select_same_workflow():
-    assert select_workflow("/implement EGW-142") == select_workflow("implement EGW-142") == "implement-task"
+    assert select_workflow("/implement PROJ-142") == select_workflow("implement PROJ-142") == "implement-task"
 def test_adapters_resolve_every_public_intent():
     for adapter in ("codex", "claude-code"):
         for workflow in INTENTS.values(): assert adapter_mapping(ROOT, adapter, workflow).is_file()

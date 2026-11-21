@@ -1,0 +1,16 @@
+apiVersion: aief.dev/v1alpha1
+kind: Handoff
+metadata:
+  id: handoff-PROJ-142-001
+task: PROJ-142
+execution: exec-PROJ-142-001
+status: waiting-approval
+summary: Impact analysis and implementation plan completed for backend and frontend.
+decisions:
+  - Normalize external failure reasons before exposing them to the frontend.
+constraints:
+  - Do not expose raw external error payloads.
+artifacts: [impact-analysis, implementation-plan]
+openQuestions: []
+nextActions:
+  - Obtain required approval before implementation if the effective policy requires it.

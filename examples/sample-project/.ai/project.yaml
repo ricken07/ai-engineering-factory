@@ -1,8 +1,8 @@
 apiVersion: aief.dev/v1alpha1
 kind: Project
 metadata:
-  id: emmany
-  name: Emmany Application
+  id: sample-project
+  name: Sample Project
 factory:
   version: 1.0.0
   homeEnv: AI_FACTORY_HOME
@@ -16,30 +16,30 @@ workspaceSafety:
 activation:
   mode: auto
 repositories:
-  - id: egw-api
-    path: ./egw-api
+  - id: backend
+    path: ./backend
     role: backend-api
     profiles: [java, spring, maven]
-    responsibilities: [payment-orchestration, transactions, webhooks, provider-integrations]
+    responsibilities: [business-api, persistence, external-integrations]
     dependencies: []
-    criticalDomains: [payment, payout, authentication, transaction]
+    criticalDomains: [authentication, personal-data]
     git:
       baseBranch: main
     engineering:
       practices:
         hexagonal-architecture: {mode: enable}
-        payment-module-conventions:
+        module-conventions:
           mode: enable
           category: convention
-          ref: .ai/context/payment-module-conventions.md
-  - id: egw-app
-    path: ./egw-app
+          ref: .ai/context/module-conventions.md
+  - id: frontend
+    path: ./frontend
     role: application
-    profiles: [flutter]
-    responsibilities: [merchant-experience, transaction-visualization]
+    profiles: [react]
+    responsibilities: [user-interface]
     dependencies:
-      - {repository: egw-api, type: REST}
-    criticalDomains: [transaction]
+      - {repository: backend, type: REST}
+    criticalDomains: [personal-data]
     git:
       baseBranch: main
 context:

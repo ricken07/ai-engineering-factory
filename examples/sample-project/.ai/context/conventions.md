@@ -1,4 +1,4 @@
-# Emmany Conventions — Example
+# Sample Project Conventions — Example
 
 - Start agent sessions at workspace root when the task may span repositories.
 - Keep one functional task identity across all impacted repositories.

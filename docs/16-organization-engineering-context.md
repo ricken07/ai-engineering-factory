@@ -72,10 +72,10 @@ repositories:
     engineering:
       practices:
         hexagonal-architecture: {mode: enable}
-        payment-module-conventions:
+        module-conventions:
           mode: enable
           category: convention
-          ref: .ai/context/payment-module-conventions.md
+          ref: .ai/context/module-conventions.md
 ```
 
 Supported modes are `inherit`, `enable`, `disable` and `override`. A local practice requires a document and category. Paths must remain inside the project workspace.
@@ -108,8 +108,8 @@ engineeringContext:
 Inspect a repository/Skill context without an Execution:
 
 ```bash
-aief engineering-context egw-api review-change \
-  --project examples/emmany \
+aief engineering-context backend review-change \
+  --project examples/sample-project \
   --factory /factory/1.7.0
 ```
 
@@ -117,7 +117,7 @@ Resolve and persist it for the current execution phase:
 
 ```bash
 aief execution engineering-context <execution-id> \
-  --repository egw-api \
+  --repository backend \
   --project . \
   --factory /factory/1.7.0
 ```
@@ -143,9 +143,9 @@ Profile-driven validation resolves and persists this context automatically befor
 
 ## Example: cross-repository implementation
 
-For `egw-api`, Java/Spring practices, mandatory security/testing, enabled API/hexagonal architecture, project documents and payment conventions are composed.
+For `backend`, Java/Spring practices, mandatory security/testing, enabled API/hexagonal architecture, project documents and payment conventions are composed.
 
-For `egw-app`, Java/Spring/hexagonal practices are excluded because its profile is Flutter. Mandatory applicable practices and project documents remain available.
+For `frontend`, Java/Spring/hexagonal practices are excluded because its profile is React. Mandatory applicable practices and project documents remain available.
 
 The same workflow and agent can therefore operate with two precise contexts without mixing stack-specific conventions.
 

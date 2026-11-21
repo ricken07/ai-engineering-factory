@@ -5,7 +5,7 @@
 The developer starts the coding agent from the project workspace:
 
 ```text
-~/workspace/emmany/
+~/workspace/sample-project/
 ```
 
 not from the Factory repository.
@@ -47,12 +47,12 @@ Recommended workstation layout:
 └── 1.0.0/
 
 ~/workspace/
-└── emmany/
+└── sample-project/
     ├── .ai/
     ├── AGENTS.md
     ├── CLAUDE.md
-    ├── egw-api/.git/
-    └── egw-app/.git/
+    ├── backend/.git/
+    └── frontend/.git/
 ```
 
 The project pins a Factory version. Multiple projects may use different Factory versions concurrently.

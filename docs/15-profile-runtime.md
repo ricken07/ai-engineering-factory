@@ -94,14 +94,14 @@ The Runtime executes commands only when:
 
 ## Poly-repository example
 
-For an Emmany change affecting `egw-api` and `egw-app`:
+For a change affecting a `backend` and a `mobile` repository:
 
 ```text
-egw-api [java, spring, maven]
+backend [java, spring, maven]
   → ./mvnw verify
   → ./mvnw test
 
-egw-app [flutter]
+mobile [flutter]
   → flutter test
   → flutter analyze
 ```

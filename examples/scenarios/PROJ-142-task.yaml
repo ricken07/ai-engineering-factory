@@ -1,20 +1,20 @@
 apiVersion: aief.dev/v1alpha1
 kind: Task
 metadata:
-  id: EGW-142
+  id: PROJ-142
 objective:
-  summary: Display a failure reason for a failed transaction
+  summary: Display a failure reason for a failed request
   acceptanceCriteria:
-    - A merchant can see a normalized failure reason for a failed transaction.
+    - A user can see a normalized failure reason for a failed request.
 source:
   type: issue
   provider: task-provider
-  reference: EGW-142
+  reference: PROJ-142
 scope:
   repositories: []
 classification:
   risk: unknown
-  domains: [transaction]
+  domains: [personal-data]
   changeTypes: [source-code, interface-contract]
 autonomy:
   requested: L3

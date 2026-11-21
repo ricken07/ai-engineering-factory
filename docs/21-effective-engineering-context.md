@@ -102,11 +102,11 @@ For an active Execution, context is materialized automatically by `aief executio
 It may also be inspected explicitly:
 
 ```bash
-aief engineering-context egw-api implement-change \
-  --task EGW-142 \
+aief engineering-context backend implement-change \
+  --task PROJ-142 \
   --project . \
   --factory /factory/1.11.0 \
   --json
 ```
 
-In a poly-repo task, the Runtime creates one effective context per repository. `egw-api` can receive Java/Spring/Maven practices while `egw-app` receives Flutter practices for the same Task and phase.
+In a poly-repo task, the Runtime creates one effective context per repository. `backend` can receive Java/Spring/Maven practices while `frontend` receives React practices for the same Task and phase.

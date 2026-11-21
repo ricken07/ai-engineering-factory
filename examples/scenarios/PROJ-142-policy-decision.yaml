@@ -1,11 +1,11 @@
 apiVersion: aief.dev/v1alpha1
 kind: PolicyDecision
 metadata:
-  id: policy-EGW-142-001
-task: EGW-142
+  id: policy-PROJ-142-001
+task: PROJ-142
 risk:
   effective: high
-  reasons: [transaction-domain, cross-repository-impact]
+  reasons: [personal-data-domain, cross-repository-impact]
 autonomy:
   requested: L3
   authorized: L2

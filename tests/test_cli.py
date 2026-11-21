@@ -4,11 +4,11 @@ import yaml
 from aief.cli import main
 
 def test_inspect_example(capsys):
-    assert main(["inspect", "examples/emmany", "--json"]) == 0
-    assert '"id": "emmany"' in capsys.readouterr().out
+    assert main(["inspect", "examples/sample-project", "--json"]) == 0
+    assert '"id": "sample-project"' in capsys.readouterr().out
 
 def test_doctor_example():
-    assert main(["doctor", "examples/emmany"]) == 0
+    assert main(["doctor", "examples/sample-project"]) == 0
 
 def test_init(tmp_path: Path):
     destination = tmp_path / "demo"
@@ -109,7 +109,7 @@ def test_task_inspect_accepts_explicit_factory_path(tmp_path: Path, capsys):
     assert '"id": "DEMO-42"' in capsys.readouterr().out
 
 def test_engineering_context_command(capsys):
-    assert main(["engineering-context","egw-api","review-change","--project","examples/emmany","--factory",".","--json"]) == 0
+    assert main(["engineering-context","backend","review-change","--project","examples/sample-project","--factory",".","--json"]) == 0
     output = capsys.readouterr().out
     assert '"kind": "EffectiveEngineeringContext"' in output
     assert '"id": "organization-code-review"' in output

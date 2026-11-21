@@ -49,7 +49,7 @@ integrations:
 
 taskTracking:
   mode: external
-  namespace: example-organization/emmany
+  namespace: example-organization/sample-project
   referenceFormat: container-iid
   workflowStates:
     - workflow::backlog
@@ -70,13 +70,13 @@ adapters.
 A `#42` reference is ambiguous in a polyrepo workspace. Use:
 
 ```text
-example-organization/emmany/egw-api#42
+example-organization/sample-project/backend#42
 ```
 
 or the full URL:
 
 ```text
-https://gitlab.com/example-organization/emmany/egw-api/-/issues/42
+https://gitlab.com/example-organization/sample-project/backend/-/issues/42
 ```
 
 The Runtime preserves the complete reference as canonical identity.
@@ -91,7 +91,7 @@ sourceTask: local-...
 title: Fix the Homework contract
 description: ...
 acceptanceCriteria: [...]
-repositories: [egw-api, egw-app]
+repositories: [backend, frontend]
 risk: high
 target:
   container: app

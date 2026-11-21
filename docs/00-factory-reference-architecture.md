@@ -193,7 +193,7 @@ project/
         └── executions/       # Phases, artifacts and decisions
 ```
 
-The `emmany-coming-soon` folder, an experimental repository or any other
+An experimental directory, a prototype repository or any other
 undeclared directory remains out of scope. The absence of an entry in
 `repositories` does not grant the Runtime the right to modify it.
 
@@ -214,7 +214,7 @@ sequenceDiagram
     participant M as MCP/provider
     participant FS as Git/workspace
 
-    D->>A: /implement EGW-142 or natural request
+    D->>A: /implement PROJ-142 or natural request
     A->>AD: transmit request and agent identity
     AD->>R: create Request / Intent / Task
     R->>P: discover root and load .ai/project.yaml
