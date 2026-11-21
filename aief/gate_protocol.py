@@ -82,10 +82,18 @@ def of_execution(execution: dict[str, Any]) -> dict[str, Any]:
 
 
 def holding_gates(execution: dict[str, Any]) -> list[dict[str, Any]]:
-    """Gates currently holding the execution and waiting for a human decision."""
+    """Gates currently holding the execution and waiting for a human decision.
+
+    A cancelled or failed execution waits for nothing: the Runtime cancels it
+    without reopening the phase that held it, so its gate is decided or
+    closed, never waiting."""
     held = []
+    if execution.get("status") in {"cancelled", "failed"}:
+        return held
     for phase in execution.get("phases", []):
-        if phase.get("status") == "waiting-approval" and "gateTiming" in phase:
+        timing_record = phase.get("gateTiming") or {}
+        if phase.get("status") == "waiting-approval" and "gateTiming" in phase \
+                and not timing_record.get("decidedAt") and not timing_record.get("closedAt"):
             timing = phase["gateTiming"].get("timing", phase["gateTiming"])
             held.append({"kind": "phase-gate", "gate": phase["gateTiming"].get("gate", "phase-gate"),
                          "phase": phase["id"], "trigger": f"phase:{phase['id']}", "timing": timing})

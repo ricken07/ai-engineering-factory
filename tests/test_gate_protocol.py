@@ -399,3 +399,18 @@ def test_expected_hash_needs_its_bound_file(tmp_path: Path):
     plan, _ = bound_files(tmp_path)
     with pytest.raises(ValueError, match="expected SHA-256 needs the bound file"):
         service.start("Implémente une évolution locale", confirmed=True, bound_plan=plan, expected_verification_sha256="a" * 64)
+
+
+def test_a_rejected_or_expired_plan_gate_no_longer_waits(tmp_path: Path):
+    from aief.timing import FakeClock
+    clock = FakeClock(datetime(2026, 11, 21, 9, 0, tzinfo=timezone.utc))
+    service = service_with(tmp_path / "rejected", {"responseLimitMinutes": 30}, clock)
+    rejected = at_plan_gate(service)
+    service.reject_gate(rejected, "mismatch: plan:frozen", approver="approver-b")
+    assert service.gate_check(rejected)["gates"] == []
+    service = service_with(tmp_path / "expired", {"responseLimitMinutes": 30}, clock)
+    expired = at_plan_gate(service)
+    clock.advance(milliseconds=31 * 60_000)
+    first = service.gate_check(expired)
+    assert first["status"] == "cancelled" and first["gates"] == [] and "cancelled" in first["expired"]
+    assert service.gate_check(expired)["gates"] == []
