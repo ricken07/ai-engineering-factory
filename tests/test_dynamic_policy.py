@@ -564,3 +564,19 @@ def test_a_waived_finding_accepts_the_criteria_it_names(tmp_path: Path):
             {"id":"AC-3","status":"verified","evidence":["review:z"]}]
     criteria=[{"id":"AC-1","statement":"a"},{"id":"AC-2","statement":"b"},{"id":"AC-3","statement":"c"}]
     assert evidence_matrix_gaps(criteria,matrix,None,{"AC-1","AC-3"}) == ["evidence matrix item AC-2 is not verified"]
+
+
+def test_approving_the_last_phase_produces_the_evidence_bundle(tmp_path: Path):
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    current=service.execution(identifier)
+    last=current.data["phases"][-1]
+    for item in current.data["phases"][:-1]:
+        item["status"]="completed"
+    last.update({"status":"waiting-approval","gate":last.get("gate") or {"id":"submission-gate"}})
+    current.data["status"]="waiting-approval"; current.save()
+    service.approve_execution(identifier,approver="alice")
+    current=service.execution(identifier)
+    assert current.data["status"] == "completed"
+    assert (current.root/"evidence-bundle.yaml").is_file() and "evidence-bundle.yaml" in current.data["artifacts"]
+    completed=[event for event in service.task_events(current.data["task"]) if event["event"]["type"] == "execution.completed"]
+    assert completed and completed[-1]["payload"]["evidenceBundle"].startswith("sha256:")

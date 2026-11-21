@@ -426,14 +426,7 @@ class RuntimeService:
             self._rework(execution, rework_from, phase, output, events)
             return execution
         if execution.data["status"] == "completed":
-            bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
-            assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
-            self._append_closed_gates(execution, events)
-            events.append(
-                "execution.completed", execution=execution_id,
-                payload={"agent": execution.data.get("agent", {}).get("adapter"),
-                         "workflow": execution.data["workflow"]},
-            )
+            self._complete_execution(execution, events)
         if completed_skill == "analyze-impact" and output.get("status") == "completed":
             observations={key:observations[key] for key in ("risk","repositories","changeTypes","domains") if key in observations}
             observations["risk"]=execution.data.get("risk",observations.get("risk","unknown"))
@@ -758,13 +751,23 @@ class RuntimeService:
                      "approvedBy":actor["id"], "gate":gate_name, "actor": actor},
         )
         if execution.data["status"] == "completed":
-            self._append_closed_gates(execution, events)
-            events.append(
-                "execution.completed", execution=execution_id,
-                payload={"agent": execution.data.get("agent", {}).get("adapter"),
-                         "workflow": execution.data["workflow"]},
-            )
+            self._complete_execution(execution, events)
         return execution
+
+    def _complete_execution(self, execution: Execution, events: Any) -> None:
+        """Consolidate the evidence of an Execution that just completed,
+        whichever transition completed it (a phase output or a human approval
+        of the last phase), then close its gates and record the completion."""
+        bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
+        assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
+        if "evidence-bundle.yaml" not in execution.data["artifacts"]:
+            execution.data["artifacts"].append("evidence-bundle.yaml"); execution.save()
+        self._append_closed_gates(execution, events)
+        events.append(
+            "execution.completed", execution=execution.data["metadata"]["id"],
+            payload={"agent": execution.data.get("agent", {}).get("adapter"),
+                     "workflow": execution.data["workflow"], "evidenceBundle": bundle["fingerprint"]},
+        )
 
     @staticmethod
     def _phase_gate_id(phase: dict[str, Any] | None) -> str:
