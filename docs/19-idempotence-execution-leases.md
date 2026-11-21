@@ -39,10 +39,6 @@ aief execution complete-phase <execution-id> \
   --output understanding.yaml \
   --operation-id complete-understand-001 \
   --owner codex:session-42
-
-aief execution approve <execution-id> \
-  --operation-id approve-plan-001 \
-  --owner codex:session-42
 ```
 
 The first call records a `RuntimeOperation`. Repeating the same operation ID with identical input returns the recorded result without advancing again. Reusing it with different input fails with an idempotency conflict. Failed operations retain their ID and may be retried; an operation still marked `running` cannot execute concurrently.

@@ -3,16 +3,16 @@ kind: Policy
 metadata: {id: human-approval-policy, name: Human Approval Policy, version: 0.1.0}
 scope: factory
 priority: 100
+# Rules decide which gates a human must approve. How the approval must reach
+# the Runtime is not a policy setting: every human approval must be OBSERVED
+# (approval hook or terminal, see aief.approval), at every risk level.
 rules:
   - id: critical-gates
     when: {risk: critical}
-    # Every human approval of a high or critical execution reaches the
-    # Runtime from the human (approval hook or terminal, see aief.approval):
-    # a decision relayed by an agent is not enough.
-    effect: {requireApproval: [before-implementation, before-commit, before-submission, before-merge], approvalAssurance: OBSERVED}
+    effect: {requireApproval: [before-implementation, before-commit, before-submission, before-merge]}
   - id: high-gates
     when: {risk: high}
-    effect: {requireApproval: [before-commit, before-submission, before-merge], approvalAssurance: OBSERVED}
+    effect: {requireApproval: [before-commit, before-submission, before-merge]}
   - id: medium-gates
     when: {risk: medium}
     effect: {requireApproval: [before-merge]}

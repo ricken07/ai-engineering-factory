@@ -149,15 +149,15 @@ Runtime executes the commands and writes the validation report itself. Never
 submit a `validate-change` output with `complete-phase`; the Runtime refuses
 it. Do not construct
 stack commands in the adapter. For governed actions, wait for the Runtime gate
-and never approve a gate yourself. Tell the human which execution and gate
-wait, and that they approve by typing `/approve` in this session. When your
-context then contains `AIEF: the human approved ...`, the approval hook
-already recorded it: run no approval command and continue with `aief
-execution next`. Without that line the hook is not active: relay the approval
-with `--owner` (never your identity as `--approver`); the Runtime records it as
-`DECLARED` and refuses it at `high` or `critical` risk, in which case give the human the
-exact `aief execution approve-policy` or `aief execution approve` command to
-run in their own terminal, and wait. See `docs/34-human-approval.md`.
+and never approve a gate yourself: never run `aief execution approve` or
+`aief execution approve-policy`. The Runtime refuses an approval relayed by an
+agent session at every risk level and records the refusal. Tell the human
+which execution and gate wait, and that they approve by typing `/approve` in this
+session. When your context then contains `AIEF: the human approved ...`, the
+approval hook recorded it: continue with `aief execution next`. Without that
+line nothing was approved: give the human the exact `aief execution
+approve-policy` (or `aief execution approve`) command to run in their own
+terminal, and wait. See `docs/34-human-approval.md`.
 
 When `execution next` reports `blocked` because the current phase's
 `recovery.status` is `waiting-user`, do not resolve the question in

@@ -143,12 +143,11 @@ def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[s
             allowed.update(rule["effect"].get("allow",[])); matched.append(rule["id"])
     all_actions={action for rule in autonomy_policy["rules"] for action in rule.get("effect",{}).get("allow",[])}
     gate_policy=yaml.safe_load((factory/"core/policies/human-approval-policy.yaml").read_text(encoding="utf-8"))
-    gates: set[str]=set(); approval_assurance="DECLARED"
+    gates: set[str]=set()
     for rule in gate_policy["rules"]:
         when=rule.get("when",{})
         if when.get("risk") == effective:
             gates.update(rule["effect"].get("requireApproval",[])); matched.append(rule["id"])
-            if rule["effect"].get("approvalAssurance") == "OBSERVED": approval_assurance="OBSERVED"
     layered = resolve_policy(requested, [
         {"source":"risk", "risk":effective, "maximumAutonomy":risk_limit}, *constraints,
     ])
@@ -159,7 +158,7 @@ def evaluate_runtime_policy(factory: Path, project: dict[str, Any], task: dict[s
     denied = sorted(set(all_actions - set(allowed)) | set(layered.deniedActions))
     allowed = sorted(set(allowed) - set(denied))
     return {"effectiveRisk":layered.effectiveRisk,"requestedAutonomy":requested,"authorizedAutonomy":layered.authorizedAutonomy,
-            "allowedActions":allowed,"deniedActions":denied,"requiredGates":sorted(gates | set(layered.requiredGates)),"approvalAssurance":approval_assurance,
+            "allowedActions":allowed,"deniedActions":denied,"requiredGates":sorted(gates | set(layered.requiredGates)),"approvalAssurance":"OBSERVED",
             "matchedRules":sorted(set(matched)),"observations":{"repositories":repositories,"domains":sorted(domains),"changeTypes":sorted(change_types)},
             "reasons":[f"effective risk is {layered.effectiveRisk}",f"authorized autonomy is {layered.authorizedAutonomy}"],
             "provenance": layered.reasons}

@@ -192,12 +192,16 @@ When the Runtime requires human validation, the agent must:
 
 1. stop Execution progression;
 2. present the phase, action, and risk involved;
-3. ask for an explicit decision;
-4. record approval or rejection;
-5. resume the same Execution, without creating a new one.
+3. ask the developer to approve by typing `/approve` (Claude Code) or
+   `$approve` (Codex);
+4. once the approval hook has delivered it to the Runtime, resume the same
+   Execution, without creating a new one.
 
-Responding in natural language is sufficient. The developer does not call
-`aief execution approve` themselves: the adapter translates their decision.
+A natural-language answer such as "I approve" is not an approval: the agent
+cannot record it, and the Runtime refuses any approval relayed by an agent.
+Without the approval hook, the developer approves in their own terminal with
+`aief execution approve-policy <execution-id> <gate> --approver <name>`. See
+[34 — Human Approval](34-human-approval.md).
 
 ## 8. Resumption by Another Agent
 

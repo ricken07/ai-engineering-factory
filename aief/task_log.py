@@ -15,7 +15,7 @@ EVENT_TYPES = {
     "request.created", "intent.resolved", "task.normalized", "workflow.started",
     "phase.started", "phase.completed", "phase.failed",
     "policy.evaluated", "policy.reclassified",
-    "gate.requested", "gate.approved", "gate.rejected", "gate.closed",
+    "gate.requested", "gate.approved", "gate.approval-refused", "gate.rejected", "gate.closed",
     "workspace.prepared", "workspace.blocked", "proposal.checked",
     "integration.resolved", "integration.failed",
     "execution.completed", "execution.failed", "execution.cancelled",

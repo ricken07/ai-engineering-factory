@@ -1,10 +1,12 @@
 """Identity of the human who approves a gate.
 
-A gate approval carries human accountability, so the Runtime records how the
-approver's identity was established instead of assuming one:
+A gate approval carries human accountability, so the Runtime establishes how
+the approval reached it instead of assuming a human. Only the first two
+channels are `OBSERVED` and let a gate pass; the others are classified so the
+Runtime can refuse them and record the refusal:
 
-- typed in the agent session and delivered by the harness: the human's
-  `/approve` message reached the Runtime through the harness
+- typed in the agent session and delivered by the coding agent harness: the
+  human's `/approve` message reached the Runtime through the harness
   `UserPromptSubmit` hook before the model saw it (see
   aief.approval_hook). The harness, not the model, reports the message, so
   the approval is `OBSERVED`. It is not authentication either: whoever can
@@ -16,9 +18,9 @@ approver's identity was established instead of assuming one:
   does not prove who sat at the terminal, and a determined process can
   allocate a pseudo-terminal.
 - relayed by an agent session (the caller holds the execution lease, or runs
-  inside an agent harness): the agent reports a human decision the Runtime did
-  not see, so the approver is `DECLARED`.
-- any other non-interactive call: the caller's claim is `DECLARED`.
+  inside a coding agent harness): the agent reports a human decision the
+  Runtime did not see; `DECLARED`, refused.
+- any other non-interactive call: the caller's claim is `DECLARED`, refused.
 
 Whatever the channel, an agent identity of the execution (producer, reviewer,
 lease owner, handoff) can never be recorded as the approver.
@@ -32,6 +34,11 @@ from typing import Any, Callable, Mapping
 from .identity import actor_identity
 
 Confirm = Callable[[str], "str | None"]
+
+# A human gate passes only on an approval the Runtime observed coming from the
+# human. The level is a Runtime invariant, not a policy setting: no
+# governance layer can lower it (restrictive composition).
+REQUIRED_ASSURANCE = "OBSERVED"
 
 # Environment markers that agent harnesses set for the commands they run.
 HARNESS_MARKERS = {

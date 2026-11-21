@@ -63,11 +63,11 @@ aief execution approve-policy <execution-id> before-implementation \
 
 ### Approver identity
 
-Every gate approval records how the Runtime established who approved:
-`OBSERVED` when the human typed `/approve` in an agent session with the
-approval hook installed, or approved in their own terminal; `DECLARED` when an
-agent relayed it. At `high` and `critical` risk only `OBSERVED` approvals are accepted.
-See [34 — Human Approval](34-human-approval.md).
+Policy decides which gates require a human; it never relaxes how the approval
+reaches the Runtime. Every human approval must be `OBSERVED`: typed as
+`/approve` in an agent session with the approval hook installed, or in the
+human's own terminal. An approval relayed by an agent is refused at every
+risk level and recorded as evidence. See [34 — Human Approval](34-human-approval.md).
 
 ## Resolution rules
 

@@ -108,6 +108,11 @@
         "additionalProperties": false
       }
     },
+    "approvalRefusals": {
+      "description": "Human gate approvals the Runtime refused, kept as evidence (for example an approval relayed by an agent session).",
+      "type": "array",
+      "items": {"type": "object", "required": ["gate", "at", "reason"], "properties": {"gate": {"type": "string"}, "at": {"type": "string", "format": "date-time"}, "reason": {"type": "string"}, "relayedBy": {"type": "string"}, "approver": {"type": "string"}, "channel": {"type": "string"}}, "additionalProperties": false}
+    },
     "policyGates": {
       "type":"array",
       "items":{"type":"object","required":["id","status"],"properties":{"id":{"type":"string"},"status":{"enum":["pending","approved","rejected","not-triggered","withdrawn"]},"approvedAt":{"type":"string","format":"date-time"},"approvedBy":{"type":"string"},"actor":{"$ref":"actor-identity.schema.json"},"timing":{"$ref":"#/$defs/gateTiming"}},"additionalProperties":false}

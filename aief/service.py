@@ -447,7 +447,7 @@ class RuntimeService:
                   "risk":{"effective":decision["effectiveRisk"],"reasons":decision["reasons"]},
                   "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"],"reasons":decision["reasons"]},
                   "permissions":{"allowed":decision["allowedActions"],"denied":decision["deniedActions"]},
-                  "gates":{"required":decision["requiredGates"],"approvalAssurance":decision.get("approvalAssurance","DECLARED")},"matchedRules":decision["matchedRules"],
+                  "gates":{"required":decision["requiredGates"],"approvalAssurance":decision.get("approvalAssurance","OBSERVED")},"matchedRules":decision["matchedRules"],
                   "provenance":decision.get("provenance",[])}
         from .policy import policy_fingerprint
         artifact["fingerprint"] = policy_fingerprint({key:value for key,value in artifact.items() if key != "fingerprint"})
@@ -588,19 +588,37 @@ class RuntimeService:
                         hook: dict[str, Any] | None = None) -> dict[str, Any]:
         """Approver identity as the Runtime established it (see aief.approval).
 
-        An owner is the agent session that holds the lease: it relays a human
-        decision, it never is the approver."""
-        actor = approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
-                                              lease=ExecutionLease(execution.root).active(),
-                                              confirm=approval.terminal_confirm, hook=hook)
-        plan_name = execution.data.get("governedExecutionPlan")
-        plan = load_yaml(execution.root / plan_name) if plan_name and (execution.root / plan_name).is_file() else {}
-        if plan.get("requirements", {}).get("approvalAssurance") == "OBSERVED" and actor["assurance"] != "OBSERVED":
-            raise PermissionError(
-                f"a {plan.get('risk', {}).get('level', 'governed')}-risk execution requires a human approval typed at a "
-                f"terminal or delivered by the harness (OBSERVED), not {actor['channel']}: the human types '/approve' "
-                f"(or '$approve') in the agent session where the approval hook is installed, or approves in their own terminal")
+        A human gate is a mandatory control: it passes only when the Runtime
+        observed the approval coming from the human (approval hook or
+        terminal). An approval relayed by an agent session, or made without
+        any human channel, is refused at every risk level, and the refusal
+        is kept as evidence."""
+        actor: dict[str, Any] | None = None
+        try:
+            actor = approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
+                                                  lease=ExecutionLease(execution.root).active(),
+                                                  confirm=approval.terminal_confirm, hook=hook)
+            if actor["assurance"] != approval.REQUIRED_ASSURANCE:
+                raise PermissionError(
+                    f"a human gate requires an approval the Runtime observed (OBSERVED), not {actor['channel']}: "
+                    f"the human types '/approve' (or '$approve') in the agent session where the approval hook is "
+                    f"installed, or runs 'aief execution approve-policy {execution.data['metadata']['id']} {gate}' "
+                    f"in their own terminal")
+        except PermissionError as error:
+            self._record_approval_refusal(execution, gate, owner, approver, actor, str(error))
+            raise
         return actor
+
+    def _record_approval_refusal(self, execution: Execution, gate: str, owner: str | None, approver: str | None,
+                                 actor: dict[str, Any] | None, reason: str) -> None:
+        refusal = {"gate": gate, "at": timestamp(self.clock), "reason": reason}
+        refusal.update({key: value for key, value in (("relayedBy", owner), ("approver", approver),
+                                                      ("channel", (actor or {}).get("channel"))) if value})
+        execution.data.setdefault("approvalRefusals", []).append(refusal)
+        execution.save()
+        self._events(execution.data["task"]).append(
+            "gate.approval-refused", execution=execution.data["metadata"]["id"],
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), **refusal, "actor": actor})
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any]) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)

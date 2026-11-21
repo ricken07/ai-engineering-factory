@@ -1,4 +1,4 @@
-"""Human approval typed in the agent session and delivered by the harness.
+"""Human approval typed in the agent session and delivered by the coding agent harness.
 
 The human types `/approve` (Claude Code) or `$approve` (Codex) in the agent
 session. Before the model sees the message, the harness runs its
@@ -6,7 +6,7 @@ session. Before the model sees the message, the harness runs its
 the human's message from the harness, not from the model, records the
 approval with the `harness-hook` channel and tells the model, as added
 context, that the approval is recorded. Without the hook the message reaches
-the model only, which can relay it as a `DECLARED` approval; at high or critical risk
+the model only, which cannot approve (the Runtime refuses relayed approvals):
 the human then approves in their own terminal.
 """
 from __future__ import annotations
@@ -21,13 +21,22 @@ COMMAND = re.compile(r"^\s*[/$]approve(?:\s+(?P<args>[^\n]*))?\s*$")
 # Where each harness reads project hooks, and the rule that keeps the agent
 # itself from invoking the hook entry point through its shell tool.
 CONFIG = {"claude-code": Path(".claude/settings.json"), "codex": Path(".codex/hooks.json")}
-CLAUDE_DENY = "Bash(aief approval *)"
+# Only the human approves: the agent may run neither the approval commands nor
+# the hook entry point (defense in depth; the Runtime refuses relays anyway).
+CLAUDE_DENY = ["Bash(aief approval *)", "Bash(aief execution approve *)", "Bash(aief execution approve-policy *)"]
 CODEX_RULES = Path(".codex/rules/aief-approval.rules")
-CODEX_RULE = """# The approval hook is run by the Codex harness, never by the agent.
+CODEX_RULE = """# Only the human approves a Factory gate: the agent may run neither the
+# approval commands nor the approval hook, which the Codex harness runs itself.
 prefix_rule(
     pattern = ["aief", "approval"],
     decision = "forbidden",
     justification = "Only the harness delivers a human approval to the Runtime",
+)
+
+prefix_rule(
+    pattern = ["aief", "execution", ["approve", "approve-policy"]],
+    decision = "forbidden",
+    justification = "Only the human approves a Factory gate; the Runtime refuses relayed approvals",
 )
 """
 
@@ -131,8 +140,7 @@ def install(project_root: Path, agent: str) -> Path:
         _entries(config).append({"hooks": [{"type": "command", "command": hook_command(agent), "timeout": 120}]})
     if agent == "claude-code":
         deny = config.setdefault("permissions", {}).setdefault("deny", [])
-        if CLAUDE_DENY not in deny:
-            deny.append(CLAUDE_DENY)
+        deny.extend(rule for rule in CLAUDE_DENY if rule not in deny)
     else:
         rules = project_root / CODEX_RULES
         rules.parent.mkdir(parents=True, exist_ok=True)

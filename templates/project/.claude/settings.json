@@ -32,8 +32,6 @@
       "Bash(git branch --show-current)"
     ],
     "ask": [
-      "Bash(aief execution approve *)",
-      "Bash(aief execution approve-policy *)",
       "Bash(aief task create-external *)",
       "Bash(aief task link *)",
       "Bash(aief task operation-approval *)",
@@ -65,7 +63,9 @@
       "Bash(git reset --hard*)",
       "Bash(git clean -f*)",
       "Bash(rm -rf *)",
-      "Bash(aief approval *)"
+      "Bash(aief approval *)",
+      "Bash(aief execution approve *)",
+      "Bash(aief execution approve-policy *)"
     ]
   },
   "hooks": {

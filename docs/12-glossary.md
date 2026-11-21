@@ -21,8 +21,9 @@
   `OBSERVED`, `TRUSTED` or `UNVERIFIED`.
 - **Approval channel**: how a human gate approval reached the Runtime:
   `harness-hook` (`/approve` delivered by the coding agent harness) and
-  `interactive-terminal` are `OBSERVED`; `agent-relay` and `non-interactive`
-  are `DECLARED`. See [34](34-human-approval.md).
+  `interactive-terminal` are `OBSERVED` and let a gate pass; `agent-relay` and
+  `non-interactive` approvals are refused and recorded as evidence. See
+  [34](34-human-approval.md).
 - **Review independence**: `INDEPENDENT`, `NOT_INDEPENDENT`, `UNVERIFIED` or
   `NOT_REQUIRED`, derived from Runtime-held identities rather than review text.
 - **EvidenceBundle**: fingerprinted index of evidence references, governance,

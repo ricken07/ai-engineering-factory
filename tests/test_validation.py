@@ -21,7 +21,9 @@ def test_project_template_includes_valid_agent_permission_baseline():
 
     assert claude["permissions"]["defaultMode"] == "acceptEdits"
     assert "Bash(git push --force*)" in claude["permissions"]["deny"]
-    assert "Bash(aief execution approve *)" in claude["permissions"]["ask"]
+    # Only the human approves a gate: the agent may not run approval commands.
+    for rule in ("Bash(aief execution approve *)", "Bash(aief execution approve-policy *)", "Bash(aief approval *)"):
+        assert rule in claude["permissions"]["deny"] and rule not in claude["permissions"]["ask"]
     assert "Bash(git reset *)" in claude["permissions"]["ask"]
     assert "Bash(ln *factory.yaml*)" in claude["permissions"]["deny"]
     assert "Bash(aief *)" in claude["permissions"]["allow"]

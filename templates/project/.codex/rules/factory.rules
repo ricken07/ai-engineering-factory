@@ -24,8 +24,8 @@ prefix_rule(
 
 prefix_rule(
     pattern = ["aief", "execution", ["approve", "approve-policy"]],
-    decision = "prompt",
-    justification = "A Factory human gate must remain an explicit human decision",
+    decision = "forbidden",
+    justification = "Only the human approves a Factory gate; the Runtime refuses relayed approvals",
     match = ["aief execution approve exec-123", "aief execution approve-policy exec-123 before-implementation"],
 )
 

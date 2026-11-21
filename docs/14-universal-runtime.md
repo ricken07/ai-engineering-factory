@@ -187,10 +187,17 @@ aief execution lease acquire <execution-id> --owner codex:session-42 --ttl 300 -
 aief execution complete-phase <execution-id> --output understanding.yaml --owner codex:session-42 --project . --factory /opt/factory/1.7.0
 ```
 
-Approve a waiting gate and create a handoff:
+A waiting gate is approved by the human, never by the agent: `/approve` in
+the agent session, or in their own terminal (see
+[34 — Human Approval](34-human-approval.md)):
 
 ```bash
-aief execution approve <execution-id> --owner codex:session-42 --project . --factory /opt/factory/1.7.0
+aief execution approve <execution-id> --approver alice --project . --factory /opt/factory/1.7.0
+```
+
+Create a handoff:
+
+```bash
 aief execution handoff <execution-id> --owner codex:session-42 --project . --factory /opt/factory/1.7.0
 ```
 

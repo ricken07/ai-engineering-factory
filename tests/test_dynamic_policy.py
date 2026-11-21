@@ -372,10 +372,35 @@ def test_critical_execution_requires_approvals_typed_at_a_terminal(tmp_path: Pat
     (execution.root/"change.patch").write_text(PATCH)
     service.complete_phase(identifier,output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}}))
     monkeypatch.setenv("CLAUDECODE","1")
-    with pytest.raises(PermissionError, match="typed at a terminal"):
+    with pytest.raises(PermissionError, match="not agent-relay"):
         service.approve_policy_gate(identifier,"apply-proposal")
     monkeypatch.delenv("CLAUDECODE")
     monkeypatch.setattr(approval,"terminal_confirm",lambda prompt: None)
     with pytest.raises(PermissionError, match="not non-interactive"):
         service.approve_policy_gate(identifier,"apply-proposal")
     assert (root/"app.txt").read_text() == "one\n"
+
+
+def test_every_human_gate_refuses_a_relayed_approval_and_keeps_the_refusal(tmp_path: Path, monkeypatch):
+    service,execution=runtime(tmp_path); identifier=execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier,output("Impact",{"risk":"medium","repositories":["main"],"changeTypes":["source-code"]}))
+    current=service.execution(identifier)
+    while current.next_phase()["skill"] != "create-plan":
+        current.next_phase()["status"]="completed"
+    current.data["status"]="running"; current.save()
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier,output("Plan",{"repositories":["main"],"acceptanceCriteria":[{"id":"AC-1","statement":"s"}]}))
+    assert service.execution(identifier).data["risk"] == "medium"
+    service.lease(identifier,"acquire","claude-code:session-1")
+    with pytest.raises(PermissionError, match="not agent-relay"):
+        service.approve_execution(identifier,owner="claude-code:session-1")
+    current=service.execution(identifier)
+    assert current.next_phase()["status"] == "waiting-approval"
+    refusal=current.data["approvalRefusals"][0]
+    assert (refusal["relayedBy"], refusal["channel"]) == ("claude-code:session-1", "agent-relay")
+    assert "gate.approval-refused" in [event["event"]["type"] for event in service.task_events(current.data["task"])]
+    assert_schema(ROOT,"execution.schema.json",current.data)
+    service.lease(identifier,"release","claude-code:session-1")
+    service.approve_execution(identifier,approver="alice")
+    assert service.execution(identifier).data["status"] == "running"

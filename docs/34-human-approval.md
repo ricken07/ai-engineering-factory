@@ -1,33 +1,35 @@
 # Human Approval
 
-A gate stops an Execution until a person decides. The approval carries human
-accountability, so the Runtime does not only record *that* a gate was
-approved: it records **how it established who approved**, and refuses an
-approval whose identity is weaker than the policy requires.
+A gate stops an Execution until a person decides. A human gate is a
+mandatory control, so it passes only when the Runtime itself observed the
+approval coming from the human. An approval relayed by the coding agent is
+refused, at every risk level, and the refusal is kept as evidence.
 
-This page explains the ways to approve, what each one proves, and how to set
-up the recommended one: typing `/approve` in the agent session.
+This page explains the two ways to approve, what each one proves, and how to
+set up the recommended one: typing `/approve` in the agent session.
 
 ## In short
 
-| You type | Where | Recorded as | Accepted at `high` and `critical` risk |
+| You type | Where | Recorded as | Gate passes |
 |---|---|---|---|
 | `/approve` (Claude Code) or `$approve` (Codex) | the agent session, **with the approval hook installed** | `OBSERVED`, channel `harness-hook` | yes |
 | `aief execution approve-policy <id> <gate> --approver <name>` | your own terminal | `OBSERVED`, channel `interactive-terminal` | yes |
-| "approve" in plain words, or `/approve` without the hook | the agent session; the agent relays it | `DECLARED`, channel `agent-relay` | **no** |
-| any approval command in a script without a terminal | a script or CI job | `DECLARED`, channel `non-interactive` | **no** |
+| "I approve" in plain words, or `/approve` without the hook | the agent session; the agent would have to relay it | refused, channel `agent-relay` | **no** |
+| any approval command without a terminal | a script, a CI job, an agent's shell | refused, channel `non-interactive` | **no** |
 
-Below `high` risk, every channel is accepted and its assurance is
-recorded. At `high` and `critical` risk, only `OBSERVED` approvals are accepted (see
-[Policy](#policy)).
+The risk level decides **which** gates require a human. It never decides
+**how** the approval may reach the Runtime: that is always `OBSERVED`.
 
 ## Why the channel matters
 
 An agent runs the Runtime commands of the Execution. If you write "I approve"
-in the conversation, the Runtime does not see your message: it sees the
-agent's command. Nothing distinguishes an approval you gave from one the
-model decided to give itself. The Runtime therefore records such an approval
-as `DECLARED`: someone claimed a human approved.
+in the conversation, the Runtime does not see your message: it would only see
+the agent's command. Nothing distinguishes an approval you gave from one the
+model decided to give itself. Accepting it would let probabilistic reasoning
+exercise control authority, which the reference model excludes (invariants 5,
+"isolation of probabilistic reasoning from control authority", and 12,
+"explicit human accountability"). A mandatory control whose required assurance
+cannot be established fails closed (invariant 13).
 
 An approval is `OBSERVED` when the Runtime received it through a path the
 model does not drive:
@@ -161,35 +163,24 @@ flowchart TD
         C{"Approval hook installed<br/>and trusted?"}
     end
     subgraph AGENT["Coding agent"]
-        R["Relays the approval<br/>channel agent-relay"]
+        R["Tells the human nothing was approved<br/>and gives the terminal command"]
+        Z["Tries to relay the approval<br/>channel agent-relay"]
     end
     subgraph AIEF["AIEF"]
         K["Approval hook receives the message<br/>channel harness-hook"]
         T["Runtime asks to retype the gate<br/>channel interactive-terminal"]
         O["OBSERVED"]
-        D["DECLARED"]
-        P{"Execution risk<br/>high or critical?"}
-        OK(["Approval recorded"])
-        X(["Refused: gate stays pending,<br/>the agent gives the terminal command"])
+        OK(["Approval recorded, gate passes"])
+        X(["Refused at every risk level:<br/>gate stays pending,<br/>refusal recorded as evidence"])
     end
 
     C -->|yes| K
     C -->|no| R
+    R --> T
     K --> O
     T --> O
-    R --> D
     O --> OK
-    D --> P
-    P -->|no| OK
-    P -->|yes| X
-```
-
-### Set it up once per project
-
-`/approve` is a native command of the AIEF adapter: install or refresh the
-adapter skills on each developer machine first, otherwise the agent does not
-know the command and the message never reaches the hook:
-
+    Z -->|"any approval command"| X
 ```bash
 aief setup-adapter claude-code --execute
 aief setup-adapter codex --execute
@@ -230,13 +221,13 @@ from the project (`AI_FACTORY_HOME`). The reference hook definitions are in
 | Claude Code | 2.1.330 | `UserPromptSubmit` command hooks; plain output is added to the model's context; exit code 2 blocks the message and shows the reason. |
 | Codex CLI | 0.170.0 | `hooks` feature stable and enabled by default; `UserPromptSubmit` with the same contract. Project hooks load only from trusted projects, and each hook is skipped until trusted by its hash (`/hooks`). |
 
-Other coding agents (Gemini CLI, ...) need an AIEF adapter and a coding agent harness hook
-that runs before the model sees the human's message, with the same contract:
-the exact message on input, exit code 2 to block it, output added to the
-agent's context. An agent without such a hook, or a hook that is not
-installed or not trusted, falls back to the relayed channel: the native `/approve` skill relays the
-approval as `DECLARED`, and at `high` or `critical` risk tells you the terminal command
-to run.
+Other coding agents (Gemini CLI, ...) need an AIEF adapter and a coding agent
+harness hook that runs before the model sees the human's message, with the
+same contract: the exact message on input, exit code 2 to block it, output
+added to the agent's context. With an agent without such a hook, or a hook
+that is not installed or not trusted, `/approve` reaches only the model: the
+`approve` skill tells you nothing was approved and gives you the terminal
+command. You approve in your own terminal.
 
 ### Limits
 
@@ -261,29 +252,26 @@ aief execution approve <execution-id> --approver <name>     # phase approval
 
 Run it in your own terminal, outside the agent: the Runtime asks you to
 retype the gate name. Without a terminal (a script, or a command run by or
-through an agent), the approval is `DECLARED`.
+through an agent), the approval is refused.
 
 `--approver` names you; without it, the operating-system account is
 recorded.
 
 ## Policy
 
-`core/policies/human-approval-policy.yaml` sets the minimum assurance:
+`core/policies/human-approval-policy.yaml` decides which gates require a
+human, by risk and context. The assurance of the approval is not a policy
+setting but a Runtime invariant (`aief.approval.REQUIRED_ASSURANCE`):
+`OBSERVED` for every human approval, phase approvals and policy gates alike.
+The `PolicyDecision` (`gates.approvalAssurance`) and the
+`GovernedExecutionPlan` (`requirements.approvalAssurance`) state it for the
+evidence. No governance layer can lower it: layers may only strengthen
+controls (restrictive composition, invariant 6).
 
-```yaml
-- id: critical-gates
-  when: {risk: critical}
-  effect: {requireApproval: [...], approvalAssurance: OBSERVED}
-- id: high-gates
-  when: {risk: high}
-  effect: {requireApproval: [...], approvalAssurance: OBSERVED}
-```
-
-The requirement is carried by the `PolicyDecision` (`gates.approvalAssurance`)
-and the `GovernedExecutionPlan` (`requirements.approvalAssurance`). It applies
-to every human approval of the Execution, phase approvals and policy gates
-alike, including gates still pending when a reassessment raises the risk to
-`high` or `critical`. A refused approval leaves the gate pending.
+The coding agent harness permissions shipped with the project template also
+forbid the agent to run `aief execution approve`, `approve-policy` and
+`aief approval`. That is defense in depth, not the guarantee: a permissive
+harness that lets the command run still meets the Runtime's refusal.
 
 ## What is recorded
 
@@ -297,9 +285,9 @@ policyGates:
     actor:
       id: alice
       type: human
-      source: harness-hook        # or terminal-confirmation, adapter, runtime
-      assurance: OBSERVED         # or DECLARED
-      channel: harness-hook       # or interactive-terminal, agent-relay, non-interactive
+      source: harness-hook        # or terminal-confirmation
+      assurance: OBSERVED
+      channel: harness-hook       # or interactive-terminal
       execution: <execution-id>
       gate: apply-proposal
       osUser: alice
@@ -310,6 +298,22 @@ policyGates:
 
 The `gate.approved` event carries the same actor, and the EvidenceBundle
 includes every gate with it.
+
+Each refused approval is kept in `approvalRefusals` and emitted as a
+`gate.approval-refused` event, with the gate, the reason, the channel and the
+agent session that tried to relay it:
+
+```yaml
+approvalRefusals:
+  - gate: planning
+    at: 2026-11-21T02:22:05Z
+    reason: "a human gate requires an approval the Runtime observed (OBSERVED), not agent-relay: ..."
+    relayedBy: claude-code:<session>
+    channel: agent-relay
+```
+
+An agent that tries to approve its own gate is an observed policy violation,
+not a silent no-op.
 
 ## See also
 

@@ -29,15 +29,17 @@ but it must never expand the autonomy calculated by the Factory.
 | Class | Examples | Behavior |
 | --- | --- | --- |
 | Allowed | read, `aief validate`, Execution inspection, Git state | without repetitive confirmation |
-| Confirmation | gate, external ticket creation, commit/push, branch/worktree mutation, validation outside sandbox | ask human |
-| Forbidden | force-push, hard reset, destructive git clean, secret read | block |
+| Confirmation | external ticket creation, commit/push, branch/worktree mutation, validation outside sandbox | ask human |
+| Forbidden | force-push, hard reset, destructive git clean, secret read, gate approval (`aief execution approve`, `approve-policy`, `aief approval`) | block |
 
 The shared model is deliberately conservative. An MCP provider's permissions are
 configured separately and remain subject to the same policies.
 
 The baseline authorizes `Bash(aief *)` so ordinary Runtime operations
-do not request permission at each phase. Specific `ask` rules for approvals, external writes, synchronizations and Git mutations are
-evaluated before this general rule and remain interactive. Destructive prohibitions remain priority.
+do not request permission at each phase. Specific `ask` rules for external writes, synchronizations and Git mutations are
+evaluated before this general rule and remain interactive. Destructive prohibitions remain priority, and so does
+the prohibition of gate approval commands: the human approves with `/approve` or in their own terminal, and the
+Runtime refuses an approval relayed by an agent anyway (see [34 — Human Approval](34-human-approval.md)).
 
 ## 2. Claude Code
 
@@ -132,7 +134,7 @@ codex execpolicy check --pretty \
   -- aief execution approve exec-example
 ```
 
-The first result should be `forbidden`, the second `prompt`.
+Both results should be `forbidden`.
 
 ## 4. Add Project-Specific Commands
 
