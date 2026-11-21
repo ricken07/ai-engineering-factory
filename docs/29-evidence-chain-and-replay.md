@@ -201,6 +201,21 @@ At submission, a review whose decision is not `approved` is accepted only
 when it has blocking findings and the human decided every one of them; all
 other submission evidence checks still apply.
 
+### Optional project-level waiver prohibition
+
+A project may disable review-finding waivers at the Runtime boundary:
+
+```yaml
+review:
+  waivers: disabled
+```
+
+This configuration is **orthogonal to autonomy and experimental condition**. It is captured at execution creation as `reproducibility.reviewWaivers` with `availability: OBSERVED`; subsequent changes to project configuration do not relax a running execution's policy. When disabled, `waive-finding` is denied before an existing review can be overruled, and an auditable `approvalRefusals` entry and `gate.approval-refused` event are recorded. No `findingDecisions` entry is created.
+
+Ordinary projects remain backwards-compatible: omitted `review.waivers` means `enabled`. Consequently, **every scored study run must explicitly set `disabled`**, and its independent evaluation harness must verify the execution snapshot, refusal/event records and absence of successful waivers.
+
+A review still blocks after `MAX_REWORKS = 3` returns. In scored research runs, the external study runner classifies `review-rework-exhausted` as failure and forbids discretionary rescue. AIEF persists the corresponding Runtime state as `blocked`; the experimental outcome classification belongs to the independent study harness.
+
 ## Replay
 
 Validations can be replayed with:
