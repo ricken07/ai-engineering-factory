@@ -34,7 +34,8 @@ from typing import Any
 
 import yaml
 
-LAUNCHER_VERSION = "1"
+LAUNCHER_VERSION = "2"
+DEFAULT_ACTIVE_BUDGET_MINUTES = 120
 CONDITIONS = ("L0", "L1", "L2", "L3")
 PLAIN = {"L0", "L1", "L2"}
 AGENTS = ("claude-code", "codex")
@@ -239,6 +240,9 @@ def prepare(run_file: Path, environment_file: Path, output: Path, run_id: str | 
         "prompts": {"version": PROMPTS_SHA256},
         "treatment": descriptor["treatment"], "setup": setup, "baseCommit": base,
         "isolation": _isolation_mode(condition, agent_config),
+        # Active budget (RC2 §12.4): agent process time only; the clock stops while a human gate holds the run.
+        "activeBudgetSeconds": round(float(environment.get("activeBudgetMinutes", DEFAULT_ACTIVE_BUDGET_MINUTES)) * 60, 3),
+        "activeSeconds": 0.0,
         "steps": [],
     }
     (run_dir / "request.txt").write_text(task["request"], encoding="utf-8")
@@ -325,9 +329,21 @@ def _session(agent: str, stdout: str) -> tuple[str | None, bool | None]:
     return None, None
 
 
+def _remaining_budget(record: dict[str, Any]) -> float:
+    """Seconds of active budget left: agent steps count, waits between steps (human gates) do not."""
+    budget = record.get("activeBudgetSeconds", DEFAULT_ACTIVE_BUDGET_MINUTES * 60)
+    return budget - sum(step.get("durationSeconds") or 0 for step in record.get("steps", []))
+
+
 def _invoke(run_dir: Path, role: str, kind: str, prompt: str, session: str | None = None,
             agent: str | None = None) -> dict[str, Any]:
     record = load_yaml(run_dir / "run.yaml")
+    if record.get("resourceLimitReached"):
+        raise LaunchError("the run reached its active budget (RESOURCE_LIMIT_REACHED): it is finished, collect it")
+    remaining = _remaining_budget(record)
+    if remaining <= 0:
+        _limit_reached(run_dir)
+        raise LaunchError("the run has no active budget left (RESOURCE_LIMIT_REACHED): collect it")
     environment = load_yaml(Path(record["environmentFile"]))
     if agent and agent != record["agent"]["name"]:
         record = {**record, "agent": {**record["agent"], "name": agent, "modelIdentifier": None,
@@ -341,19 +357,37 @@ def _invoke(run_dir: Path, role: str, kind: str, prompt: str, session: str | Non
     started, clock = now(), time.monotonic()
     with open(run_dir / "logs" / f"{name}.out", "w", encoding="utf-8") as out, \
             open(run_dir / "logs" / f"{name}.err", "w", encoding="utf-8") as err:
-        result = subprocess.run(argv, cwd=run_dir / "repo", env=env, stdout=out, stderr=err, stdin=subprocess.DEVNULL, text=True)
+        try:
+            result = subprocess.run(argv, cwd=run_dir / "repo", env=env, stdout=out, stderr=err,
+                                    stdin=subprocess.DEVNULL, text=True, timeout=remaining)
+            exit_code, limit = result.returncode, False
+        except subprocess.TimeoutExpired:
+            # subprocess.run kills the agent process when the budget runs out.
+            exit_code, limit = None, True
     stdout = (run_dir / "logs" / f"{name}.out").read_text(encoding="utf-8", errors="replace")
     identifier, is_error = _session(record["agent"]["name"], stdout)
     step = {"index": index, "role": role, "kind": kind, "agent": record["agent"]["name"],
             "prompt": str(prompt_file.relative_to(run_dir)), "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "startedAt": started, "endedAt": now(), "durationSeconds": round(time.monotonic() - clock, 3),
-            "exitCode": result.returncode, "sessionId": identifier or session, "agentReportedError": is_error,
+            "exitCode": exit_code, "sessionId": identifier or session, "agentReportedError": is_error,
             "stdout": f"logs/{name}.out", "stderr": f"logs/{name}.err"}
+    if limit:
+        step["resourceLimitReached"] = True
     current = load_yaml(run_dir / "run.yaml")
     current["steps"].append(step)
+    current["activeSeconds"] = round(sum(item.get("durationSeconds") or 0 for item in current["steps"]), 3)
     current["status"] = "running"
     write_yaml(run_dir / "run.yaml", current)
+    if limit:
+        _limit_reached(run_dir)
     return step
+
+
+def _limit_reached(run_dir: Path) -> None:
+    """RESOURCE_LIMIT_REACHED is an outcome of a valid run, not an exclusion (RC2 §12.4)."""
+    current = load_yaml(run_dir / "run.yaml")
+    current.update({"resourceLimitReached": True, "status": "resource-limit-reached", "resourceLimitReachedAt": now()})
+    write_yaml(run_dir / "run.yaml", current)
 
 
 def _governed_flags(record: dict[str, Any], run_dir: Path) -> str:

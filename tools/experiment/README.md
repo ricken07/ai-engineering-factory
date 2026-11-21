@@ -156,3 +156,19 @@ classification, no line of a `--forbidden` file in any snapshot),
 procedural and listed, not counted as a task fact. Each is
 `VERIFIED`, `FAILED` or `NEEDS_REVIEW`; the exit status is 1 on `FAILED`.
 
+## Active budget
+
+Every run has an active budget (`activeBudgetMinutes` in the environment file,
+120 by default). Only agent process time counts: each agent step runs with the
+remaining budget as its timeout, and the time between steps, while a human gate
+holds the run, does not count. When the budget runs out, the agent process is
+stopped, the step and the run record `resourceLimitReached`, the run status is
+`resource-limit-reached`, and no further step starts. `RESOURCE_LIMIT_REACHED`
+is an outcome of a valid run (`study_outcome.py`: `execution-failure`), never
+an exclusion. `run.yaml` records `activeBudgetSeconds` and `activeSeconds`.
+
+The number of human gate requests of one run is bounded (`tests/test_gate_bound.py`):
+at most 10 requests and 9 sequential waits for `implement-task` (8 and 7 for
+`fix-bug`), so the worst-case elapsed time of a run is 120 active minutes plus
+9 × 30 minutes of response limits.
+

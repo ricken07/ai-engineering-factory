@@ -138,6 +138,9 @@ Rules the launcher holds:
   Runtime facts of each L3 run to its study outcome (`completed`,
   `execution-failure`, `setup-invalid`, `operationally-invalid`, `unfinished`,
   `protocol-deviation`) in a separate file, without rewriting them.
+  The launcher enforces the active budget of a run (agent time only; the clock
+  stops while a human gate holds the run) and records `RESOURCE_LIMIT_REACHED`;
+  `tests/test_gate_bound.py` bounds the human gate requests of one run.
   `compare_payloads.py` compares the payload ledger of an L3 execution with
   the frozen L1/L2 treatment and checks that no forbidden content (oracle
   material, decision rationales) reached the agent.

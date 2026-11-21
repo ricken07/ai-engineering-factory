@@ -112,3 +112,13 @@ def test_refused_attempts_under_gate_rule_v4(tmp_path: Path):
     assert mapping.classify_run(run_dir(tmp_path / "c", data), RULE, "v4")["outcome"] == "completed"
     data = execution("completed", APPROVED_PLAN, approvalRefusals=[operator])
     assert mapping.classify_run(run_dir(tmp_path / "d", data), RULE, "v4")["outcome"] == "protocol-deviation"
+
+
+def test_reaching_the_active_budget_is_an_execution_failure_not_an_exclusion(tmp_path: Path):
+    run = run_dir(tmp_path, execution("waiting-approval", APPROVED_PLAN))
+    (run / "run.yaml").write_text(yaml.safe_dump({"resourceLimitReached": True}))
+    result = mapping.classify_run(run, RULE)
+    assert result["outcome"] == "execution-failure" and result["reason"].startswith("RESOURCE_LIMIT_REACHED")
+    deviation = run_dir(tmp_path / "d", execution("completed", gate("before-commit", "approved", "mismatch", ["a"])))
+    (deviation / "run.yaml").write_text(yaml.safe_dump({"resourceLimitReached": True}))
+    assert mapping.classify_run(deviation, RULE)["outcome"] == "protocol-deviation"

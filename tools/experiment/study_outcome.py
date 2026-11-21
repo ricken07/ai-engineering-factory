@@ -15,7 +15,7 @@ Outcomes, in order of precedence:
 | `setup-invalid` | the deciding rejection is classified setup-invalid by the rule, or the execution is blocked because required enforcement is unavailable on the runner |
 | `operationally-invalid` | the deciding gate expired; eligible for one predeclared replay |
 | `unfinished` | the execution or its integration still waits for a human when the run is collected: the run is not finished and is not scored (distinct from a comparator outcome `incomplete`) |
-| `execution-failure` | the deciding rejection is attributed to the execution, the execution failed, review rework is exhausted, the execution is left blocked for any other reason, or the agent stopped before the execution ended |
+| `execution-failure` | the deciding rejection is attributed to the execution, the execution failed, review rework is exhausted, the execution is left blocked for any other reason, the agent stopped before the execution ended, or the run reached its active budget (`RESOURCE_LIMIT_REACHED`, an outcome and never an exclusion) |
 | `completed` | the execution is completed and, when `before-merge` is required, its integration is integrated |
 
 Refused attempts attributed to the agent (gate-rule-v4) do not change the
@@ -102,6 +102,9 @@ def classify_run(run_dir: Path, rule_sha256: str, version: str = "v3") -> dict[s
     execution = check_decisions._load(path)
     report = check_decisions.check_execution(path, rule_sha256, None, repo, initial, version)
     result, reason = outcome(execution, report)
+    run = check_decisions._load(run_dir / "run.yaml") if (run_dir / "run.yaml").is_file() else {}
+    if run.get("resourceLimitReached") and result in {"completed", "unfinished", "execution-failure"}:
+        result, reason = "execution-failure", "RESOURCE_LIMIT_REACHED: the run used its active budget"
     return {"run": str(run_dir), "execution": report["execution"], "mappingVersion": MAPPING_VERSION,
             "decisionRuleSha256": rule_sha256, "ruleVersion": version, "outcome": result, "reason": reason,
             "replayEligible": result == "operationally-invalid",

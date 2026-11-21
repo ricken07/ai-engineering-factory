@@ -1,5 +1,7 @@
 # Execution environment of a campaign: one file per machine, frozen with the protocol.
 id: example-macos-arm64-01
+# Active budget per run (RC2 §12.4): agent process time only; the clock stops while a human gate holds the run.
+activeBudgetMinutes: 120
 # Factory used by L3 runs (AI_FACTORY_HOME). Its commit is recorded in every run.
 factory: ~/.aief/ai-engineering-factory/1.0.0
 isolation:

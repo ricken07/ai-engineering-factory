@@ -23,6 +23,8 @@ import json, os, sys
 from pathlib import Path
 if sys.argv[1:] == ["--version"]:
     print("9.9.9 (Fake Claude)"); sys.exit(0)
+if os.environ.get("FAKE_AGENT_SECONDS"):
+    import time; time.sleep(float(os.environ["FAKE_AGENT_SECONDS"]))
 Path("agent-note.txt").write_text(json.dumps({"argv": sys.argv[1:], "home": os.environ.get("HOME"),
     "factory": os.environ.get("AI_FACTORY_HOME"), "files": sorted(p.name for p in Path(".").iterdir())}))
 if "/fix" in sys.argv[2]:
@@ -38,6 +40,8 @@ if sys.argv[1:] == ["--version"]:
     print("fake-codex 9.9.9"); sys.exit(0)
 out = sys.argv[sys.argv.index("-o") + 1]
 Path(out).write_text("done")
+if os.environ.get("FAKE_AGENT_SECONDS"):
+    import time; time.sleep(float(os.environ["FAKE_AGENT_SECONDS"]))
 Path("agent-note.txt").write_text(json.dumps({"argv": sys.argv[1:], "home": os.environ.get("HOME"),
     "codexHome": os.environ.get("CODEX_HOME")}))
 print(json.dumps({"type": "thread.started", "thread_id": "codex-thread-1"}))
@@ -198,3 +202,25 @@ def test_wait_goes_through_the_runtime_so_an_undecided_gate_expires(campaign, tm
     state = launcher.wait(run_dir, interval=0.01, timeout=5)
     assert state["status"] == "completed" and state["integration"] == "expired"
     assert (run_dir / "repo" / "gate-checks.txt").read_text() == "checked\n"
+
+
+def test_active_budget_counts_agent_steps_only_and_stops_at_the_limit(campaign, monkeypatch):
+    environment = yaml.safe_load(campaign["environment"].read_text())
+    environment["activeBudgetMinutes"] = 0.05  # 3 seconds
+    campaign["environment"].write_text(yaml.safe_dump(environment))
+    run_dir = launcher.prepare(campaign["descriptor"]("L0"), campaign["environment"], campaign["output"])
+    assert yaml.safe_load((run_dir / "run.yaml").read_text())["activeBudgetSeconds"] == 3.0
+    monkeypatch.setenv("FAKE_AGENT_SECONDS", "1")
+    first = launcher.start(run_dir)
+    record = yaml.safe_load((run_dir / "run.yaml").read_text())
+    assert first["exitCode"] == 0 and 1 <= record["activeSeconds"] < 3 and not record.get("resourceLimitReached")
+    # Time spent between steps (a human gate holding the run) is not active time.
+    import time; time.sleep(1.5)
+    assert launcher._remaining_budget(yaml.safe_load((run_dir / "run.yaml").read_text())) > 0.5
+    monkeypatch.setenv("FAKE_AGENT_SECONDS", "10")
+    second = launcher._invoke(run_dir, "producer", "continue", "go on", session=first["sessionId"])
+    record = yaml.safe_load((run_dir / "run.yaml").read_text())
+    assert second["resourceLimitReached"] is True and second["exitCode"] is None and second["durationSeconds"] < 5
+    assert record["resourceLimitReached"] is True and record["status"] == "resource-limit-reached"
+    with pytest.raises(launcher.LaunchError, match="RESOURCE_LIMIT_REACHED"):
+        launcher._invoke(run_dir, "producer", "continue", "again")
