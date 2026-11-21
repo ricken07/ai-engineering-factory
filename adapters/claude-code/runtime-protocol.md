@@ -9,6 +9,14 @@ adapter must not simulate workflow orchestration in conversation.
 
 ## Start or resume
 
+**Resuming an existing Execution always starts with `aief execution next
+<execution-id>`.** The Execution may have changed since this session last
+acted on it: a review may have returned it to implementation (rework), a
+human may have approved a gate, another session may have taken it over or
+handed it back. Never infer the next phase, the lease owner or the gate
+status from the conversation; act only on what `execution next` returns, and
+acquire the lease again with your owner before mutating the Execution.
+
 1. Locate the nearest `.ai/project.yaml` from the current working directory.
 2. Resolve `factory.homeEnv`, then verify that the referenced Factory contains
    the exact `factory.version` requested by the project.
@@ -105,7 +113,8 @@ For the returned execution ID:
 
    `--output` is mandatory. Do not pass artifact content through shell
    redirection, interpolation or a heredoc.
-8. Repeat from `execution next`; never skip or reorder a phase locally.
+8. Repeat from `execution next`; never skip or reorder a phase locally, and
+   never decide the next phase from memory of the conversation.
 
 For handoff, call `aief execution handoff <execution-id> --owner
 "claude-code:<session-id>"`; this persists the handoff and releases the lease.
