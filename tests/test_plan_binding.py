@@ -145,7 +145,7 @@ def test_verification_without_plan_is_refused(tmp_path: Path):
 
 
 def bound_validation(tmp_path: Path, commands: list) -> tuple:
-    from tests.test_service import validation_execution
+    from test_service import validation_execution
     service, execution = validation_execution(tmp_path)
     plan, spec = files(tmp_path, {**VERIFICATION, "commands": commands})
     execution.data["planBinding"] = plan_binding.bind(execution.root, plan, spec, "2026-11-21T00:00:00+00:00")

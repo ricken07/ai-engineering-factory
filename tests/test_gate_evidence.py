@@ -4,7 +4,7 @@ import yaml
 
 from aief import gate_evidence
 from aief.validation import assert_schema
-from tests.test_dynamic_policy import PATCH, critical_implementation, output, runtime
+from test_dynamic_policy import PATCH, critical_implementation, output, runtime
 
 
 ROOT = Path(__file__).parents[1]
@@ -84,7 +84,7 @@ def test_changed_patch_or_workspace_is_a_mismatch(tmp_path: Path):
 
 
 def test_plan_gate_without_bound_plan_checks_the_criteria(tmp_path: Path):
-    from tests.test_gate_protocol import at_plan_gate, service_with
+    from test_gate_protocol import at_plan_gate, service_with
     service = service_with(tmp_path)
     identifier = at_plan_gate(service)
     evidence = service.gate_check(identifier)["gates"][0]["evidence"]
@@ -113,7 +113,7 @@ def merge_evidence(service, identifier):
 
 
 def test_before_merge_evidence_checks_the_integration(tmp_path: Path):
-    from tests.test_integration import completed_with_task_branch, git
+    from test_integration import completed_with_task_branch, git
     service, identifier, root = completed_with_task_branch(tmp_path)
     (service.execution(identifier).root / "validation.yaml").write_text(
         yaml.safe_dump({"details": {"commits": {"main": git(root, "rev-parse", "aief/t")}}}))
@@ -134,7 +134,7 @@ def test_before_merge_evidence_checks_the_integration(tmp_path: Path):
 
 
 def test_before_merge_evidence_reports_a_conflict_and_a_foreign_revision(tmp_path: Path):
-    from tests.test_integration import completed_with_task_branch
+    from test_integration import completed_with_task_branch
     service, identifier, root = completed_with_task_branch(tmp_path, conflicting=True)
     (service.execution(identifier).root / "validation.yaml").write_text(
         yaml.safe_dump({"details": {"commits": {"main": "0" * 40}}}))
@@ -146,7 +146,7 @@ def test_before_merge_evidence_reports_a_conflict_and_a_foreign_revision(tmp_pat
 
 
 def test_before_merge_evidence_reports_a_dirty_base_branch(tmp_path: Path):
-    from tests.test_integration import completed_with_task_branch, git
+    from test_integration import completed_with_task_branch, git
     service, identifier, root = completed_with_task_branch(tmp_path)
     git(root, "switch", "-q", "main"); (root / "app.txt").write_text("uncommitted\n")
     checks = items(merge_evidence(service, identifier))
