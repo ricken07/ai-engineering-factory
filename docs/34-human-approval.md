@@ -397,7 +397,8 @@ A project can fix in advance how its human gates are decided:
 humanGates:
   approvers: [alice, bob]      # empty: any OBSERVED human
   responseLimitMinutes: 60     # null: a gate waits indefinitely
-  decisionRule: gate-rule-v1   # reference of the rule approvers apply
+  decisionRule: rules/gate-rule-v1.md   # rule document, relative to the project root
+  decisionRuleSha256: 3b1f…            # optional pin of that document
 ```
 
 The protocol is snapshotted when an execution starts, as
@@ -416,8 +417,12 @@ alter a running execution. The Runtime applies it as follows:
   `approve-policy` or `reject`). That command dates the expiry at the
   deadline, records it, emits `gate.expired` and cancels the execution. A
   decision that arrives later is refused.
-- **Decision rule.** The Runtime records the rule with every decision. It
-  cannot judge whether the human followed it.
+- **Decision rule.** `decisionRule` is the path of the document that states
+  the rule. When an execution starts, the Runtime hashes the document and
+  refuses to start if it differs from `decisionRuleSha256`. It keeps a copy
+  under `gate-rules/` in the execution directory and records the path and
+  hash with every decision. It cannot judge whether the human followed the
+  rule. It records the evidence the rule is applied to (see below).
 
 Every decision is kept in `gateDecisions`:
 
@@ -439,6 +444,31 @@ gateDecisions:
 
 An expired gate has no actor. Its `waitDurationMs` is the response limit,
 `DERIVED`. A rejection also carries its `rationale`.
+
+### Comparator evidence
+
+A rule name alone does not show what a decision rested on. When the Runtime
+can compute the inputs of a gate's rule, it attaches them to the decision as
+`evidence`. For the plan gate of an execution with a bound plan, the
+comparator `bound-plan-hashes` checks each bound file three ways:
+
+| Check | Expected | Observed |
+|---|---|---|
+| `frozen` | the hash given with `--expect-plan-sha256` or `--expect-verification-sha256` (the treatment freeze) | the hash bound at start |
+| `integrity` | the hash bound at start | the file now |
+| `planning-reference` | the hash bound at start | the hash `planning.yaml` references |
+
+The outcome is `mismatch` when any check differs, `match` when every check
+holds, and `incomplete` when a value is missing (for example, no expected
+hash was given). Before deciding, the approver reads the same evidence:
+
+```bash
+aief execution gate-check <execution-id>
+```
+
+It prints the waiting gates, their deadline, the rule document and the
+comparator evidence. Decisions on other gates carry no `evidence` until a
+comparator exists for them.
 
 ## See also
 

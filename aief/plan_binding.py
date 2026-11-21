@@ -59,8 +59,13 @@ def check_binding(plan: Path, verification: Path | None, workflow: dict[str, Any
             raise ValueError(f"bound verification {verification.name}: " + "; ".join(gaps))
 
 
-def bind(root: Path, plan: Path, verification: Path | None, at: str) -> dict[str, Any]:
-    """Copies the bound files byte for byte into the execution directory."""
+def bind(root: Path, plan: Path, verification: Path | None, at: str,
+         expected: dict[str, str | None] | None = None) -> dict[str, Any]:
+    """Copies the bound files byte for byte into the execution directory.
+
+    `expected` carries the SHA-256 of the frozen files as the treatment freeze
+    recorded them. A difference is not refused here: it is what the plan gate
+    comparator reports, so that the human decision rests on it."""
     directory = root / BOUND_DIRECTORY
     directory.mkdir(parents=True, exist_ok=True)
     record: dict[str, Any] = {"boundAt": at}
@@ -72,6 +77,8 @@ def bind(root: Path, plan: Path, verification: Path | None, at: str) -> dict[str
         if _sha256(target) != _sha256(source):
             raise RuntimeError(f"bound {role} {source.name} changed while it was copied")
         record[role] = {"artifact": f"{BOUND_DIRECTORY}/{source.name}", "sha256": _sha256(target)}
+        if (expected or {}).get(role):
+            record[role]["expectedSha256"] = expected[role]
     return record
 
 
@@ -119,3 +126,37 @@ def brief_section(record: dict[str, Any]) -> list[str]:
         if role in record:
             lines.append(f"- {role.capitalize()}: `{record[role]['artifact']}` (sha256 `{record[role]['sha256']}`)")
     return lines
+
+
+def plan_gate_evidence(root: Path, record: dict[str, Any]) -> dict[str, Any]:
+    """Comparator inputs and outcomes for the plan gate of an execution with a bound plan.
+
+    For each bound file:
+    - `frozen`: the hash the treatment freeze expects against the hash bound
+      at start (`unavailable` when no expected hash was given);
+    - `integrity`: the hash bound at start against the file as it is now;
+    - `planning-reference`: the hash bound at start against the hash the
+      planning artifact references.
+    The outcome is `mismatch` when any check differs, `match` when every check
+    holds, and `incomplete` otherwise."""
+    planning_path = root / "planning.yaml"
+    planning = yaml.safe_load(planning_path.read_text(encoding="utf-8")) if planning_path.is_file() else {}
+    referenced = ((planning or {}).get("details") or {}).get("binding") or {}
+    checks = []
+    for role in ("plan", "verification"):
+        bound = record.get(role)
+        if bound is None:
+            continue
+        path = root / bound["artifact"]
+        current = _sha256(path) if path.is_file() else None
+        pairs = (("frozen", bound.get("expectedSha256"), bound["sha256"]),
+                 ("integrity", bound["sha256"], current),
+                 ("planning-reference", bound["sha256"], (referenced.get(role) or {}).get("sha256")))
+        for check, expected_value, observed in pairs:
+            outcome = "unavailable" if expected_value is None or observed is None else \
+                ("match" if expected_value == observed else "mismatch")
+            checks.append({"item": f"{role}:{check}", "artifact": bound["artifact"],
+                           "expected": expected_value, "observed": observed, "outcome": outcome})
+    outcomes = {check["outcome"] for check in checks}
+    overall = "mismatch" if "mismatch" in outcomes else ("match" if outcomes == {"match"} else "incomplete")
+    return {"comparator": "bound-plan-hashes", "checks": checks, "outcome": overall}

@@ -8,9 +8,13 @@ for example a study whose runs must all meet the same human rules:
   human whose decision the Runtime observed;
 - `responseLimitMinutes`: how long a gate may hold the execution; past it, the
   gate expires and the execution is cancelled, whatever decision comes later;
-- `decisionRule`: the reference of the rule approvers apply (a document or an
-  identifier). The Runtime records it with every decision; it cannot judge
-  whether the human followed it.
+- `decisionRule`: the path, relative to the project root, of the document that
+  states the rule approvers apply, optionally pinned by `decisionRuleSha256`.
+  The Runtime hashes the document when the execution starts, refuses a
+  document whose hash differs from the pin, keeps an immutable copy in the
+  execution directory and records the rule (path and hash) with every
+  decision. It cannot judge whether the human followed the rule; it records
+  the comparator evidence the rule is applied to (see `evidence` below).
 
 The protocol is read from `humanGates` in the project configuration and
 snapshotted when the execution starts, so a later configuration change does
@@ -19,17 +23,56 @@ expired) is recorded in `gateDecisions` with its timing, actor and rule.
 """
 from __future__ import annotations
 
+import hashlib
+import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
+
+RULES_DIRECTORY = "gate-rules"
 
 DEFAULT = {"approvers": [], "responseLimitMinutes": None, "decisionRule": None}
 
 
-def from_project(project: dict[str, Any]) -> dict[str, Any]:
+def _rule(project_root: Path, configured: dict[str, Any]) -> dict[str, Any] | None:
+    reference = configured.get("decisionRule")
+    if reference is None:
+        if configured.get("decisionRuleSha256"):
+            raise ValueError("humanGates.decisionRuleSha256 pins a rule document, but humanGates.decisionRule is not set")
+        return None
+    path = (project_root / reference).resolve()
+    if not path.is_relative_to(project_root.resolve()):
+        raise ValueError(f"humanGates.decisionRule must stay inside the project: {reference}")
+    if not path.is_file():
+        raise FileNotFoundError(f"humanGates.decisionRule document not found: {reference}")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    pinned = configured.get("decisionRuleSha256")
+    if pinned and pinned != digest:
+        raise ValueError(f"humanGates.decisionRule {reference} does not match decisionRuleSha256 "
+                         f"(expected {pinned}, found {digest}): the rule document changed")
+    return {"path": str(reference), "sha256": digest}
+
+
+def from_project(project: dict[str, Any], project_root: Path) -> dict[str, Any]:
     configured = project.get("humanGates") or {}
     return {"approvers": sorted(set(configured.get("approvers") or [])),
             "responseLimitMinutes": configured.get("responseLimitMinutes"),
-            "decisionRule": configured.get("decisionRule")}
+            "decisionRule": _rule(project_root, configured)}
+
+
+def keep_rule(root: Path, project_root: Path, protocol: dict[str, Any]) -> str | None:
+    """Copies the rule document into the execution directory; the copy is what decisions refer to."""
+    rule = protocol.get("decisionRule")
+    if not rule:
+        return None
+    source = project_root / rule["path"]
+    target = root / RULES_DIRECTORY / Path(rule["path"]).name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+    if hashlib.sha256(target.read_bytes()).hexdigest() != rule["sha256"]:
+        raise RuntimeError(f"rule document {rule['path']} changed while the execution started")
+    rule["artifact"] = f"{RULES_DIRECTORY}/{target.name}"
+    return rule["artifact"]
 
 
 def of_execution(execution: dict[str, Any]) -> dict[str, Any]:
@@ -63,7 +106,8 @@ def deadline(held: dict[str, Any], protocol: dict[str, Any]) -> datetime | None:
 
 
 def decision(held: dict[str, Any], outcome: str, at: str, protocol: dict[str, Any],
-             actor: dict[str, Any] | None = None, rationale: str | None = None) -> dict[str, Any]:
+             actor: dict[str, Any] | None = None, rationale: str | None = None,
+             evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     timing = held["timing"]
     record: dict[str, Any] = {
         "gate": held["gate"], "kind": held["kind"], "decision": outcome, "at": at,
@@ -76,6 +120,8 @@ def decision(held: dict[str, Any], outcome: str, at: str, protocol: dict[str, An
     for key, value in (("phase", held.get("phase")), ("trigger", held.get("trigger")), ("rationale", rationale)):
         if value:
             record[key] = value
+    if evidence is not None:
+        record["evidence"] = evidence
     if actor is not None:
         record["actor"] = {key: actor[key] for key in ("id", "type", "channel", "assurance") if key in actor}
     return record

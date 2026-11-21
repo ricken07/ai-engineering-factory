@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,8 @@ from aief.validation import assert_schema
 
 
 ROOT = Path(__file__).parents[1]
+RULE = "rules/gate-rule-v1.md"
+RULE_TEXT = "# gate-rule-v1\n\nApprove the plan gate only when every bound-plan hash matches.\n"
 CRITERIA = [{"id": "AC-1", "statement": "works"}]
 
 
@@ -25,6 +28,9 @@ def service_with(tmp_path: Path, human_gates: dict | None = None, clock: FakeClo
                              "responsibilities": [], "dependencies": [], "criticalDomains": []}]
     if human_gates is not None:
         data["humanGates"] = human_gates
+        if human_gates.get("decisionRule") and not (root / human_gates["decisionRule"]).exists():
+            (root / human_gates["decisionRule"]).parent.mkdir(parents=True, exist_ok=True)
+            (root / human_gates["decisionRule"]).write_text(RULE_TEXT)
     else:
         data.pop("humanGates", None)
     (root / ".ai/project.yaml").write_text(yaml.safe_dump(data, sort_keys=False))
@@ -63,11 +69,13 @@ def events(service: RuntimeService, identifier: str) -> list[dict]:
 
 
 def test_protocol_is_snapshotted_at_start(tmp_path: Path):
-    service = service_with(tmp_path, {"approvers": ["alice"], "responseLimitMinutes": 30, "decisionRule": "rule-v1"})
+    service = service_with(tmp_path, {"approvers": ["alice"], "responseLimitMinutes": 30, "decisionRule": RULE})
     execution = service.start("Implémente une évolution locale", confirmed=True)
     snapshot = execution.data["reproducibility"]["humanGateProtocol"]
-    assert snapshot == {"value": {"approvers": ["alice"], "responseLimitMinutes": 30, "decisionRule": "rule-v1"},
+    rule = {"path": RULE, "sha256": hashlib.sha256(RULE_TEXT.encode()).hexdigest(), "artifact": "gate-rules/gate-rule-v1.md"}
+    assert snapshot == {"value": {"approvers": ["alice"], "responseLimitMinutes": 30, "decisionRule": rule},
                         "availability": "OBSERVED"}
+    assert (execution.root / rule["artifact"]).read_text() == RULE_TEXT
     service_with(tmp_path, {"approvers": [], "responseLimitMinutes": None})
     assert service.execution(execution.data["metadata"]["id"]).data["reproducibility"]["humanGateProtocol"] == snapshot
 
@@ -81,14 +89,14 @@ def test_default_protocol_keeps_ordinary_use(tmp_path: Path):
 
 
 def test_approval_records_a_gate_decision(tmp_path: Path):
-    service = service_with(tmp_path, {"approvers": ["alice"], "decisionRule": "rule-v1"})
+    service = service_with(tmp_path, {"approvers": ["alice"], "decisionRule": RULE})
     identifier = at_plan_gate(service)
     service.approve_execution(identifier, approver="alice")
     current = service.execution(identifier)
     decision = next(item for item in current.data["gateDecisions"] if item["kind"] == "phase-gate")
     assert decision["gate"] == "plan-gate" and decision["phase"] == "planning" and decision["trigger"] == "phase:planning"
     assert decision["actor"] == {"id": "alice", "type": "human", "channel": "interactive-terminal", "assurance": "OBSERVED"}
-    assert decision["decisionRule"] == "rule-v1" and decision["waitDurationMs"]["availability"] == "OBSERVED"
+    assert decision["decisionRule"]["path"] == RULE and decision["waitDurationMs"]["availability"] == "OBSERVED"
     assert decision["waitStartedAt"] and decision["decidedAt"]
     assert_schema(ROOT, "execution.schema.json", current.data)
 
@@ -117,7 +125,7 @@ def test_approver_outside_the_protocol_is_refused(tmp_path: Path):
 
 
 def test_rejection_cancels_with_its_rationale(tmp_path: Path):
-    service = service_with(tmp_path, {"decisionRule": "rule-v1"})
+    service = service_with(tmp_path, {"decisionRule": RULE})
     identifier = at_plan_gate(service)
     with pytest.raises(ValueError, match="rationale"):
         service.reject_gate(identifier, "  ", approver="alice")
@@ -150,7 +158,7 @@ def test_rejection_relayed_by_an_agent_is_refused(tmp_path: Path, monkeypatch):
 
 def test_gate_expires_after_the_response_limit(tmp_path: Path):
     clock = FakeClock(datetime(2026, 11, 21, 9, 0, tzinfo=timezone.utc))
-    service = service_with(tmp_path, {"responseLimitMinutes": 5, "decisionRule": "rule-v1"}, clock)
+    service = service_with(tmp_path, {"responseLimitMinutes": 5, "decisionRule": RULE}, clock)
     identifier = at_plan_gate(service)
     clock.advance(milliseconds=6 * 60_000)
     with pytest.raises(PermissionError, match="expired"):
@@ -295,3 +303,99 @@ def test_lease_still_binds_decisions_while_the_agent_works(tmp_path: Path):
     identifier = execution.data["metadata"]["id"]; leased(service, identifier)
     with pytest.raises(PermissionError, match="owner is required"):
         service.reject_gate(identifier, "no")
+
+
+def bound_files(tmp_path: Path) -> tuple[Path, Path]:
+    source = tmp_path / "frozen"; source.mkdir(exist_ok=True)
+    (source / "plan.md").write_text("# Plan\n1. step\n")
+    (source / "verification.yaml").write_text("acceptanceCriteria:\n- {id: AC-1, statement: works}\n")
+    return source / "plan.md", source / "verification.yaml"
+
+
+def sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def at_bound_plan_gate(service: RuntimeService, plan: Path, spec: Path, **expected) -> str:
+    execution = service.start("Implémente une évolution locale", confirmed=True, bound_plan=plan,
+                              bound_verification=spec, **expected)
+    identifier = execution.data["metadata"]["id"]
+    for phase in execution.data["phases"]:
+        if phase["skill"] == "analyze-impact": break
+        phase["status"] = "completed"
+    execution.data["status"] = "running"; execution.save()
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier, output("Impact", {"risk": "medium", "repositories": ["main"], "changeTypes": ["source-code"]}))
+    current = service.execution(identifier)
+    while current.next_phase()["skill"] != "create-plan":
+        current.next_phase()["status"] = "completed"
+    current.data["status"] = "running"; current.save()
+    assert service.prepare_phase(identifier)["status"] == "waiting-approval"
+    return identifier
+
+
+def test_rule_document_pin_refuses_a_changed_document(tmp_path: Path):
+    service = service_with(tmp_path, {"decisionRule": RULE, "decisionRuleSha256": "0" * 64})
+    with pytest.raises(ValueError, match="does not match decisionRuleSha256"):
+        service.start("Implémente une évolution locale", confirmed=True)
+    executions = service.project_root / ".ai/runtime/executions"
+    assert not executions.exists() or not list(executions.iterdir())
+
+
+def test_missing_rule_document_is_refused(tmp_path: Path):
+    service = service_with(tmp_path, {"decisionRule": "rules/missing.md"})
+    (service.project_root / "rules/missing.md").unlink()
+    with pytest.raises(FileNotFoundError, match="rules/missing.md"):
+        service.start("Implémente une évolution locale", confirmed=True)
+
+
+def test_plan_gate_decision_stores_the_comparator_evidence(tmp_path: Path):
+    service = service_with(tmp_path, {"decisionRule": RULE, "decisionRuleSha256": hashlib.sha256(RULE_TEXT.encode()).hexdigest()})
+    plan, spec = bound_files(tmp_path)
+    identifier = at_bound_plan_gate(service, plan, spec, expected_plan_sha256=sha(plan), expected_verification_sha256=sha(spec))
+    check = service.gate_check(identifier)
+    assert check["decisionRule"]["path"] == RULE and check["gates"][0]["gate"] == "plan-gate"
+    assert check["gates"][0]["evidence"]["outcome"] == "match"
+    service.approve_execution(identifier, approver="alice")
+    evidence = service.execution(identifier).data["gateDecisions"][0]["evidence"]
+    assert evidence["comparator"] == "bound-plan-hashes" and evidence["outcome"] == "match"
+    assert {item["item"] for item in evidence["checks"]} == {f"{role}:{check}" for role in ("plan", "verification")
+                                                            for check in ("frozen", "integrity", "planning-reference")}
+    frozen = next(item for item in evidence["checks"] if item["item"] == "plan:frozen")
+    assert frozen["expected"] == frozen["observed"] == sha(plan)
+    assert_schema(ROOT, "execution.schema.json", service.execution(identifier).data)
+
+
+def test_comparator_reports_a_frozen_hash_mismatch(tmp_path: Path):
+    service = service_with(tmp_path)
+    plan, spec = bound_files(tmp_path)
+    identifier = at_bound_plan_gate(service, plan, spec, expected_plan_sha256="f" * 64)
+    service.reject_gate(identifier, "plan hash differs from the frozen treatment", approver="alice")
+    decision = service.execution(identifier).data["gateDecisions"][0]
+    assert decision["decision"] == "rejected" and decision["evidence"]["outcome"] == "mismatch"
+    mismatch = next(item for item in decision["evidence"]["checks"] if item["outcome"] == "mismatch")
+    assert mismatch["item"] == "plan:frozen" and mismatch["expected"] == "f" * 64 and mismatch["observed"] == sha(plan)
+
+
+def test_comparator_reports_a_bound_file_changed_after_binding(tmp_path: Path):
+    service = service_with(tmp_path)
+    plan, spec = bound_files(tmp_path)
+    identifier = at_bound_plan_gate(service, plan, spec, expected_plan_sha256=sha(plan), expected_verification_sha256=sha(spec))
+    (service.execution(identifier).root / "bound-plan/plan.md").write_text("# Plan\n1. another step\n")
+    evidence = service.gate_check(identifier)["gates"][0]["evidence"]
+    assert evidence["outcome"] == "mismatch"
+    assert next(item for item in evidence["checks"] if item["item"] == "plan:integrity")["outcome"] == "mismatch"
+
+
+def test_comparator_is_incomplete_without_expected_hashes(tmp_path: Path):
+    service = service_with(tmp_path)
+    plan, spec = bound_files(tmp_path)
+    identifier = at_bound_plan_gate(service, plan, spec)
+    assert service.gate_check(identifier)["gates"][0]["evidence"]["outcome"] == "incomplete"
+
+
+def test_expected_hash_needs_its_bound_file(tmp_path: Path):
+    service = service_with(tmp_path)
+    plan, _ = bound_files(tmp_path)
+    with pytest.raises(ValueError, match="expected SHA-256 needs the bound file"):
+        service.start("Implémente une évolution locale", confirmed=True, bound_plan=plan, expected_verification_sha256="a" * 64)

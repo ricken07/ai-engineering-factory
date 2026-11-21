@@ -113,7 +113,17 @@
           "waitStartedAt": {"type": ["string", "null"]},
           "decidedAt": {"type": "string"},
           "waitDurationMs": {"$ref": "#/$defs/measurement"},
-          "decisionRule": {"type": ["string", "null"]},
+          "decisionRule": {"oneOf": [{"type": "null"}, {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "artifact": {"type": "string"}}, "additionalProperties": false}]},
+          "evidence": {
+            "type": "object",
+            "required": ["comparator", "checks", "outcome"],
+            "properties": {
+              "comparator": {"type": "string"},
+              "outcome": {"enum": ["match", "mismatch", "incomplete"]},
+              "checks": {"type": "array", "items": {"type": "object", "required": ["item", "expected", "observed", "outcome"], "properties": {"item": {"type": "string"}, "artifact": {"type": "string"}, "expected": {"type": ["string", "null"]}, "observed": {"type": ["string", "null"]}, "outcome": {"enum": ["match", "mismatch", "unavailable"]}}, "additionalProperties": false}}
+            },
+            "additionalProperties": false
+          },
           "responseLimitMinutes": {"type": ["integer", "null"]},
           "rationale": {"type": "string"},
           "actor": {"type": "object", "properties": {"id": {"type": "string"}, "type": {"type": "string"}, "channel": {"type": "string"}, "assurance": {"type": "string"}}, "additionalProperties": false}
@@ -293,7 +303,7 @@
     }
   },
   "$defs": {
-    "boundFile": {"type":"object","required":["artifact","sha256"],"properties":{"artifact":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}},"additionalProperties":false},
+    "boundFile": {"type":"object","required":["artifact","sha256"],"properties":{"artifact":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"expectedSha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}},"additionalProperties":false},
     "role": {"type":"object","required":["type","identity"],"properties":{"type":{"enum":["agent","runtime","human"]},"identity":{"type":"string"},"session":{"type":"string"},"independentFromProducer":{"type":"boolean"}},"additionalProperties":false},
     "measurement": {
       "type": "object",

@@ -61,7 +61,8 @@ review:
 humanGates:
   approvers: []
   responseLimitMinutes: null
-  decisionRule: null
+  decisionRule: null           # path of the rule document, relative to the project root
+  decisionRuleSha256: null     # optional pin of that document
 policyRefs: []
 engineering:
   inheritOrganization: true

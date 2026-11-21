@@ -158,9 +158,13 @@ class RuntimeService:
     def start(self, text: str, agent: str | None = None, intent: str | None = None,
               expected_workflow: str | None = None, confirmed: bool = False,
               agent_session: str | None = None, experiment: dict[str, Any] | None = None,
-              bound_plan: Path | None = None, bound_verification: Path | None = None) -> Execution:
+              bound_plan: Path | None = None, bound_verification: Path | None = None,
+              expected_plan_sha256: str | None = None, expected_verification_sha256: str | None = None) -> Execution:
         if bound_verification is not None and bound_plan is None:
             raise ValueError("a bound verification needs a bound plan")
+        if (expected_plan_sha256 and bound_plan is None) or (expected_verification_sha256 and bound_verification is None):
+            raise ValueError("an expected SHA-256 needs the bound file it describes")
+        gate_protocol.from_project(self.project, self.project_root)  # a missing or changed rule document fails before any execution exists
         intake = self.intake(text, agent, intent, expected_workflow, confirmed)
         workflow = compile_workflow(self.factory, intake["task"]["workflow"])
         if bound_plan is not None:
@@ -169,10 +173,14 @@ class RuntimeService:
         execution = Execution.create(self.project_root, self.factory, workflow, intake["task"]["metadata"]["id"], agent,
                                      self.clock, agent_session)
         if bound_plan is not None:
-            binding = plan_binding.bind(execution.root, bound_plan, bound_verification, timestamp(self.clock))
+            binding = plan_binding.bind(execution.root, bound_plan, bound_verification, timestamp(self.clock),
+                                        {"plan": expected_plan_sha256, "verification": expected_verification_sha256})
             execution.data["planBinding"] = binding
             execution.data["artifacts"].extend(binding[role]["artifact"] for role in ("plan", "verification") if role in binding)
         execution.data["reproducibility"] = self._reproducibility(execution, agent, experiment or {})
+        rule = gate_protocol.keep_rule(execution.root, self.project_root,
+                                       execution.data["reproducibility"]["humanGateProtocol"]["value"])
+        if rule: execution.data["artifacts"].append(rule)
         execution.record_runtime_duration(runtime_started)
         execution.save()
         self._events(execution.data["task"]).append(
@@ -231,7 +239,7 @@ class RuntimeService:
             "environmentIdentifier": self._observed_value(experiment.get("environmentIdentifier")),
             # Snapshot at start: the policy cannot be relaxed by changing project.yaml mid-run.
             "reviewWaivers": self._observed_value(self.project.get("review", {}).get("waivers", "enabled")),
-            "humanGateProtocol": self._observed_value(gate_protocol.from_project(self.project)),
+            "humanGateProtocol": self._observed_value(gate_protocol.from_project(self.project, self.project_root)),
             **({f"bound{role.capitalize()}Fingerprint": self._observed_value(binding[role]["sha256"])
                 for role in ("plan", "verification") if role in binding}
                if (binding := execution.data.get("planBinding")) else {}),
@@ -806,11 +814,34 @@ class RuntimeService:
             raise
         return actor
 
+    @staticmethod
+    def _gate_evidence(execution: Execution, held: dict[str, Any]) -> dict[str, Any] | None:
+        """Comparator evidence the decision rule of a gate is applied to, when the Runtime can compute it."""
+        binding = execution.data.get("planBinding")
+        phase = next((item for item in execution.data["phases"] if item["id"] == held.get("phase")), None)
+        if binding and phase is not None and phase.get("skill") == "create-plan":
+            return plan_binding.plan_gate_evidence(execution.root, binding)
+        return None
+
+    def gate_check(self, execution_id: str) -> dict[str, Any]:
+        """What an approver decides on: the waiting gates, the rule and the comparator evidence."""
+        execution = self.execution(execution_id)
+        protocol = gate_protocol.of_execution(execution.data)
+        gates = []
+        for held in gate_protocol.holding_gates(execution.data):
+            deadline = gate_protocol.deadline(held, protocol)
+            gates.append({"gate": held["gate"], "kind": held["kind"], "phase": held.get("phase"),
+                          "waitStartedAt": held["timing"].get("blockedAt"),
+                          "deadline": deadline.isoformat() if deadline else None,
+                          "evidence": self._gate_evidence(execution, held)})
+        return {"execution": execution_id, "status": execution.data["status"],
+                "decisionRule": protocol.get("decisionRule"), "approvers": protocol.get("approvers"), "gates": gates}
+
     def _record_gate_decision(self, execution: Execution, held: dict[str, Any], outcome: str,
                               actor: dict[str, Any] | None = None, rationale: str | None = None) -> dict[str, Any]:
         clock = getattr(self, "clock", None) or SystemClock()
         record = gate_protocol.decision(held, outcome, timestamp(clock), gate_protocol.of_execution(execution.data),
-                                        actor, rationale)
+                                        actor, rationale, self._gate_evidence(execution, held))
         execution.data.setdefault("gateDecisions", []).append(record)
         execution.save()
         return record
@@ -832,7 +863,8 @@ class RuntimeService:
             return False
         events = self._events(execution.data["task"])
         for held, deadline in late:
-            record = gate_protocol.decision(held, "expired", timestamp(clock), protocol)
+            record = gate_protocol.decision(held, "expired", timestamp(clock), protocol,
+                                            evidence=self._gate_evidence(execution, held))
             record["decidedAt"] = deadline.isoformat()
             # The wait ended at the deadline, not when a command noticed it.
             record["waitDurationMs"] = {"value": protocol["responseLimitMinutes"] * 60_000, "availability": "DERIVED"}

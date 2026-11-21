@@ -50,6 +50,11 @@ ends with submission, it must list `acceptanceCriteria` as `{id, statement}`.
 The binding is refused before the execution starts when a file is missing,
 when the workflow has no `create-plan` phase, or when the criteria are missing.
 
+`--expect-plan-sha256` and `--expect-verification-sha256` record the hashes
+that the frozen files should have. A difference does not stop the execution:
+the plan gate comparator reports it, and the human decides on that evidence
+([Comparator evidence](34-human-approval.md#comparator-evidence)).
+
 When `aief execution next` reaches `planning`, the Runtime performs the phase
 itself, as it does for validation. `planning.yaml` references the bound files
 by path and hash and copies their acceptance criteria verbatim. No agent writes

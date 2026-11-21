@@ -90,7 +90,8 @@
       "properties": {
         "approvers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
         "responseLimitMinutes": {"type": ["integer", "null"], "minimum": 1},
-        "decisionRule": {"type": ["string", "null"], "minLength": 1}
+        "decisionRule": {"type": ["string", "null"], "minLength": 1, "description": "Path, relative to the project root, of the rule document approvers apply."},
+        "decisionRuleSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$", "description": "Pinned SHA-256 of the rule document; an execution does not start if the document differs."}
       },
       "additionalProperties": false
     },
