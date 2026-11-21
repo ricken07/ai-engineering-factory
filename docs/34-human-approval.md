@@ -62,74 +62,81 @@ or after it is a normal message, not an approval.
 
 ### How it works
 
-Five parties take part, each in its own role:
+An approval crosses three domains, and each party acts only in its own:
 
-| Party | Role in an approval |
-|---|---|
-| **Human** | Decides. Types `/approve` in the session; nothing else. |
-| **Harness** (Claude Code, Codex) | Receives the message and, before the model sees it, runs the project's `UserPromptSubmit` hook with the exact text. |
-| **Approval hook** (`aief approval hook`) | Parses the message, finds what is waiting and asks the Runtime to approve it on the human's behalf. |
-| **Runtime** | Checks the gate and the approver identity, records the approval, applies its effect. |
-| **Agent** (the model) | Stops at the gate, tells the human what waits, then continues. Never approves. |
+| Domain | Party | Role in an approval |
+|---|---|---|
+| — | **Human** | Decides: types `/approve` in the session, nothing else. |
+| **Coding agent harness** — the program that hosts the agent (Claude Code, Codex CLI, Gemini CLI, ...) | **Harness** | Receives the human's message and, before the model sees it, runs the project's `UserPromptSubmit` hook with the exact text. |
+| **Coding agent** — the model working on the task | **Agent** | Stops at the gate, tells the human what waits, then continues. Never approves. |
+| **AIEF** | **Approval hook** (`aief approval hook`) | Provided by AIEF, configured in the project, run by the harness. Parses the message, finds what waits and asks the Runtime to record the approval. |
+| **AIEF** | **Runtime** | Checks the gate and the approver identity, records the approval, applies its effect. |
 
-The approval travels **beside** the model, not through it: the Runtime
+The approval travels **beside** the coding agent, not through it: AIEF
 receives it from the harness. That is what makes it `OBSERVED`.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor H as Human
-    participant HA as Harness<br/>(Claude Code / Codex)
-    participant HK as Approval hook<br/>(aief approval hook)
-    participant RT as AIEF Runtime
-    participant AG as Agent (model)
+    box transparent Coding agent harness
+        participant HA as Harness
+    end
+    box transparent Coding agent
+        participant AG as Agent (model)
+    end
+    box transparent AIEF
+        participant HK as Approval hook
+        participant RT as Runtime
+    end
 
     AG->>RT: aief execution next EXEC-1
     RT-->>AG: waiting-approval: apply-proposal
-    AG-->>H: "Execution EXEC-1 waits for apply-proposal.<br/>Type /approve to approve it."
+    AG->>HA: reply to the human
+    HA-->>H: "EXEC-1 waits for apply-proposal. Type /approve."
     Note over AG: The agent stops. It never<br/>runs an approval command.
 
     H->>HA: /approve
-    HA->>HK: UserPromptSubmit {prompt, session_id, prompt_id, cwd}
-    Note over HA,HK: The harness runs the hook before<br/>the model sees the message.
-    HK->>RT: awaited approvals of the project
+    HA->>HK: UserPromptSubmit hook: prompt, session_id, prompt_id, cwd
+    Note over HA,HK: The harness runs the hook before<br/>the agent sees the message.
+    HK->>RT: approvals awaited in the project?
     RT-->>HK: EXEC-1 apply-proposal
-    HK->>RT: approve EXEC-1 apply-proposal (channel harness-hook)
-    RT->>RT: check approver is not an agent identity<br/>check policy assurance (OBSERVED at critical)
+    HK->>RT: approve EXEC-1 apply-proposal, channel harness-hook
+    RT->>RT: approver is not an agent identity?<br/>assurance meets the policy?
 
     alt approval recorded
-        RT->>RT: record actor (OBSERVED, harness-hook)<br/>apply effect (patches for apply-proposal)
+        RT->>RT: record actor OBSERVED, harness-hook<br/>apply effect: patches for apply-proposal
         RT-->>HK: approved
-        HK-->>HA: exit 0, context "AIEF: the human approved apply-proposal"
+        HK-->>HA: exit 0 + context "AIEF: the human approved apply-proposal"
         HA->>AG: /approve + added context
         AG->>RT: aief execution next EXEC-1
-        RT-->>AG: next phase (validation)
+        RT-->>AG: next phase: validation
     else approval refused
-        RT-->>HK: error (nothing waiting, ambiguous, refused identity...)
-        HK-->>HA: exit 2, reason + terminal command
+        RT-->>HK: error: nothing waiting, ambiguous, refused identity...
+        HK-->>HA: exit 2 + reason + terminal command
         HA-->>H: message blocked, reason shown
-        Note over H,AG: The agent never receives the message.<br/>Nothing was approved.
+        Note over HA,AG: The agent never receives the message.<br/>Nothing was approved.
     end
 ```
 
 Step by step:
 
-1. **The agent stops at the gate.** `aief execution next` answers
+1. **Coding agent — stops at the gate.** `aief execution next` answers
    `waiting-approval` with the gates required. The agent tells you the
    Execution and the gate, then waits.
-2. **You type `/approve`.** The message goes to the harness, as any message.
-3. **The harness runs the hook first.** Before the model sees anything, it
-   runs `aief approval hook` with your exact text, the session id and the
+2. **Human — types `/approve`.** The message goes to the harness, as any message.
+3. **Coding agent harness — runs the hook first.** Before the agent sees
+   anything, it runs `aief approval hook` with your exact text, the session id and the
    message id.
-4. **The hook finds what waits.** It lists the approvals the project's
+4. **AIEF, approval hook — finds what waits.** It lists the approvals the project's
    Executions are waiting for, a phase approval or the policy gates the next
    phase requires, and keeps the one your message designates.
-5. **The Runtime checks and records.** It refuses an agent identity as
+5. **AIEF, Runtime — checks and records.** It refuses an agent identity as
    approver and checks the assurance the policy requires; it then records the
    approval (`harness-hook`, `OBSERVED`, operating-system account, harness,
    session id, message id) and applies its effect: for `apply-proposal`, it
    applies the proposed patches itself.
-6. **The agent continues.** It receives your message with one line of
+6. **Coding agent — continues.** It receives your message with one line of
    context — `AIEF: the human approved ...` — runs no approval command and
    resumes with `aief execution next`.
 
@@ -146,18 +153,35 @@ session.
 
 ```mermaid
 flowchart TD
-    A([The human approves a gate]) --> B{Where?}
-    B -->|"/approve in the agent session"| C{Approval hook installed<br/>and trusted?}
-    B -->|"aief execution approve-policy<br/>in their own terminal"| T["Runtime asks to retype the gate<br/>channel interactive-terminal"]
-    C -->|yes| K["Harness delivers the message<br/>channel harness-hook"]
-    C -->|no| R["The agent relays it<br/>channel agent-relay"]
-    K --> O[OBSERVED]
+    A(["The human approves a gate"])
+    A -->|"types /approve in the session"| C
+    A -->|"runs aief execution approve-policy<br/>in their own terminal"| T
+
+    subgraph HARNESS["Coding agent harness"]
+        C{"Approval hook installed<br/>and trusted?"}
+    end
+    subgraph AGENT["Coding agent"]
+        R["Relays the approval<br/>channel agent-relay"]
+    end
+    subgraph AIEF["AIEF"]
+        K["Approval hook receives the message<br/>channel harness-hook"]
+        T["Runtime asks to retype the gate<br/>channel interactive-terminal"]
+        O["OBSERVED"]
+        D["DECLARED"]
+        P{"Execution risk<br/>critical?"}
+        OK(["Approval recorded"])
+        X(["Refused: gate stays pending,<br/>the agent gives the terminal command"])
+    end
+
+    C -->|yes| K
+    C -->|no| R
+    K --> O
     T --> O
-    R --> D[DECLARED]
-    O --> OK([Approval recorded])
-    D --> P{Execution risk<br/>critical?}
+    R --> D
+    O --> OK
+    D --> P
     P -->|no| OK
-    P -->|yes| X(["Refused: the agent gives the<br/>terminal command, the gate stays pending"])
+    P -->|yes| X
 ```
 
 ### Set it up once per project
@@ -194,8 +218,11 @@ from the project (`AI_FACTORY_HOME`). The reference hook definitions are in
 | Claude Code | 2.1.330 | `UserPromptSubmit` command hooks; plain output is added to the model's context; exit code 2 blocks the message and shows the reason. |
 | Codex CLI | 0.170.0 | `hooks` feature stable and enabled by default; `UserPromptSubmit` with the same contract. Project hooks load only from trusted projects, and each hook is skipped until trusted by its hash (`/hooks`). |
 
-An agent without such a hook, or a hook that is not installed or not trusted,
-falls back to the relayed channel: the native `/approve` skill relays the
+Other coding agents (Gemini CLI, ...) need an AIEF adapter and a harness hook
+that runs before the model sees the human's message, with the same contract:
+the exact message on input, exit code 2 to block it, output added to the
+agent's context. An agent without such a hook, or a hook that is not
+installed or not trusted, falls back to the relayed channel: the native `/approve` skill relays the
 approval as `DECLARED`, and at `critical` risk tells you the terminal command
 to run.
 
