@@ -60,17 +60,78 @@ which gate are waiting. Type:
 Use `$approve` in Codex. The command must be the whole message: text before
 or after it is a normal message, not an approval.
 
-What happens:
+### How it works
 
-1. The harness runs its `UserPromptSubmit` hook, `aief approval hook`, with
-   your message.
-2. The Runtime finds the approval waiting (a phase approval or the policy
-   gates the next phase requires), records it with channel `harness-hook`,
-   assurance `OBSERVED`, the operating-system account, the harness, its
-   session id and the message id, and applies its effect (for
-   `apply-proposal`, the Runtime applies the proposed patches).
-3. The agent receives one line of context — `AIEF: the human approved ...` —
-   and continues the Execution without running any approval command.
+Five parties take part, each in its own role:
+
+| Party | Role in an approval |
+|---|---|
+| **Human** | Decides. Types `/approve` in the session; nothing else. |
+| **Harness** (Claude Code, Codex) | Receives the message and, before the model sees it, runs the project's `UserPromptSubmit` hook with the exact text. |
+| **Approval hook** (`aief approval hook`) | Parses the message, finds what is waiting and asks the Runtime to approve it on the human's behalf. |
+| **Runtime** | Checks the gate and the approver identity, records the approval, applies its effect. |
+| **Agent** (the model) | Stops at the gate, tells the human what waits, then continues. Never approves. |
+
+The approval travels **beside** the model, not through it: the Runtime
+receives it from the harness. That is what makes it `OBSERVED`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor H as Human
+    participant HA as Harness<br/>(Claude Code / Codex)
+    participant HK as Approval hook<br/>(aief approval hook)
+    participant RT as AIEF Runtime
+    participant AG as Agent (model)
+
+    AG->>RT: aief execution next EXEC-1
+    RT-->>AG: waiting-approval: apply-proposal
+    AG-->>H: "Execution EXEC-1 waits for apply-proposal.<br/>Type /approve to approve it."
+    Note over AG: The agent stops. It never<br/>runs an approval command.
+
+    H->>HA: /approve
+    HA->>HK: UserPromptSubmit {prompt, session_id, prompt_id, cwd}
+    Note over HA,HK: The harness runs the hook before<br/>the model sees the message.
+    HK->>RT: awaited approvals of the project
+    RT-->>HK: EXEC-1 apply-proposal
+    HK->>RT: approve EXEC-1 apply-proposal (channel harness-hook)
+    RT->>RT: check approver is not an agent identity<br/>check policy assurance (OBSERVED at critical)
+
+    alt approval recorded
+        RT->>RT: record actor (OBSERVED, harness-hook)<br/>apply effect (patches for apply-proposal)
+        RT-->>HK: approved
+        HK-->>HA: exit 0, context "AIEF: the human approved apply-proposal"
+        HA->>AG: /approve + added context
+        AG->>RT: aief execution next EXEC-1
+        RT-->>AG: next phase (validation)
+    else approval refused
+        RT-->>HK: error (nothing waiting, ambiguous, refused identity...)
+        HK-->>HA: exit 2, reason + terminal command
+        HA-->>H: message blocked, reason shown
+        Note over H,AG: The agent never receives the message.<br/>Nothing was approved.
+    end
+```
+
+Step by step:
+
+1. **The agent stops at the gate.** `aief execution next` answers
+   `waiting-approval` with the gates required. The agent tells you the
+   Execution and the gate, then waits.
+2. **You type `/approve`.** The message goes to the harness, as any message.
+3. **The harness runs the hook first.** Before the model sees anything, it
+   runs `aief approval hook` with your exact text, the session id and the
+   message id.
+4. **The hook finds what waits.** It lists the approvals the project's
+   Executions are waiting for, a phase approval or the policy gates the next
+   phase requires, and keeps the one your message designates.
+5. **The Runtime checks and records.** It refuses an agent identity as
+   approver and checks the assurance the policy requires; it then records the
+   approval (`harness-hook`, `OBSERVED`, operating-system account, harness,
+   session id, message id) and applies its effect: for `apply-proposal`, it
+   applies the proposed patches itself.
+6. **The agent continues.** It receives your message with one line of
+   context — `AIEF: the human approved ...` — runs no approval command and
+   resumes with `aief execution next`.
 
 If the approval cannot be recorded (nothing is waiting, several Executions
 wait and none is named, an unknown gate, a refused identity), the hook
@@ -80,6 +141,24 @@ with the terminal command to use instead. Nothing was approved.
 The approval is accepted while the agent holds the Execution lease: you
 decide while the agent waits; this is not a concurrent change by another
 session.
+
+### Which channel, which outcome
+
+```mermaid
+flowchart TD
+    A([The human approves a gate]) --> B{Where?}
+    B -->|"/approve in the agent session"| C{Approval hook installed<br/>and trusted?}
+    B -->|"aief execution approve-policy<br/>in their own terminal"| T["Runtime asks to retype the gate<br/>channel interactive-terminal"]
+    C -->|yes| K["Harness delivers the message<br/>channel harness-hook"]
+    C -->|no| R["The agent relays it<br/>channel agent-relay"]
+    K --> O[OBSERVED]
+    T --> O
+    R --> D[DECLARED]
+    O --> OK([Approval recorded])
+    D --> P{Execution risk<br/>critical?}
+    P -->|no| OK
+    P -->|yes| X(["Refused: the agent gives the<br/>terminal command, the gate stays pending"])
+```
 
 ### Set it up once per project
 
