@@ -557,6 +557,10 @@ evidence is what the approver saw:
 
 Other gates carry no `evidence` until a comparator exists for them.
 
+Every check of every comparator has a negative test: breaking that check alone
+must take the comparator out of `match` (`tests/test_comparator_negatives.py`,
+which also fails when a comparator emits a check without such a test).
+
 For the plan gate of an execution with a bound plan, the comparator
 `bound-plan-hashes` checks each bound file three ways:
 
