@@ -35,3 +35,9 @@ then run the export, review and publish steps again. Edit the source documents
 rather than generated pages. The exporter does not commit, push or delete files;
 review and remove obsolete generated pages explicitly when renaming source files.
 Publication is manual; no automatic synchronization is configured.
+
+## Run experimental units
+
+`experiment/aief_experiment.py` runs one experimental unit of the reference-model
+evaluation (one task, one condition L0–L3, one agent, one repeat) in an isolated
+clone and records it. See [experiment/README.md](experiment/README.md).

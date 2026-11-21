@@ -1,0 +1,23 @@
+# One experimental unit: one task, one condition, one agent, one repeat.
+task:
+  id: T-01
+  intent: fix                       # AIEF native command used in L3 (/fix, $fix)
+  repository: /absolute/path/to/project.git
+  startingCommit: 0123456789abcdef0123456789abcdef01234567
+  request: |
+    Describe the change exactly as the developer would ask for it. Identical in every condition.
+  acceptanceCriteria:               # recorded with the run; evaluated by the oracle, not by the launcher
+    - {id: AC-1, statement: "..."}
+condition: L2                       # L0 | L1 | L2 | L3
+agent:
+  name: codex                       # claude-code | codex
+  model: null                       # model identifier passed to the agent when set
+repeatIndex: 1
+treatment:                          # frozen files; hashes checked before the run
+  context: treatment/T-01/context.md          # L1, L2
+  plan: treatment/T-01/plan.md                # L2, L3 (bound plan)
+  verification: treatment/T-01/verification.yaml  # L2, L3 (bound verification, with acceptanceCriteria)
+  sha256:
+    context: null
+    plan: null
+    verification: null

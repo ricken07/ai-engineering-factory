@@ -1,0 +1,27 @@
+# Execution environment of a campaign: one file per machine, frozen with the protocol.
+id: example-macos-arm64-01
+# Factory used by L3 runs (AI_FACTORY_HOME). Its commit is recorded in every run.
+factory: ~/.aief/ai-engineering-factory/1.0.0
+isolation:
+  # Entries of the real HOME linked into an isolated HOME (build caches, Git and Docker configuration).
+  homeLinks: [.m2, .gradle, .docker, .gitconfig, .testcontainers.properties]
+agents:
+  claude-code:
+    command: claude
+    # Isolated HOME needs a long-lived token created by the operator with `claude setup-token`.
+    tokenFile: null
+    plain:            # L0, L1, L2: no AIEF skills, no user settings, no hooks of the project
+      isolatedHome: false
+      args: [--disable-slash-commands, --setting-sources, "project,local", --permission-mode, bypassPermissions]
+    governed:         # L3: AIEF adapter skills and the project's settings (hooks, permission rules)
+      isolatedHome: false
+      args: [--allowedTools, "Bash(aief *)", "Bash(printenv *)", "Bash(git status*)", "Bash(git log*)", "Bash(git diff*)", Read, Grep, Glob, Edit, Write]
+  codex:
+    command: codex
+    authFile: ~/.codex/auth.json
+    plain:
+      isolatedHome: true
+      args: [--ignore-user-config, --ignore-rules, -s, workspace-write, -c, sandbox_workspace_write.network_access=true]
+    governed:
+      isolatedHome: false
+      args: [-s, workspace-write, -c, sandbox_workspace_write.network_access=true]

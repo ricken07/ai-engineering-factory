@@ -65,6 +65,15 @@ repository, starting commit, agent, acceptance criteria, environment and repeat
 number. The harness records the condition; it does not claim to execute or
 judge an LLM experiment.
 
+Running the units is the job of a separate maintainer tool,
+`tools/experiment/aief_experiment.py`: it prepares an isolated clone at the
+task's starting commit, prepares the condition (L0 without project or agent
+configuration, L1 with a frozen project context, L2 with the frozen plan and
+verification, L3 through the Runtime with the same frozen plan and
+verification bound), invokes the coding agent headless and writes one run
+record per unit. It never decides a human gate and does not evaluate
+outcomes.
+
 ## Fixtures
 
 A single reusable minimal project (`templates/project`, through
