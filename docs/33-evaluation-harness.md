@@ -1,17 +1,17 @@
 # 33 — Evaluation Harness
 
-AIEF ne compare pas des modèles avant de savoir qu'il respecte lui-même ses
-propres contrats. Le harness (`aief/scenarios.py`) vérifie cela en trois
-niveaux séparés. Ce n'est pas une plateforme de benchmark : douze scénarios
-fixes, aucun dashboard, aucun état persistant au-delà de ce qu'un test
-pytest écrit déjà dans `tmp_path`.
+AIEF does not compare models before knowing that it respects its own
+contracts. The harness (`aief/scenarios.py`) checks this at three separate
+levels. It is not a benchmark platform: twelve fixed scenarios, no
+dashboard, no persistent state beyond what a pytest test already writes in
+`tmp_path`.
 
-## Level 1 — Runtime Conformance (100 % déterministe)
+## Level 1 — Runtime Conformance (100% deterministic)
 
-Chaque scénario est un `Given/When/Then` exécuté directement contre le
-Runtime (`RuntimeService`, `resolve_engineering_context`,
-`evaluate_runtime_policy`, `resolve_task_provider`) — jamais via un agent
-LLM. Douze scénarios couvrent : `simple-feature`, `natural-language-bug`,
+Each scenario is a `Given/When/Then` run directly against the Runtime
+(`RuntimeService`, `resolve_engineering_context`, `evaluate_runtime_policy`,
+`resolve_task_provider`), never through an LLM agent. Twelve scenarios
+cover: `simple-feature`, `natural-language-bug`,
 `ambiguous-request`, `multi-repo-change`, `high-risk-change`,
 `dirty-workspace`, `missing-provider`, `tracking-required`, `human-gate`,
 `policy-conflict`, `organization-practice-override`,
@@ -26,12 +26,12 @@ result = run_scenario("high-risk-change", Path("."), Path("/tmp/scenario-run"))
 
 ## Level 2 — Adapter Conformance
 
-Ne compare pas la qualité du code produit. Vérifie que le Runtime traite
-`claude-code` et `codex` de façon strictement identique : même Task
-normalisée, même Workflow compilé, même décision de policy, même contexte
-d'ingénierie effectif, mêmes gates franchis. Techniquement, ce n'est **pas**
-un second catalogue de scénarios : c'est le même scénario Level 1, rejoué
-une fois par agent, dont les résultats sont diffés.
+It does not compare the quality of the code produced. It checks that the
+Runtime treats `claude-code` and `codex` strictly identically: same
+normalized Task, same compiled Workflow, same policy decision, same effective
+engineering context, same gates passed. Technically it is **not** a second
+scenario catalog: it is the same Level 1 scenario, replayed once per agent,
+whose results are diffed.
 
 ```python
 from aief.scenarios import run_adapter_conformance
@@ -39,22 +39,22 @@ from aief.scenarios import run_adapter_conformance
 result = run_adapter_conformance("human-gate", Path("."), Path("/tmp/scenario-run"))
 ```
 
-Les scénarios dont le chemin de code ne reçoit jamais d'identité d'agent
+Scenarios whose code path never receives an agent identity
 (`multi-repo-change`, `high-risk-change`, `policy-conflict`,
-`organization-practice-override`, `handoff-claude-to-codex`) sont marqués
-`agent_parametrized=False` : leur conformité inter-agent est déjà garantie
-par construction (aucune branche liée à l'agent n'existe dans ce code), le
-Level 2 le constate au lieu de rejouer un diff sans objet.
+`organization-practice-override`, `handoff-claude-to-codex`) are marked
+`agent_parametrized=False`: their cross-agent conformance is guaranteed by
+construction (no agent-dependent branch exists in that code), and Level 2
+records it instead of replaying a pointless diff.
 
-## Level 3 — Engineering Outcome (contrat uniquement)
+## Level 3 — Engineering Outcome (contract only)
 
-`core/schemas/engineering-outcome.schema.json` fixe les six dimensions à
-évaluer plus tard — correctness, scopeRespect, testQuality, reviewFindings,
-rework, policyViolations — chacune `not_evaluated` tant qu'aucune exécution
-agent réelle n'a produit de code à juger. `pending_engineering_outcome(...)`
-produit un document valide contre ce schéma, sans aucune mesure :
-l'évaluation réelle de la qualité du code reste hors périmètre d'AIEF
-(elle appartient à l'agent et, plus tard, à un juge humain ou LLM séparé).
+`core/schemas/engineering-outcome.schema.json` fixes the six dimensions to
+evaluate later — correctness, scopeRespect, testQuality, reviewFindings,
+rework, policyViolations — each `not_evaluated` until a real agent execution
+has produced code to judge. `pending_engineering_outcome(...)` produces a
+document valid against this schema, without any measurement: the actual
+evaluation of code quality stays outside AIEF's scope (it belongs to the
+agent and, later, to a separate human or LLM judge).
 
 ## Experimental conditions L0--L3
 
@@ -67,16 +67,15 @@ judge an LLM experiment.
 
 ## Fixtures
 
-Un seul projet minimal réutilisable (`templates/project`, via
-`_seed_project`), avec des surcharges ciblées (autonomie, dépôts,
-`taskTracking`) selon le scénario. Les scénarios multi-repo réutilisent
-`examples/sample-project`, déjà existant, plutôt que d'introduire une deuxième
-fixture. Chaque scénario est reproductible : mêmes entrées, mêmes sorties,
-sur toute machine (`tests/test_scenarios.py::test_scenarios_are_reproducible_across_independent_runs`).
+A single reusable minimal project (`templates/project`, through
+`_seed_project`), with targeted overrides (autonomy, repositories,
+`taskTracking`) per scenario. Multi-repository scenarios reuse the existing
+`examples/sample-project` rather than introducing a second fixture. Each
+scenario is reproducible: same inputs, same outputs, on any machine (`tests/test_scenarios.py::test_scenarios_are_reproducible_across_independent_runs`).
 
 ## Reporting
 
-`format_report(results)` produit un tableau texte simple — pas de dashboard :
+`format_report(results)` produces a plain text table, not a dashboard:
 
 ```text
 Scenario           Expected                                            Observed                              Status  Evidence
@@ -86,17 +85,17 @@ dirty-workspace    Given a dirty local workspace ...; then blocked      {'status
 high-risk-change   Given HIGH risk ...; then autonomy <= L2             {'effectiveRisk': 'high', ...}         PASS    level1:high-risk-change:agent=claude-code
 ```
 
-Une régression Runtime réelle (exception inattendue, pas un résultat testé)
-apparaît en `FAIL` avec le type et le message de l'exception en `Observed` —
-elle n'est jamais absorbée silencieusement.
+A real Runtime regression (an unexpected exception, not a tested outcome)
+appears as `FAIL` with the exception type and message in `Observed`; it is
+never silently absorbed.
 
 ## Tests
 
-`tests/test_scenarios.py` fait tourner les douze scénarios en Level 1 et en
-Level 2, vérifie que le rapport garde ses cinq colonnes, qu'une régression
-simulée est bien rapportée en échec, que le contrat Level 3 valide son
-schéma sans mesure, et que deux exécutions indépendantes du même scénario
-produisent le même résultat.
+`tests/test_scenarios.py` runs the twelve scenarios at Level 1 and Level 2,
+checks that the report keeps its five columns, that a simulated regression is
+reported as a failure, that the Level 3 contract validates its schema without
+measurement, and that two independent runs of the same scenario produce the
+same result.
 
 ## Experimental run metadata
 

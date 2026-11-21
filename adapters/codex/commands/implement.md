@@ -1,8 +1,8 @@
 # `$implement` — Codex
 
-`/implement` n'est pas une commande native Codex. Le préfixe `/` est réservé
-aux commandes intégrées du client ; le Skill Factory s'invoque avec
-`$implement` ou par une demande équivalente en langage naturel.
+`/implement` is not a native Codex command. The `/` prefix is reserved for
+the client's built-in commands; the Factory Skill is invoked with
+`$implement` or with an equivalent natural-language request.
 
 Execute `aief run` with `--intent implement --expect-workflow implement-task`
 and use the returned execution ID. The user's input remains the active task.

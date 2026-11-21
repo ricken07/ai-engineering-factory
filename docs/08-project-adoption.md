@@ -78,7 +78,7 @@ Examples:
 ```text
 Codex: $implement TASK-123
 Claude Code: /implement TASK-123
-Natural language: Implémente TASK-123.
+Natural language: Implement TASK-123.
 ```
 
 Exact slash-command syntax is adapter-specific; the Factory workflow identity remains stable.

@@ -136,13 +136,13 @@ never reaches the pipeline above.
 Create only the normalized task:
 
 ```bash
-aief intake "Corrige le bug PROJ-327" --project . --factory /opt/factory/1.7.0 --json
+aief intake "Fix the bug PROJ-327" --project . --factory /opt/factory/1.7.0 --json
 ```
 
 A tracker reference becomes the task identifier when the request names it as
 such. An issue URL or a qualified `group/project#42` reference counts wherever
 it appears. A bare key such as `PROJ-327` counts only as the first or last word
-of the request: in the middle of a sentence ("la migration ARCH-01 de api")
+of the request: in the middle of a sentence ("migrate the ARCH-01 decision of the api")
 it usually names a decision or a document, and the task gets a local
 identifier instead.
 
@@ -168,7 +168,7 @@ explicitly agreed to route it through the Factory (`activation.mode: auto`,
 the default):
 
 ```bash
-aief run "Implémente PROJ-142" --agent claude-code \
+aief run "Implement PROJ-142" --agent claude-code \
   --agent-session claude-code:session-7 --activation-confirmed \
   --project . --factory /opt/factory/1.7.0
 ```
@@ -213,12 +213,12 @@ This operation can upgrade a local task from `recommended` to `required`. A requ
 | Request | Normalized intent | Workflow | Task kind |
 | --- | --- | --- | --- |
 | `/implement PROJ-142` | implement | implement-task | external |
-| `Implémente PROJ-142` | implement | implement-task | external |
-| `Les callbacks FAILED restent PENDING, corrige ce bug` | fix | fix-bug | local |
-| `Refactore PaymentOrchestrator sans changer son comportement` | refactor | refactor-code | local |
+| `Implement PROJ-142` | implement | implement-task | external |
+| `Failed callbacks stay pending, fix this bug` | fix | fix-bug | local |
+| `Refactor OrderService without changing its behavior` | refactor | refactor-code | local |
 | `$test PROJ-142` | test | add-tests | external |
 | `/review !214` | review | review-change | external |
-| `Explique la gestion des webhooks` | analyze | analyze-task | local informational |
-| `Regarde PaymentOrchestrator` | analyze, ambiguous | analyze-task | local informational |
+| `Analyze how notifications are sent` | analyze | analyze-task | local informational |
+| `Look at OrderService` | analyze, ambiguous | analyze-task | local informational |
 
 External task retrieval and local-task promotion remain capability-driven. The Task contract already carries tracking and canonical-reference fields; provider search/create/link and deterministic tracking policy are the next Runtime increment.
