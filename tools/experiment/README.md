@@ -84,3 +84,25 @@ Each run directory holds:
 
 Step durations are wall-clock observations of the agent process. Tokens and
 cost are not recorded.
+
+## Decision validator
+
+`check_decisions.py` checks every recorded human gate decision of L3 runs
+against the study decision rule. It reads the records only and does not
+import the Runtime, so it is independent of both the Runtime and the
+approvers:
+
+```bash
+python3 tools/experiment/check_decisions.py runs/<run-id> [...] --rule-sha256 <pinned rule hash> [--json]
+```
+
+For each decision it reports whether it conforms (decision matching the
+comparator outcome, rationale listing exactly the failing items, pinned rule
+hash, protocol approver, `OBSERVED` interactive terminal) and its study
+classification (`approved`, `execution-failure`, `setup-invalid`,
+`operationally-invalid`, `protocol-gap`). A `before-merge` rejection on the
+base branch or the merge is `setup-invalid` only when the base branch head
+differs from the head the launcher recorded at the start of the run. The
+exit status is 1 when any decision departs from the rule. For an
+`execution.yaml` outside a launcher run, pass `--repo` and
+`--initial-branch NAME=SHA`.

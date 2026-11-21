@@ -132,7 +132,9 @@ Rules the launcher holds:
 - **No judgment.** The launcher records the final workspace patch, the branch
   patches and, in L3, the execution, evidence bundle, payload ledger, gate
   check and metrics. The task oracle and the analysis run separately on those
-  records.
+  records. `tools/experiment/check_decisions.py` checks every recorded gate
+  decision against the pinned decision rule, independently of the Runtime and
+  of the approvers, and classifies each rejection.
 - **Observed values only.** Agent version and Factory commit are read at run
   time; the model identifier comes from the run descriptor and is otherwise
   `UNAVAILABLE`. Step durations are wall-clock observations of the agent

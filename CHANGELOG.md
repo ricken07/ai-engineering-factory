@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `tools/experiment/check_decisions.py`, an independent validator of human gate decisions: it checks each recorded decision against the pinned decision rule (decision, rationale, rule hash, approver, channel) and classifies rejections as the study rule states.
 - The terminal confirmation of a human gate decision names the decision (approval, rejection or waiver) in its prompt and in its refusal message.
 - Fixed `aief execution approve` on an execution with no phase gate waiting: it is refused instead of completing the execution again, which recorded an approval and restarted the integration wait of `before-merge`.
 - Fixed `before-merge` decisions on a completed execution: a human at the terminal decides without `--owner` while an agent holds the lease, and the response limit runs from the integration request (`integration.requestedAt`) rather than from the moment the policy first required the gate.
