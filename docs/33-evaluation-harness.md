@@ -138,6 +138,9 @@ Rules the launcher holds:
   Runtime facts of each L3 run to its study outcome (`completed`,
   `execution-failure`, `setup-invalid`, `operationally-invalid`, `unfinished`,
   `protocol-deviation`) in a separate file, without rewriting them.
+  `compare_payloads.py` compares the payload ledger of an L3 execution with
+  the frozen L1/L2 treatment and checks that no forbidden content (oracle
+  material, decision rationales) reached the agent.
 - **Observed values only.** Agent version and Factory commit are read at run
   time; the model identifier comes from the run descriptor and is otherwise
   `UNAVAILABLE`. Step durations are wall-clock observations of the agent

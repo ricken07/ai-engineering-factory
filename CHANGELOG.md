@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added `tools/experiment/compare_payloads.py`, which compares the payload ledger of an L3 execution with the frozen L1/L2 treatment (same plan, verification and practices; no extra task facts, forbidden content or decision rationale delivered; review feedback within the rework budget).
+- Fixed test imports that broke collection under a plain `pytest` invocation, as the CI runs it.
 - The study tools default to `--rule-version v4`, the decision rule pinned for scored runs.
 - The decision validator and the study outcome mapping take `--rule-version v3|v4`: under gate-rule-v4 a `verification:frozen` mismatch is setup-invalid like `plan:frozen`, and refused attempts are attributed to the agent (counted in H1) or to an operator (protocol deviation). The study outcome of a run still waiting at collection is now `unfinished` (mapping version 2).
 - The commands of a bound verification (`commands: [{id, command, cwd?, repository?}]`) run during `validate-change` together with the profile commands; each result is evidence `<repository>:bound-verification:<id>:exit-<code>`, and malformed commands are refused before the execution starts.

@@ -136,3 +136,22 @@ attributed to the agent do not change the outcome; they are listed as
 execution ended as the protocol requires; the task oracle decides whether the
 change is correct.
 
+## Payload comparison
+
+`compare_payloads.py` compares what an L3 execution delivered to the agent,
+as its payload ledger recorded it, with the frozen L1/L2 treatment:
+
+```bash
+python3 tools/experiment/compare_payloads.py runs/<run-id>/repo/.ai/runtime/executions/<execution-id> \
+  --l1-context treatment/context.md --l2-plan treatment/plan.md --l2-verification treatment/verification.yaml \
+  --request "<the task request>" [--forbidden oracle/test_patch.diff] [--rework-maximum 3] [--json]
+```
+
+It reports `l3_same_l2_plan`, `l3_same_l2_verification`, `l3_same_l1_content`
+(practices of producer phases, word for word; practices of the reviewer phase
+are listed as part of the review intervention), `no_additional_task_semantic_facts`
+(classified sections, task context limited to the request, scope and
+classification, no line of a `--forbidden` file in any snapshot),
+`reviewer_feedback_budget` and `no_decision_rationale_leak`. Each is
+`VERIFIED`, `FAILED` or `NEEDS_REVIEW`; the exit status is 1 on `FAILED`.
+
