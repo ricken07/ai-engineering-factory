@@ -48,6 +48,7 @@ _SECTIONS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"^## Skill contract$"), "skill-contract", PROCEDURAL),
     (re.compile(r"^## Bound plan$"), "bound-plan", TASK_PLAN),
     (re.compile(r"^## Rework \d+: "), "rework", REVIEW_FEEDBACK),
+    (re.compile(r"^## Plan revision \d+: "), "plan-revision", HUMAN_DECISION),
     (re.compile(r"^## Human decisions on review findings$"), "human-decisions", HUMAN_DECISION),
     (re.compile(r"^## Authorized action: "), "authorized-action", PROCEDURAL),
     (re.compile(r"^## Repositories$"), "repositories", PROJECT_CONTEXT),
@@ -147,7 +148,7 @@ def record_phase(root: Path, execution: dict[str, Any], phase: dict[str, Any], s
         if bound:
             items.append(_file_item(f"bound-{role}", root / bound["artifact"], TASK_PLAN, bases))
     entry = {"sequence": sequence, "phase": phase["id"], "skill": phase["skill"],
-             "attempt": (phase.get("rework") or {}).get("number", 0), "at": at, "items": items}
+             "attempt": (phase.get("rework") or phase.get("revision") or {}).get("number", 0), "at": at, "items": items}
     entry["fingerprint"] = "sha256:" + _sha256(json.dumps(entry, sort_keys=True).encode("utf-8"))
     ledger["entries"].append(entry)
     ledger["fingerprint"] = "sha256:" + _sha256(json.dumps(ledger["entries"], sort_keys=True).encode("utf-8"))

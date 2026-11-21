@@ -186,7 +186,14 @@ approve-policy` (or `aief execution approve`) command to run in their own
 terminal, and wait. A human who refuses the change runs `aief execution reject
 <id> --reason <rationale>` in their own terminal; never run it yourself. When
 `execution next` reports `cancelled` because a gate expired or was rejected,
-stop. See `docs/34-human-approval.md`.
+stop. At the plan gate the human may also ask for changes to the plan by
+typing `$revise <changes>` in this session; never run `aief execution
+revise-plan` yourself. When the human questions the plan, discuss it, then
+tell them about `$revise`: do not rewrite the plan in conversation, and do
+not ask them to approve a plan they want changed. When your context contains
+`AIEF: the human asked ...`, the Runtime reopened the planning phase:
+continue with `aief execution next` and address its **Plan revision**
+section. See `docs/34-human-approval.md`.
 
 When `execution next` reports `blocked` because the current phase's
 `recovery.status` is `waiting-user`, do not resolve the question in

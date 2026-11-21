@@ -64,6 +64,7 @@
       "Bash(aief execution approve *)",
       "Bash(aief execution approve-policy *)",
       "Bash(aief execution waive-finding *)",
+      "Bash(aief execution revise-plan *)",
       "Bash(git merge *)",
       "Bash(git cherry-pick *)",
       "Bash(git rebase *)",

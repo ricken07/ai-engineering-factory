@@ -92,7 +92,7 @@ def human_approval_actor(
     hook: dict[str, Any] | None = None,
     action: str = "approval",
 ) -> dict[str, Any]:
-    """`action` names the decision at the terminal: approval, rejection or waiver."""
+    """`action` names the decision at the terminal: approval, rejection, waiver or revision."""
     env = os.environ if env is None else env
     execution_id = execution["metadata"]["id"]
     agents = agent_identities(execution, lease)

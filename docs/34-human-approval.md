@@ -26,6 +26,11 @@ The same channels carry the human's decisions on review findings: `/waive
 `aief execution waive-finding` in your own terminal (see
 [29 — Human Decisions on Review Findings](29-evidence-chain-and-replay.md#human-decisions-on-review-findings)).
 
+At the plan gate, the human can also ask for changes to the plan instead of
+approving or rejecting it: `/revise <changes>` (`$revise` in Codex) in the
+agent session, or `aief execution revise-plan` in your own terminal (see
+[Revising a plan](#revising-a-plan)).
+
 The risk level decides **which** gates require a human. It never decides
 **how** the approval may reach the Runtime: that is always `OBSERVED`.
 
@@ -194,7 +199,7 @@ flowchart TD
 
 ### Set it up
 
-**On each developer machine.** `/approve` and `/waive` are native commands of the AIEF
+**On each developer machine.** `/approve`, `/waive` and `/revise` are native commands of the AIEF
 adapter. Install or refresh the adapter skills, after every Factory update
 too; otherwise the coding agent harness does not know the commands and the
 message never reaches the hook:
@@ -202,7 +207,7 @@ message never reaches the hook:
 ```bash
 aief setup-adapter claude-code --execute
 aief setup-adapter codex --execute
-aief verify-adapter claude-code     # approve and waive must be LINKED
+aief verify-adapter claude-code     # approve, waive and revise must be LINKED
 ```
 
 **Once per project.** Install the approval hook and the permission rules
@@ -240,6 +245,7 @@ coding agent harness so that the agent cannot even attempt an approval:
 | `aief execution approve` | approve a phase | forbidden to the agent |
 | `aief execution approve-policy` | approve a policy gate | forbidden to the agent |
 | `aief execution waive-finding` | decide that a review finding does not block | forbidden to the agent |
+| `aief execution revise-plan` | ask for changes to the plan at its gate | forbidden to the agent |
 | `git merge`, `git cherry-pick`, `git rebase` | integrate or rewrite a task branch | forbidden to the agent: the Runtime integrates after `before-merge` ([18](18-workspace-git-safety.md#governed-integration)) |
 | `git push` to a base branch (`main`, or the project's base branches) | publish onto a base branch | forbidden to the agent |
 | `aief approval` (including `aief approval hook`) | call the approval hook entry point with a forged message | forbidden to the agent |
@@ -401,6 +407,71 @@ and the rationale. `before-merge` waits after the execution is completed: its
 rejection keeps the execution `completed` and sets the integration to
 `rejected`, so nothing is merged.
 
+## Revising a plan
+
+At the plan gate, a human who wants the plan changed, rather than approved
+or the whole execution cancelled, asks for changes:
+
+```bash
+/revise <changes to make to the plan>        # agent session, with the approval hook ($revise in Codex)
+aief execution revise-plan <execution-id> --feedback "<changes>" [--approver <name>]   # own terminal
+```
+
+Discussing the plan with the agent first is fine: it answers questions and
+explains trade-offs. But a conversation decides nothing, and an answer to a
+question the agent asks through its harness (for example a multiple-choice
+prompt) reaches the Runtime only through the agent, as a relay. The decision
+to revise must come through an `OBSERVED` channel, like an approval.
+
+```mermaid
+sequenceDiagram
+    actor Human
+    box Coding agent harness
+        participant Hook as UserPromptSubmit hook
+    end
+    box Coding agent
+        participant Agent
+    end
+    box AIEF
+        participant Runtime
+    end
+    Runtime-->>Agent: plan waits at plan-gate
+    Human->>Hook: /revise use the existing operator registry
+    Hook->>Runtime: aief approval hook (message read from the harness)
+    Runtime->>Runtime: record changes-requested (OBSERVED), archive planning-revision-N, reopen planning
+    Hook-->>Agent: "AIEF: the human asked ..." (added context)
+    Agent->>Runtime: aief execution next
+    Runtime-->>Agent: phase brief with a Plan revision section
+    Agent->>Runtime: complete-phase (revised plan)
+    Runtime-->>Human: revised plan waits at plan-gate
+```
+
+The Runtime:
+
+- records the decision in `gateDecisions` as `changes-requested`, with the
+  feedback as `rationale` and the comparator evidence of the plan the human
+  saw, and emits `gate.changes-requested`;
+- keeps the previous plan and its brief under a `-revision-N` name, and
+  appends a `planRevisions` entry (number, feedback, actor, archived files,
+  timing of the gate wait it ended);
+- reopens the planning phase. Its brief has a **Plan revision** section with
+  the feedback, classified `human-decision` in the payload ledger. The
+  section also lists every earlier plan (`planning-revision-1.yaml`, …) with
+  the feedback that superseded it: the agent starts from the latest plan,
+  keeps what the human did not question, and earlier feedback still applies
+  unless the latest contradicts it;
+- holds the revised plan at the same gate. The response limit runs from the
+  moment the revised plan waits, not from the first wait.
+
+Limits:
+
+- feedback is required, and only a plan waiting at its gate can be revised;
+- a plan is revised at most three times; then the human approves it, or
+  rejects the gate and starts a new execution with a revised task;
+- a bound plan (`--bound-plan`, used by research runs) cannot be revised:
+  the request is refused and recorded in `approvalRefusals`. Revising it
+  would change the treatment between experimental conditions.
+
 ## Human gate protocol
 
 A project can fix in advance how its human gates are decided:
@@ -419,7 +490,7 @@ alter a running execution. The Runtime applies it as follows:
 
 - **Approvers.** An `OBSERVED` decision from an identity outside `approvers`
   is refused and recorded in `approvalRefusals`. This applies to approvals,
-  rejections and finding waivers. The identity is the one the channel
+  rejections, plan revisions and finding waivers. The identity is the one the channel
   observed, not an authenticated principal.
 - **Response limit.** A gate that holds the execution longer than
   `responseLimitMinutes` expires. The time is measured from the moment the
@@ -428,7 +499,8 @@ alter a running execution. The Runtime applies it as follows:
   requests the integration (`integration.requestedAt`), even when the policy
   required the gate earlier. Time does not trigger the Runtime by itself: the
   first command that looks at the gate after the deadline applies the expiry
-  (`execution next`, `gate-check`, `approve`, `approve-policy` or `reject`).
+  (`execution next`, `gate-check`, `approve`, `approve-policy`, `reject` or
+  `revise-plan`).
   That command dates the expiry at the deadline, records it, emits
   `gate.expired` and cancels the execution; for `before-merge` the execution
   stays `completed` and its integration becomes `expired`. A decision that
@@ -446,7 +518,7 @@ Every decision is kept in `gateDecisions`:
 gateDecisions:
   - gate: plan-gate
     kind: phase-gate          # or policy-gate
-    decision: approved        # approved | rejected | expired
+    decision: approved        # approved | rejected | changes-requested | expired
     phase: planning
     trigger: phase:planning   # for a policy gate: the reassessment that required it
     requestedAt: 2026-11-21T09:00:00+00:00
@@ -459,7 +531,8 @@ gateDecisions:
 ```
 
 An expired gate has no actor. Its `waitDurationMs` is the response limit,
-`DERIVED`. A rejection also carries its `rationale`.
+`DERIVED`. A rejection also carries its `rationale`, and a revision request
+carries the human's feedback as `rationale`.
 
 `before-merge` of a completed execution does not hold the execution, so no
 clock measures its wait: `waitStartedAt` is `integration.requestedAt` and

@@ -29,7 +29,10 @@
   records the planning phase from them, unchanged and verified by hash.
 - **Human gate protocol**: `humanGates` (approvers, response limit, decision
   rule), snapshotted per execution; every gate decision (approved, rejected,
-  expired) is recorded in `gateDecisions`.
+  changes-requested, expired) is recorded in `gateDecisions`.
+- **Plan revision**: a human decision at the plan gate asking for changes to
+  the plan (`/revise`, `aief execution revise-plan`); the Runtime archives the
+  plan and reopens the planning phase with the feedback.
 - **Payload ledger**: per-execution record of what the Runtime delivered to the
   agent at each phase (snapshots, SHA-256, classification), checked with
   `aief execution payload-ledger`.

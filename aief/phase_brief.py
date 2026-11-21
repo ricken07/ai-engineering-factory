@@ -37,6 +37,23 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
         lines.append(f"- Output contract ({contract['source']}): `{contract['schema']}`")
     if binding:
         lines += brief_section(binding)
+    revision = phase.get("revision")
+    if revision:
+        lines += ["", f"## Plan revision {revision['number']}: changes the human asked for", "",
+                  "The human did not approve the previous plan at its gate and asked for these changes"
+                  + (f" (`{revision['requestedBy']}`)" if revision.get("requestedBy") else "") + ":", "",
+                  *[f"> {line}" if line else ">" for line in revision["feedback"].splitlines()], "",
+                  "Write a new plan that makes these changes. Start from the latest previous plan and keep what",
+                  "the human did not question. Earlier feedback still applies unless the latest feedback",
+                  "contradicts it. When a change conflicts with the task or a practice, say so in the plan's",
+                  "unknowns rather than ignoring it. The revised plan waits for the human at the same gate."]
+        history = revision.get("history") or []
+        if history:
+            lines += ["", "Previous plans, in the execution directory, oldest first:", ""]
+            for item in history:
+                plan = f"`{item['plan']}`" if item.get("plan") else "(plan file not kept)"
+                lines.append(f"- Revision {item['number']}: {plan}, superseded by: "
+                             + " ".join(str(item["feedback"]).split()))
     rework = phase.get("rework")
     if rework:
         lines += ["", f"## Rework {rework['number']}: address the review findings", "",

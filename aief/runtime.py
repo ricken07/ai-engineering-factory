@@ -315,6 +315,41 @@ class Execution:
         self._start_phase(reopened)
         self.save()
 
+    def revise_plan(self, phase_id: str, record: dict[str, Any]) -> None:
+        """Reopen the planning phase waiting at its gate after the human asked
+        for changes. Its artifacts are kept under a -revision-N name and its
+        gate timing goes with the revision record: the revised plan waits for
+        the human again from the moment it is submitted."""
+        number = record["number"]
+        phase = next(item for item in self.data["phases"] if item["id"] == phase_id)
+        archived = []
+        for name in phase.get("artifacts", []):
+            source = self.root / name
+            if not source.is_file():
+                continue
+            target = f"{source.stem}-revision-{number}{source.suffix}"
+            source.replace(self.root / target)
+            archived.append(target)
+            self.data["artifacts"] = [target if item == name else item for item in self.data["artifacts"]]
+        entry = {**record, "archived": archived}
+        if "gateTiming" in phase:
+            entry["gateTiming"] = phase.pop("gateTiming")
+        for key in ("preparedAt", "revision"):
+            phase.pop(key, None)
+        phase.update({"status": "pending", "artifacts": [],
+                      "timing": {"startedAt": None, "completedAt": None, "durationMs": unavailable_metric()}})
+        self.data.setdefault("planRevisions", []).append(entry)
+        # The brief carries the whole history: every earlier plan and the
+        # feedback that superseded it, so a revision builds on all of them.
+        phase["revision"] = {key: record[key] for key in ("number", "feedback", "requestedBy") if key in record}
+        phase["revision"]["history"] = [
+            {"number": item["number"], "feedback": item["feedback"],
+             "plan": next((name for name in item.get("archived", []) if name.startswith(f"{phase_id}-revision-")), None)}
+            for item in self.data["planRevisions"]]
+        self.data["status"] = "running"
+        self._start_phase(phase)
+        self.save()
+
     def overrule_rework(self, record: dict[str, Any], at: str) -> None:
         """Undo a rework whose findings the human all decided not to block,
         before the reopened implementation started: the archived artifacts

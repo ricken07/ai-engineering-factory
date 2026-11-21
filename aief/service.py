@@ -89,6 +89,9 @@ def _build_root(path: Path, binding: dict[str, Any]) -> Path | None:
 # Returns to implementation after reviews that do not approve the change,
 # before the human decides how to continue.
 MAX_REWORKS = 3
+# Revisions of a plan the human asked for at its gate, before they approve
+# it or reject the gate.
+MAX_PLAN_REVISIONS = 3
 
 
 class RuntimeService:
@@ -1040,6 +1043,51 @@ class RuntimeService:
         self._append_closed_gates(execution, events)
         events.append("execution.cancelled", execution=execution_id,
                       payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": execution.data["cancelledReason"]})
+        return execution
+
+    @measured_runtime
+    def revise_plan(self, execution_id: str, feedback: str, owner: str | None = None,
+                    approver: str | None = None, _hook: dict[str, Any] | None = None) -> Execution:
+        """A human asks for changes to the plan waiting at its gate: the
+        decision is recorded (changes-requested, with the feedback), the plan
+        is archived and the planning phase is reopened with the feedback in
+        its brief. The revised plan waits for the human at the same gate."""
+        execution = self.execution(execution_id)
+        self._assert_decision_boundary(execution, owner, _hook)
+        if not (feedback or "").strip():
+            raise ValueError("the changes to make to the plan are required to revise it")
+        if expired := self._expire_late_gates(execution):
+            raise PermissionError(f"the gate expired before this decision (humanGates.responseLimitMinutes): {expired}")
+        held = next((item for item in gate_protocol.holding_gates(execution.data) if item["kind"] == "phase-gate"
+                     and next((phase for phase in execution.data["phases"] if phase["id"] == item["phase"]),
+                              {}).get("skill") == "create-plan"), None)
+        if held is None:
+            raise RuntimeError(f"no plan is waiting for a decision at its gate: execution is {execution.data['status']}")
+        if execution.data.get("planBinding"):
+            reason = ("the plan of this execution is bound (--bound-plan): it cannot be revised; "
+                      "approve it, or reject the gate (aief execution reject) and start a new execution")
+            self._record_approval_refusal(execution, held["gate"], owner, approver, None, reason)
+            raise PermissionError(reason)
+        revisions = execution.data.get("planRevisions", [])
+        if len(revisions) >= MAX_PLAN_REVISIONS:
+            raise RuntimeError(f"the plan was already revised {MAX_PLAN_REVISIONS} times: approve it, or reject the gate "
+                               "(aief execution reject) and start a new execution with a revised task")
+        actor = self._human_approval(
+            execution, held["gate"], owner, approver, _hook,
+            terminal_command=f"aief execution revise-plan {execution_id} --feedback <changes>", action="revision",
+            in_session="'/revise <changes>' (or '$revise <changes>')")
+        evidence = self._gate_evidence(execution, held)
+        phase = next(item for item in execution.data["phases"] if item["id"] == held["phase"])
+        execution._complete_gate_wait(execution._phase_gate(phase))
+        record = self._record_gate_decision(execution, held, "changes-requested", actor, feedback.strip(), evidence)
+        number = len(revisions) + 1
+        execution.revise_plan(phase["id"], {"number": number, "at": record["at"], "gate": held["gate"],
+                                            "feedback": feedback.strip(), "requestedBy": actor["id"], "actor": actor})
+        self._events(execution.data["task"]).append(
+            "gate.changes-requested", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "gate": held["gate"],
+                     "phase": phase["id"], "status": "changes-requested", "number": number,
+                     "requestedBy": actor["id"], "actor": actor, "rationale": record["rationale"]})
         return execution
 
     def _record_approval_refusal(self, execution: Execution, gate: str, owner: str | None, approver: str | None,

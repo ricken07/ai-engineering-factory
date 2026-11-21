@@ -12,6 +12,10 @@ the human then approves in their own terminal.
 `/waive <finding-number> <justification>` (`$waive` in Codex) travels the same
 way: the human decides that a blocking review finding does not block the
 change (see aief.findings).
+
+`/revise <changes>` (`$revise` in Codex) asks for changes to the plan waiting
+at its gate: the Runtime records the decision and reopens the planning phase
+with the human's feedback in its brief.
 """
 from __future__ import annotations
 
@@ -23,13 +27,14 @@ from typing import Any, Callable
 HOOK_EVENT = "UserPromptSubmit"
 COMMAND = re.compile(r"^\s*[/$]approve(?:\s+(?P<args>[^\n]*))?\s*$")
 WAIVE = re.compile(r"^\s*[/$]waive(?:\s+(?P<args>.*?))?\s*$", re.S)
+REVISE = re.compile(r"^\s*[/$]revise(?:\s+(?P<args>.*?))?\s*$", re.S)
 # Where each harness reads project hooks, and the rule that keeps the agent
 # itself from invoking the hook entry point through its shell tool.
 CONFIG = {"claude-code": Path(".claude/settings.json"), "codex": Path(".codex/hooks.json")}
 # Only the human approves: the agent may run neither the approval commands nor
 # the hook entry point (defense in depth; the Runtime refuses relays anyway).
 CLAUDE_DENY = ["Bash(aief approval *)", "Bash(aief execution approve *)", "Bash(aief execution approve-policy *)",
-               "Bash(aief execution waive-finding *)"]
+               "Bash(aief execution waive-finding *)", "Bash(aief execution revise-plan *)"]
 CODEX_RULES = Path(".codex/rules/aief-approval.rules")
 CODEX_RULE = """# Only the human approves a Factory gate: the agent may run neither the
 # approval commands nor the approval hook, which the Codex harness runs itself.
@@ -40,7 +45,7 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["aief", "execution", ["approve", "approve-policy", "waive-finding"]],
+    pattern = ["aief", "execution", ["approve", "approve-policy", "waive-finding", "revise-plan"]],
     decision = "forbidden",
     justification = "Only the human approves a Factory gate; the Runtime refuses relayed approvals",
 )
@@ -255,7 +260,7 @@ def _handle_waive(payload: dict[str, Any], agent: str, open_service: Callable[[P
     try:
         parsed = parse_waive(payload.get("prompt"))
         if parsed is None:
-            return 0, "", ""
+            return _handle_revise(payload, agent, open_service)
         execution, finding, justification = parsed
         service = open_service(Path(payload.get("cwd") or "."))
         candidates = waivable_executions(service)
@@ -286,6 +291,67 @@ def _handle_waive(payload: dict[str, Any], agent: str, open_service: Callable[[P
     return 0, (f"AIEF: the human decided in this message that finding {finding} of {result['review']} does not block "
                f"execution {execution}; the {agent} coding agent harness delivered it to the Runtime, which recorded "
                f"it (OBSERVED). Run no decision command yourself. {follow}\n"), ""
+
+
+USAGE_REVISE = "revise [<execution-id>] <changes to make to the plan>"
+
+
+def parse_revise(prompt: str | None, executions: list[str]) -> tuple[str | None, str | None] | None:
+    """(execution id or None, feedback or None) of a revise message, None for
+    any other message. The first word names the execution only when it is
+    one of `executions`."""
+    match = REVISE.match(prompt or "")
+    if not match:
+        return None
+    text = (match.group("args") or "").strip()
+    first = text.split(maxsplit=1)
+    if first and first[0] in executions:
+        return first[0], (first[1].strip() if len(first) > 1 else "") or None
+    return None, text or None
+
+
+def plans_awaiting(service: Any) -> list[str]:
+    """Executions whose plan waits for the human at its gate."""
+    result = []
+    for item in awaited_approvals(service):
+        if item["kind"] != "phase":
+            continue
+        phase = next((phase for phase in service.execution(item["execution"]).data["phases"]
+                      if phase["id"] == item.get("phase")), {})
+        if phase.get("skill") == "create-plan":
+            result.append(item["execution"])
+    return result
+
+
+def _handle_revise(payload: dict[str, Any], agent: str, open_service: Callable[[Path], Any]) -> tuple[int, str, str]:
+    fallback = ("To ask for changes without the harness hook, run in your own terminal: "
+                "aief execution revise-plan <execution-id> --feedback <changes> --approver <name>")
+    if not REVISE.match(payload.get("prompt") or ""):
+        return 0, "", ""
+    try:
+        service = open_service(Path(payload.get("cwd") or "."))
+        candidates = plans_awaiting(service)
+        execution, feedback = parse_revise(payload.get("prompt"), candidates)
+        if execution is None:
+            if len(candidates) != 1:
+                raise ValueError("no plan of this project is waiting for a decision" if not candidates
+                                 else "several plans are waiting; name one: " + ", ".join(candidates))
+            execution = candidates[0]
+        if feedback is None:
+            return 2, "", (f"AIEF decision not recorded: say what to change in the plan of execution {execution}. "
+                           f"Type: {USAGE_REVISE} (for example: /revise use the existing operator registry instead "
+                           f"of a configuration flag); $revise in Codex.")
+        hook = {"agent": agent, "session": payload.get("session_id"),
+                "prompt": payload.get("prompt_id") or payload.get("turn_id")}
+        record = service.revise_plan(execution, feedback, _hook=hook)
+    except Exception as error:  # noqa: BLE001 - every refusal is reported to the human
+        return 2, "", f"AIEF decision not recorded: {error}. {fallback}"
+    number = record.data["planRevisions"][-1]["number"]
+    return 0, (f"AIEF: the human asked in this message for changes to the plan of execution {execution}; the "
+               f"{agent} coding agent harness delivered it to the Runtime, which recorded it (changes-requested, "
+               f"OBSERVED) and reopened the planning phase (revision {number}). Run no decision command yourself. "
+               f"Continue with 'aief execution next {execution}': the phase brief lists the changes to make; the "
+               f"revised plan waits for the human at the same gate.\n"), ""
 
 
 def _entries(config: dict[str, Any]) -> list[dict[str, Any]]:

@@ -97,7 +97,7 @@
       "additionalProperties": false
     },
     "gateDecisions": {
-      "description": "Every human gate decision (approved, rejected, expired) with its timing, actor and the protocol it was taken under.",
+      "description": "Every human gate decision (approved, rejected, changes-requested, expired) with its timing, actor and the protocol it was taken under.",
       "type": "array",
       "items": {
         "type": "object",
@@ -105,7 +105,7 @@
         "properties": {
           "gate": {"type": "string"},
           "kind": {"enum": ["phase-gate", "policy-gate"]},
-          "decision": {"enum": ["approved", "rejected", "expired"]},
+          "decision": {"enum": ["approved", "rejected", "changes-requested", "expired"]},
           "at": {"type": "string", "format": "date-time"},
           "phase": {"type": "string"},
           "trigger": {"type": "string"},
@@ -153,6 +153,11 @@
         },
         "additionalProperties": false
       }
+    },
+    "planRevisions": {
+      "description": "Revisions of the plan a human asked for at its gate (changes-requested). The superseded artifacts keep a -revision-N suffix.",
+      "type": "array",
+      "items": {"type": "object", "required": ["number", "at", "gate", "feedback", "requestedBy", "actor"], "properties": {"number": {"type": "integer", "minimum": 1}, "at": {"type": "string", "format": "date-time"}, "gate": {"type": "string"}, "feedback": {"type": "string", "minLength": 1}, "requestedBy": {"type": "string"}, "actor": {"$ref": "actor-identity.schema.json"}, "archived": {"type": "array", "items": {"type": "string"}}, "gateTiming": {"$ref": "#/$defs/gateTiming"}}, "additionalProperties": false}
     },
     "reworks": {
       "description": "Returns to implementation after a review that did not approve the change. The superseded artifacts keep a -rework-N suffix.",
@@ -252,6 +257,13 @@
             "description": "Set on the implementation phase reopened after a review that did not approve the change: the findings to address.",
             "type": "object", "required": ["number", "review"],
             "properties": {"number": {"type": "integer", "minimum": 1}, "review": {"type": "string"}, "decision": {"type": "string"}, "findings": {"type": "array"}},
+            "additionalProperties": false
+          },
+          "revision": {
+            "description": "Set on the planning phase reopened after a human asked for changes to the plan at its gate: the changes to make.",
+            "type": "object", "required": ["number", "feedback"],
+            "properties": {"number": {"type": "integer", "minimum": 1}, "feedback": {"type": "string", "minLength": 1}, "requestedBy": {"type": "string"},
+              "history": {"description": "Every revision so far, oldest first: the plan it superseded and the feedback.", "type": "array", "items": {"type": "object", "required": ["number", "feedback"], "properties": {"number": {"type": "integer", "minimum": 1}, "feedback": {"type": "string"}, "plan": {"type": ["string", "null"]}}, "additionalProperties": false}}},
             "additionalProperties": false
           },
           "action": {
