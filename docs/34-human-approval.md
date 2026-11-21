@@ -209,7 +209,10 @@ aief verify-adapter claude-code     # approve and waive must be LINKED
 described below, then commit the files so every developer of the project
 has them. Projects created from the Factory template (`aief init`) already
 contain them; `install-hook` is idempotent and also updates the rules of a
-project installed with an earlier version.
+project installed with an earlier version. It always writes into the
+project's main checkout, even when `--project` points to one of its linked
+worktrees (AIEF resolves a worktree to its project); to commit the rules on
+another branch, copy the two generated files there.
 
 ```bash
 aief approval install-hook --agent claude-code --project .

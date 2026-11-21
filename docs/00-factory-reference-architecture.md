@@ -235,7 +235,7 @@ sequenceDiagram
     M-->>I: structured result
     I-->>R: capability result
     R->>FS: validations, diff, branch and workspace state
-    R->>G: gate commit/push/MR/merge per policy
+    R->>G: gate commit/submission per policy; integration after before-merge
     R-->>AD: receipt, state, next phase or blockage
     AD-->>A: display result and continue/wait
 ```
@@ -556,7 +556,8 @@ Developer intent
     → Review
     → Traceability/handoff
     → EvidenceBundle
-    → Commit, MR or merge per authorization
+    → Commit or MR per authorization
+    → Governed integration: merge by the Runtime after the human approves before-merge
 ```
 
 The Runtime records what it observed, trusted and enforced. A policy decision

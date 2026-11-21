@@ -104,7 +104,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | [09 — Governance & Versioning](09-governance.md) | Semantic versioning, the published Git tag as the organization's single reference, release process, review requirements for schema/policy/workflow changes, compatibility checks, ownership model | Governance, release managers |
 | [10 — Security Baseline](10-security.md) | Security principles, least privilege, no secrets in prompts, destructive operations, critical changes, permission templates | Security, operators |
 | [20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md) | Policies re-evaluated after impact analysis and planning. Monotonic risk/scope. Escalation audit trail. | Governance, operators |
-| [34 — Human Approval](34-human-approval.md) | Approving gates with `/approve` in the agent session (harness hook) or in a terminal; recorded approver assurance; `OBSERVED` required at critical risk. | Developers, governance, operators |
+| [34 — Human Approval](34-human-approval.md) | Approving gates with `/approve` in the agent session (harness hook) or in a terminal; decisions on review findings (`/waive`); every approval must be `OBSERVED`; coding agent harness permission rules. | Developers, governance, operators |
 
 **What you'll learn:**
 - How to declare policies at Factory, project, repository or task level
@@ -160,7 +160,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [18 — Workspace & Git Safety](18-workspace-git-safety.md) | Safety boundary, canonical Project State Store, WorkspaceBinding, worktree/check-out strategies and drift handling. | Operators, developers |
+| [18 — Workspace & Git Safety](18-workspace-git-safety.md) | Safety boundary, canonical Project State Store, WorkspaceBinding, worktree/check-out strategies, drift handling and governed integration (before-merge). | Operators, developers |
 | [19 — Idempotence & Execution Leases](19-idempotence-execution-leases.md) | Execution-scoped ownership across worktrees/agents, replay-safe operation IDs and handoff. | Operators, adapter developers |
 
 **What you'll learn:**
@@ -177,7 +177,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | Document | Purpose | Audience |
 |----------|---------|----------|
 | [26 — Task Execution Log](26-task-execution-log.md) | Query and inspect the local task journal (events.jsonl) | Operators, debuggers |
-| [29 — Evidence Chain & Validation Replay](29-evidence-chain-and-replay.md) | Acceptance criteria, revision-bound validation, trusted review identity and fingerprinted EvidenceBundle. | Developers, reviewers |
+| [29 — Evidence Chain & Validation Replay](29-evidence-chain-and-replay.md) | Acceptance criteria, revision-bound validation, trusted review identity, bounded rework, human decisions on review findings and fingerprinted EvidenceBundle. | Developers, reviewers |
 | [32 — Runtime Observability](32-runtime-observability.md) | Structured events and monotonic timing with explicit availability and redaction. | Operators, debuggers |
 | [33 — Evaluation Harness](33-evaluation-harness.md) | Conformance levels plus explicit experimental conditions L0–L3 and reproducibility metadata. | Developers, QA |
 

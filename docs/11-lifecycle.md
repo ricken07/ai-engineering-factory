@@ -27,13 +27,11 @@ Review ── changes requested ──▶ back to Implement (bounded rework)
   ↓ approved
 Trace
   ↓
-Submit
-  ↓
-Human/CI gates
+Submit (before-commit / before-submission approved by the human)
   ↓
 Evidence bundle
   ↓
-Merge or handoff
+Governed integration (before-merge approved by the human, merge by the Runtime) or handoff
 ```
 
 Execution and phase timers begin and end on these persisted transitions. Human

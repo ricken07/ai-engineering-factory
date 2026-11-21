@@ -386,7 +386,9 @@ through a project hook; projects created with `aief init` already have it.
 For an existing project:
 
 ```bash
-# Adds the UserPromptSubmit hook and the rule that denies its entry point to the agent.
+# Adds the UserPromptSubmit hook and the permission rules that forbid the agent to approve,
+# to decide on review findings, to call the hook entry point, and to merge, cherry-pick,
+# rebase or push to a base branch. Run it from the project's main checkout.
 aief approval install-hook --agent claude-code --project .
 aief approval install-hook --agent codex --project .
 # Exits 0 when the hook is configured.
