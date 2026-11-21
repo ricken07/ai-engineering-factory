@@ -195,3 +195,12 @@ def test_an_agent_holding_the_lease_cannot_decide_before_merge(tmp_path: Path, m
     with pytest.raises(PermissionError, match="OBSERVED"):
         service.approve_policy_gate(identifier, "before-merge", owner="codex:reviewer")
     assert service.execution(identifier).data["integration"]["status"] == "awaiting-approval"
+
+
+def test_approving_a_completed_execution_is_refused_and_keeps_the_integration_wait(tmp_path: Path):
+    service, identifier, root = completed_with_task_branch(tmp_path)
+    before = service.execution(identifier).data
+    with pytest.raises(RuntimeError, match="no phase gate is waiting.*approve-policy <id> before-merge"):
+        service.approve_execution(identifier, approver="alice")
+    after = service.execution(identifier).data
+    assert after["integration"] == before["integration"] and after.get("gateDecisions") == before.get("gateDecisions")

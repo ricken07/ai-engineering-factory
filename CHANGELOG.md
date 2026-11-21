@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed `aief execution approve` on an execution with no phase gate waiting: it is refused instead of completing the execution again, which recorded an approval and restarted the integration wait of `before-merge`.
 - Fixed `before-merge` decisions on a completed execution: a human at the terminal decides without `--owner` while an agent holds the lease, and the response limit runs from the integration request (`integration.requestedAt`) rather than from the moment the policy first required the gate.
 - Fixed the recorded human wait of `before-merge`: an approval or a rejection records the wait from the integration request to the decision as `DERIVED`, and an approval keeps its wait start although the merge ends the integration wait.
 - Applied the response limit to `before-merge` after completion: the merge gate waits from the moment the Runtime requests the integration, expires at its deadline and can be rejected; both keep the execution `completed` and set the integration to `expired` or `rejected`. `aief execution gate-check` now applies a passed deadline, and the experiment launcher polls through it.

@@ -746,6 +746,12 @@ class RuntimeService:
         phase=execution.next_phase()
         if expired := self._expire_late_gates(execution):
             raise PermissionError(f"the gate expired before this decision (humanGates.responseLimitMinutes): {expired}")
+        if phase is None or phase.get("status") != "waiting-approval":
+            # Nothing to approve: a completed execution would otherwise be
+            # completed again and its integration requested again.
+            hint = " (approve the integration with: aief execution approve-policy <id> before-merge)" \
+                if (execution.data.get("integration") or {}).get("status") == "awaiting-approval" else ""
+            raise RuntimeError(f"no phase gate is waiting for approval: execution is {execution.data['status']}{hint}")
         held=next((item for item in gate_protocol.holding_gates(execution.data) if item["kind"] == "phase-gate"), None)
         evidence=self._gate_evidence(execution, held) if held else None
         gate_name=self._phase_gate_id(phase)
