@@ -7,6 +7,12 @@ verification specification unchanged into the execution directory, records
 their SHA-256, and performs the `create-plan` phase itself. The planning
 artifact only references the bound files and copies the acceptance criteria of
 the verification specification verbatim, so no agent writes another plan.
+
+The verification specification may also list `commands`, each
+`{id, command: [argv...], repository?, cwd?}`. The Runtime runs them during
+`validate-change` with the profile commands, so the governed execution checks
+at least what the bound verification asks for; their results are evidence
+`<repository>:bound-verification:<id>:exit-<code>`.
 """
 from __future__ import annotations
 
@@ -26,14 +32,44 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _criteria(verification: Path) -> list[Any] | None:
+def _specification(verification: Path) -> dict[str, Any]:
     try:
         data = yaml.safe_load(verification.read_text(encoding="utf-8"))
     except (UnicodeDecodeError, yaml.YAMLError) as error:
         raise ValueError(f"bound verification {verification.name} is not YAML: {error}") from error
     if not isinstance(data, dict):
         raise ValueError(f"bound verification {verification.name} must be a YAML mapping")
-    return data.get("acceptanceCriteria")
+    return data
+
+
+def _criteria(verification: Path) -> list[Any] | None:
+    return _specification(verification).get("acceptanceCriteria")
+
+
+def verification_commands(verification: Path) -> list[dict[str, Any]]:
+    """The commands of a bound verification, checked: unique ids, argv arrays, relative working directories."""
+    commands = _specification(verification).get("commands")
+    if commands is None:
+        return []
+    if not isinstance(commands, list):
+        raise ValueError(f"bound verification {verification.name}: commands must be a list")
+    seen: set[str] = set()
+    for index, item in enumerate(commands):
+        where = f"bound verification {verification.name}: commands[{index}]"
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"].strip():
+            raise ValueError(f"{where} needs an id")
+        if item["id"] in seen:
+            raise ValueError(f"{where}: duplicate id {item['id']}")
+        seen.add(item["id"])
+        argv = item.get("command")
+        if not isinstance(argv, list) or not argv or not all(isinstance(value, str) and value for value in argv):
+            raise ValueError(f"{where}: command must be a non-empty argv array")
+        cwd = item.get("cwd", ".")
+        if not isinstance(cwd, str) or Path(cwd).is_absolute() or ".." in Path(cwd).parts:
+            raise ValueError(f"{where}: cwd must be a relative path inside the repository")
+        if "repository" in item and not isinstance(item["repository"], str):
+            raise ValueError(f"{where}: repository must be a repository id")
+    return commands
 
 
 def check_binding(plan: Path, verification: Path | None, workflow: dict[str, Any]) -> None:
@@ -46,6 +82,8 @@ def check_binding(plan: Path, verification: Path | None, workflow: dict[str, Any
     if verification is not None and plan.name == verification.name:
         raise ValueError("the bound plan and the bound verification need distinct file names")
     criteria = _criteria(verification) if verification is not None else None
+    if verification is not None:
+        verification_commands(verification)
     if any(phase.get("skill") == "submit-change" for phase in workflow["phases"]):
         if verification is None:
             raise ValueError(f"workflow {workflow['id']} ends with submission: bind a verification specification "

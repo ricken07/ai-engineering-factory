@@ -1363,6 +1363,7 @@ class RuntimeService:
         plan: list[dict[str, Any]] = []
         modules: dict[str, dict[str, list[str]]] = {}
         singles: list[tuple[str, Path, dict[str, Any]]] = []
+        paths: dict[str, Path] = {}
         for identifier in repository_ids:
             repository = catalog[identifier]
             path = (self.project_root / repository["path"]).resolve()
@@ -1378,6 +1379,7 @@ class RuntimeService:
             elif isolated:
                 raise RuntimeError(f"repository {identifier} has no prepared worktree: validation would run on the main checkout")
             if not path.is_dir(): raise FileNotFoundError(f"repository path is missing: {identifier}: {path}")
+            paths[identifier] = path
             root = _build_root(path, binding)
             if root is not None:
                 group = modules.setdefault(str(root), {"ids": [], "modules": [], "profiles": []})
@@ -1396,7 +1398,29 @@ class RuntimeService:
         for identifier, path, repository in singles:
             for item in validation_plan(self.factory, path, repository.get("profiles", [])):
                 plan.append({"repository":identifier,"cwd":str(path),**item})
+        plan += self._bound_verification_plan(execution, paths)
         if not plan: raise RuntimeError("no applicable validation command was resolved from impacted repository profiles")
+        return plan
+
+    def _bound_verification_plan(self, execution: Execution, paths: dict[str, Path]) -> list[dict[str, Any]]:
+        """Commands of the bound verification, run with the profile commands (see aief.plan_binding)."""
+        record = (execution.data.get("planBinding") or {}).get("verification")
+        if not record:
+            return []
+        plan_binding.verify_binding(execution.root, execution.data["planBinding"])
+        plan = []
+        for item in plan_binding.verification_commands(execution.root / record["artifact"]):
+            repository = item.get("repository") or (next(iter(paths)) if len(paths) == 1 else None)
+            if repository is None:
+                raise ValueError(f"bound verification command {item['id']} must name its repository: "
+                                 f"the execution impacts {', '.join(paths)}")
+            if repository not in paths:
+                raise KeyError(f"bound verification command {item['id']} names a repository this execution does not impact: {repository}")
+            cwd = (paths[repository] / item.get("cwd", ".")).resolve()
+            if not cwd.is_relative_to(paths[repository]):
+                raise ValueError(f"bound verification command {item['id']} leaves its repository")
+            plan.append({"repository": repository, "cwd": str(cwd), "profile": "bound-verification",
+                         "operation": item["id"], "command": list(item["command"])})
         return plan
 
     def engineering_context(self, execution_id: str, repository_id: str, persist: bool = True) -> dict[str, Any]:

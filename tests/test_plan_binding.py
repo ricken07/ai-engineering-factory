@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from aief import plan_binding
 from aief.intake import TaskRegistry
 from aief.project import initialize
 from aief.service import RuntimeService
@@ -14,7 +15,7 @@ ROOT = Path(__file__).parents[1]
 PLAN = "# Plan\n\n1. Add the endpoint.\n2. Cover it with a test.\n"
 VERIFICATION = {"acceptanceCriteria": [{"id": "AC-1", "statement": "The endpoint returns 200"},
                                        {"id": "AC-2", "statement": "A test covers the endpoint"}],
-                "commands": [{"id": "V-1", "run": "make test"}]}
+                "commands": [{"id": "V-1", "command": ["make", "test"]}]}
 
 
 def project(tmp_path: Path) -> RuntimeService:
@@ -141,3 +142,47 @@ def test_verification_without_plan_is_refused(tmp_path: Path):
     service = project(tmp_path); _, spec = files(tmp_path)
     with pytest.raises(ValueError, match="needs a bound plan"):
         service.start("Implémente une évolution locale", confirmed=True, bound_verification=spec)
+
+
+def bound_validation(tmp_path: Path, commands: list) -> tuple:
+    from tests.test_service import validation_execution
+    service, execution = validation_execution(tmp_path)
+    plan, spec = files(tmp_path, {**VERIFICATION, "commands": commands})
+    execution.data["planBinding"] = plan_binding.bind(execution.root, plan, spec, "2026-11-21T00:00:00+00:00")
+    execution.save()
+    return service, execution.data["metadata"]["id"]
+
+
+def test_validation_runs_the_bound_verification_commands_with_the_profile(tmp_path: Path):
+    service, identifier = bound_validation(tmp_path, [{"id": "unit", "command": ["python3", "-m", "pytest", "-q"]},
+                                                      {"id": "lint", "command": ["ruff", "check"], "cwd": "src"}])
+    (service.project_root / "src").mkdir()
+    plan = service.profile_validation_plan(identifier)
+    bound = [item for item in plan if item["profile"] == "bound-verification"]
+    assert [item["operation"] for item in bound] == ["unit", "lint"]
+    assert bound[1]["cwd"] == str((service.project_root / "src").resolve())
+    assert any(item["profile"] == "maven" for item in plan)
+    calls = []
+    class Result: returncode, stdout, stderr = 0, "ok", ""
+    report = service.run_profile_validation(identifier, lambda command, **kwargs: calls.append(command) or Result())
+    assert ["python3", "-m", "pytest", "-q"] in calls and ["ruff", "check"] in calls
+    assert "main:bound-verification:unit:exit-0" in report["evidence"]
+
+
+def test_a_failing_bound_verification_command_fails_the_validation(tmp_path: Path):
+    service, identifier = bound_validation(tmp_path, [{"id": "unit", "command": ["false"]}])
+    class Result:
+        def __init__(self, code): self.returncode, self.stdout, self.stderr = code, "", ""
+    report = service.run_profile_validation(identifier, lambda command, **kwargs: Result(1 if command == ["false"] else 0))
+    assert report["status"] == "failed" and "main:bound-verification:unit:exit-1" in report["evidence"]
+
+
+def test_bound_verification_commands_are_checked_before_the_execution_starts(tmp_path: Path):
+    for commands, message in (([{"id": "a", "command": "pytest"}], "argv array"),
+                              ([{"id": "a", "command": ["x"]}, {"id": "a", "command": ["y"]}], "duplicate id"),
+                              ([{"id": "a", "command": ["x"], "cwd": "../elsewhere"}], "relative path"),
+                              ({"a": 1}, "must be a list")):
+        case = tmp_path / message.replace(" ", "-"); case.mkdir()
+        plan, spec = files(case, {**VERIFICATION, "commands": commands})
+        with pytest.raises(ValueError, match=message):
+            project(case).start("Implémente une évolution locale", confirmed=True, bound_plan=plan, bound_verification=spec)

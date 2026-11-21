@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The commands of a bound verification (`commands: [{id, command, cwd?, repository?}]`) run during `validate-change` together with the profile commands; each result is evidence `<repository>:bound-verification:<id>:exit-<code>`, and malformed commands are refused before the execution starts.
 - Added `tools/experiment/study_outcome.py`, which maps the Runtime facts of an L3 run to its study outcome in a separate `study-outcome.yaml`, without rewriting the Runtime records.
 - Added plan revision: at the plan gate a human asks for changes with `/revise <changes>` (`$revise` in Codex) through the approval hook, or `aief execution revise-plan` at the terminal. The decision is recorded as `changes-requested` (`OBSERVED`), the plan is archived as `-revision-N`, and the planning phase reopens with the feedback in its brief; the revised plan waits at the same gate. At most three revisions; refused for a bound plan.
 - Added `tools/experiment/check_decisions.py`, an independent validator of human gate decisions: it checks each recorded decision against the pinned decision rule (decision, rationale, rule hash, approver, channel) and classifies rejections as the study rule states.

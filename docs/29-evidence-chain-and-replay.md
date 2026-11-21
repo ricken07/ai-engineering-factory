@@ -50,6 +50,22 @@ ends with submission, it must list `acceptanceCriteria` as `{id, statement}`.
 The binding is refused before the execution starts when a file is missing,
 when the workflow has no `create-plan` phase, or when the criteria are missing.
 
+The bound verification can also list the commands that check the change:
+
+```yaml
+commands:
+  - {id: unit, command: [python3, -m, pytest, -q]}
+  - {id: lint, command: [ruff, check], cwd: src, repository: main}
+```
+
+Each command is an argv array, run without a shell. `cwd` is relative to the
+repository and `repository` is required when the execution impacts more than
+one. During `validate-change`, the Runtime runs these commands together with
+the profile commands, in the execution workspace, and records each result as
+evidence `<repository>:bound-verification:<id>:exit-<code>`. A failing command
+fails the validation. Malformed commands are refused before the execution
+starts.
+
 `--expect-plan-sha256` and `--expect-verification-sha256` record the hashes
 that the frozen files should have. A difference does not stop the execution:
 the plan gate comparator reports it, and the human decides on that evidence
