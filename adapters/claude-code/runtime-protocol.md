@@ -155,7 +155,7 @@ context then contains `AIEF: the human approved ...`, the approval hook
 already recorded it: run no approval command and continue with `aief
 execution next`. Without that line the hook is not active: relay the approval
 with `--owner` (never your identity as `--approver`); the Runtime records it as
-`DECLARED` and refuses it at `critical` risk, in which case give the human the
+`DECLARED` and refuses it at `high` or `critical` risk, in which case give the human the
 exact `aief execution approve-policy` or `aief execution approve` command to
 run in their own terminal, and wait. See `docs/34-human-approval.md`.
 

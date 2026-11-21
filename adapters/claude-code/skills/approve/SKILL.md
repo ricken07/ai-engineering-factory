@@ -17,7 +17,7 @@ decision: you never approve a gate yourself.
    <execution-id> <gate> --owner "<your lease owner>"` (or `aief execution
    approve` for a phase approval), never with your own identity as
    `--approver`. The Runtime records it as `DECLARED`.
-3. When the Runtime refuses a relayed approval (a `critical` risk execution
+3. When the Runtime refuses a relayed approval (a `high` or `critical` risk execution
    requires an `OBSERVED` one), show the human the refusal and the exact
    command to run in their own terminal:
    `aief execution approve-policy <execution-id> <gate> --approver <name>`.

@@ -6,7 +6,7 @@ session. Before the model sees the message, the harness runs its
 the human's message from the harness, not from the model, records the
 approval with the `harness-hook` channel and tells the model, as added
 context, that the approval is recorded. Without the hook the message reaches
-the model only, which can relay it as a `DECLARED` approval; at critical risk
+the model only, which can relay it as a `DECLARED` approval; at high or critical risk
 the human then approves in their own terminal.
 """
 from __future__ import annotations

@@ -10,15 +10,15 @@ up the recommended one: typing `/approve` in the agent session.
 
 ## In short
 
-| You type | Where | Recorded as | Accepted at `critical` risk |
+| You type | Where | Recorded as | Accepted at `high` and `critical` risk |
 |---|---|---|---|
 | `/approve` (Claude Code) or `$approve` (Codex) | the agent session, **with the approval hook installed** | `OBSERVED`, channel `harness-hook` | yes |
 | `aief execution approve-policy <id> <gate> --approver <name>` | your own terminal | `OBSERVED`, channel `interactive-terminal` | yes |
 | "approve" in plain words, or `/approve` without the hook | the agent session; the agent relays it | `DECLARED`, channel `agent-relay` | **no** |
 | any approval command in a script without a terminal | a script or CI job | `DECLARED`, channel `non-interactive` | **no** |
 
-Below `critical` risk, every channel is accepted and its assurance is
-recorded. At `critical` risk, only `OBSERVED` approvals are accepted (see
+Below `high` risk, every channel is accepted and its assurance is
+recorded. At `high` and `critical` risk, only `OBSERVED` approvals are accepted (see
 [Policy](#policy)).
 
 ## Why the channel matters
@@ -32,7 +32,7 @@ as `DECLARED`: someone claimed a human approved.
 An approval is `OBSERVED` when the Runtime received it through a path the
 model does not drive:
 
-- **the harness hook**: before the model sees your message, the agent
+- **the approval hook**: before the model sees your message, the coding agent
   harness (Claude Code, Codex) runs a hook and hands your exact message to the
   Runtime;
 - **your terminal**: the Runtime asks you, on the terminal that ran the
@@ -69,18 +69,18 @@ An approval crosses three domains, and each party acts only in its own:
 | — | **Human** | Decides: types `/approve` in the session, nothing else. |
 | **Coding agent harness** — the program that hosts the agent (Claude Code, Codex CLI, Gemini CLI, ...) | **Harness** | Receives the human's message and, before the model sees it, runs the project's `UserPromptSubmit` hook with the exact text. |
 | **Coding agent** — the model working on the task | **Agent** | Stops at the gate, tells the human what waits, then continues. Never approves. |
-| **AIEF** | **Approval hook** (`aief approval hook`) | Provided by AIEF, configured in the project, run by the harness. Parses the message, finds what waits and asks the Runtime to record the approval. |
+| **AIEF** | **Approval hook** (`aief approval hook`) | Provided by AIEF, configured in the project, run by the coding agent harness. Parses the message, finds what waits and asks the Runtime to record the approval. |
 | **AIEF** | **Runtime** | Checks the gate and the approver identity, records the approval, applies its effect. |
 
 The approval travels **beside** the coding agent, not through it: AIEF
-receives it from the harness. That is what makes it `OBSERVED`.
+receives it from the coding agent harness. That is what makes it `OBSERVED`.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor H as Human
     box transparent Coding agent harness
-        participant HA as Harness
+        participant HA as Coding agent harness
     end
     box transparent Coding agent
         participant AG as Agent (model)
@@ -98,7 +98,7 @@ sequenceDiagram
 
     H->>HA: /approve
     HA->>HK: UserPromptSubmit hook: prompt, session_id, prompt_id, cwd
-    Note over HA,HK: The harness runs the hook before<br/>the agent sees the message.
+    Note over HA,HK: The coding agent harness runs the hook before<br/>the agent sees the message.
     HK->>RT: approvals awaited in the project?
     RT-->>HK: EXEC-1 apply-proposal
     HK->>RT: approve EXEC-1 apply-proposal, channel harness-hook
@@ -124,7 +124,7 @@ Step by step:
 1. **Coding agent — stops at the gate.** `aief execution next` answers
    `waiting-approval` with the gates required. The agent tells you the
    Execution and the gate, then waits.
-2. **Human — types `/approve`.** The message goes to the harness, as any message.
+2. **Human — types `/approve`.** The message goes to the coding agent harness, as any message.
 3. **Coding agent harness — runs the hook first.** Before the agent sees
    anything, it runs `aief approval hook` with your exact text, the session id and the
    message id.
@@ -133,7 +133,7 @@ Step by step:
    phase requires, and keeps the one your message designates.
 5. **AIEF, Runtime — checks and records.** It refuses an agent identity as
    approver and checks the assurance the policy requires; it then records the
-   approval (`harness-hook`, `OBSERVED`, operating-system account, harness,
+   approval (`harness-hook`, `OBSERVED`, operating-system account, coding agent harness,
    session id, message id) and applies its effect: for `apply-proposal`, it
    applies the proposed patches itself.
 6. **Coding agent — continues.** It receives your message with one line of
@@ -168,7 +168,7 @@ flowchart TD
         T["Runtime asks to retype the gate<br/>channel interactive-terminal"]
         O["OBSERVED"]
         D["DECLARED"]
-        P{"Execution risk<br/>critical?"}
+        P{"Execution risk<br/>high or critical?"}
         OK(["Approval recorded"])
         X(["Refused: gate stays pending,<br/>the agent gives the terminal command"])
     end
@@ -186,13 +186,25 @@ flowchart TD
 
 ### Set it up once per project
 
+`/approve` is a native command of the AIEF adapter: install or refresh the
+adapter skills on each developer machine first, otherwise the agent does not
+know the command and the message never reaches the hook:
+
+```bash
+aief setup-adapter claude-code --execute
+aief setup-adapter codex --execute
+aief verify-adapter claude-code     # approve must be LINKED
+```
+
+Then, once per project:
+
 ```bash
 aief approval install-hook --agent claude-code --project .
 aief approval install-hook --agent codex --project .
 aief approval hook-status --agent claude-code --project .
 ```
 
-`install-hook` adds the hook to the project's harness configuration and is
+`install-hook` adds the hook to the project's coding agent harness configuration and is
 idempotent. Commit the result so every developer of the project has it.
 Projects created from the Factory template (`aief init`) already contain it.
 
@@ -201,13 +213,13 @@ Projects created from the Factory template (`aief init`) already contain it.
 | Claude Code | `.claude/settings.json` (`hooks.UserPromptSubmit`) | `permissions.deny: Bash(aief approval *)` | accept the project's workspace trust |
 | Codex | `.codex/hooks.json` (`hooks.UserPromptSubmit`) | `.codex/rules/aief-approval.rules`: `aief approval` is `forbidden` | trust the project, then trust the hook with `/hooks` in Codex |
 
-The harness runs the hook directly, so these rules do not affect it; they keep
+The coding agent harness runs the hook directly, so these rules do not affect it; they keep
 the agent from calling the hook entry point itself through its shell tool.
 For Codex, rules govern the commands the agent requests outside the sandbox;
 a command the sandbox runs on its own is not checked against them, which is
 one more reason the approval stays `OBSERVED` rather than `TRUSTED`.
 
-Requirements: `aief` on the `PATH` of the harness, and the Factory resolvable
+Requirements: `aief` on the `PATH` of the coding agent harness, and the Factory resolvable
 from the project (`AI_FACTORY_HOME`). The reference hook definitions are in
 `adapters/<agent>/hooks/approval.json`.
 
@@ -218,17 +230,17 @@ from the project (`AI_FACTORY_HOME`). The reference hook definitions are in
 | Claude Code | 2.1.330 | `UserPromptSubmit` command hooks; plain output is added to the model's context; exit code 2 blocks the message and shows the reason. |
 | Codex CLI | 0.170.0 | `hooks` feature stable and enabled by default; `UserPromptSubmit` with the same contract. Project hooks load only from trusted projects, and each hook is skipped until trusted by its hash (`/hooks`). |
 
-Other coding agents (Gemini CLI, ...) need an AIEF adapter and a harness hook
+Other coding agents (Gemini CLI, ...) need an AIEF adapter and a coding agent harness hook
 that runs before the model sees the human's message, with the same contract:
 the exact message on input, exit code 2 to block it, output added to the
 agent's context. An agent without such a hook, or a hook that is not
 installed or not trusted, falls back to the relayed channel: the native `/approve` skill relays the
-approval as `DECLARED`, and at `critical` risk tells you the terminal command
+approval as `DECLARED`, and at `high` or `critical` risk tells you the terminal command
 to run.
 
 ### Limits
 
-- The hook trusts the harness's report of the message. In a non-interactive
+- The hook trusts the coding agent harness's report of the message. In a non-interactive
   run (`claude -p`, `codex exec`), the "message" is the prompt of whoever
   launched the run, for example a script.
 - Claude Code also runs `UserPromptSubmit` for turns it starts itself
@@ -262,13 +274,16 @@ recorded.
 - id: critical-gates
   when: {risk: critical}
   effect: {requireApproval: [...], approvalAssurance: OBSERVED}
+- id: high-gates
+  when: {risk: high}
+  effect: {requireApproval: [...], approvalAssurance: OBSERVED}
 ```
 
 The requirement is carried by the `PolicyDecision` (`gates.approvalAssurance`)
 and the `GovernedExecutionPlan` (`requirements.approvalAssurance`). It applies
 to every human approval of the Execution, phase approvals and policy gates
 alike, including gates still pending when a reassessment raises the risk to
-`critical`. A refused approval leaves the gate pending.
+`high` or `critical`. A refused approval leaves the gate pending.
 
 ## What is recorded
 
@@ -289,8 +304,8 @@ policyGates:
       gate: apply-proposal
       osUser: alice
       harness: claude-code
-      session: <harness session id>
-      prompt: <harness message id>
+      session: <coding agent harness session id>
+      prompt: <coding agent harness message id>
 ```
 
 The `gate.approved` event carries the same actor, and the EvidenceBundle

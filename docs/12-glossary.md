@@ -20,7 +20,7 @@
 - **Actor assurance**: provenance strength of an identity: `DECLARED`,
   `OBSERVED`, `TRUSTED` or `UNVERIFIED`.
 - **Approval channel**: how a human gate approval reached the Runtime:
-  `harness-hook` (`/approve` delivered by the agent harness) and
+  `harness-hook` (`/approve` delivered by the coding agent harness) and
   `interactive-terminal` are `OBSERVED`; `agent-relay` and `non-interactive`
   are `DECLARED`. See [34](34-human-approval.md).
 - **Review independence**: `INDEPENDENT`, `NOT_INDEPENDENT`, `UNVERIFIED` or

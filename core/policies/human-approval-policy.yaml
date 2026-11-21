@@ -6,12 +6,13 @@ priority: 100
 rules:
   - id: critical-gates
     when: {risk: critical}
-    # Every human approval of a critical execution is typed at a terminal
-    # (aief.approval): a decision relayed by an agent is not enough.
+    # Every human approval of a high or critical execution reaches the
+    # Runtime from the human (approval hook or terminal, see aief.approval):
+    # a decision relayed by an agent is not enough.
     effect: {requireApproval: [before-implementation, before-commit, before-submission, before-merge], approvalAssurance: OBSERVED}
   - id: high-gates
     when: {risk: high}
-    effect: {requireApproval: [before-commit, before-submission, before-merge]}
+    effect: {requireApproval: [before-commit, before-submission, before-merge], approvalAssurance: OBSERVED}
   - id: medium-gates
     when: {risk: medium}
     effect: {requireApproval: [before-merge]}
