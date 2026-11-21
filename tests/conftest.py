@@ -12,3 +12,12 @@ def no_approval_terminal(monkeypatch):
     monkeypatch.setattr(approval, "terminal_confirm", lambda prompt: re.search(r"Type '([^']+)'", prompt)[1])
     for marker in approval.HARNESS_MARKERS:
         monkeypatch.delenv(marker, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def git_identity(monkeypatch):
+    """Commits made by tests, and by the Runtime when it integrates a task branch, do not depend on the
+    machine's Git configuration: a CI runner has no user identity, and Git refuses to commit without one."""
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "AIEF Test")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "aief-test@example.invalid")

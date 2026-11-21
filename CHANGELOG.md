@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Tests set a neutral Git identity, so that their commits and the Runtime's integration merge do not depend on the machine's Git configuration (a CI runner has none); the quality workflow can also be run manually.
 - Added an integration test of the payload comparison on a ledger the Runtime wrote: bound L2 files, two review rework loops and an L1 context rendered by the launcher; the review feedback is counted against the rework budget and reported as intervention.
 - Added negative tests for every gate comparator (`tests/test_comparator_negatives.py`): each check of `bound-plan-hashes`, `plan-criteria`, `governed-plan`, `proposal`, `submission-evidence` and `integration` is broken on its own and must leave `match`; a coverage test fails when a comparator emits a check without a negative case.
 - The CI installs exactly the committed `uv.lock` (`uv sync --frozen`, uv 0.9.28, Python 3.12) and runs the suite and the package validation through `uv run --frozen`.
