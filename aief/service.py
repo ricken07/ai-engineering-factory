@@ -282,15 +282,17 @@ class RuntimeService:
 
         The lease isolates agent sessions from each other; it is not a human
         boundary. While the Runtime waits for a human (`waiting-approval`,
-        `blocked`), a decision made without `--owner` is not checked against
-        the lease: it passes only if the Runtime observes it coming from a
+        `blocked`, or a completed execution whose integration awaits
+        `before-merge`), a decision made without `--owner` is not checked
+        against the lease: it passes only if the Runtime observes it coming from a
         human (harness hook or interactive terminal, see _human_approval),
         so an agent, with or without the lease, still cannot decide. A call
         that names an owner, or comes while the agent works, stays bound by
         the lease."""
         if hook is not None:
             return
-        if owner is None and execution.data["status"] in {"waiting-approval", "blocked"}:
+        if owner is None and (execution.data["status"] in {"waiting-approval", "blocked"}
+                              or (execution.data.get("integration") or {}).get("status") == "awaiting-approval"):
             return
         self._assert_lease(execution, owner)
 
@@ -804,7 +806,10 @@ class RuntimeService:
             execution.closed_gates.append({"gate": gate["id"], "status": gate["status"]})
             execution.save()
             return
+        # The gate may have been requested when the policy first required it;
+        # the human is asked to integrate only now, so the wait starts here.
         execution.data["integration"] = {"status": "awaiting-approval", "gate": MERGE_GATE,
+                                         "requestedAt": timestamp(self.clock),
                                          "repositories": [item["repository"] for item in targets]}
         execution._request_gate(gate)
         execution.save()
@@ -821,8 +826,11 @@ class RuntimeService:
         if not targets:
             raise RuntimeError("this execution has no task branch to integrate")
         results = [integrate(target, execution.data["metadata"]["id"]) for target in targets]
-        execution.data["integration"] = {"status": "integrated", "gate": MERGE_GATE, "at": timestamp(self.clock),
-                                         "approvedBy": actor["id"], "repositories": results}
+        execution.data["integration"] = {"status": "integrated", "gate": MERGE_GATE,
+                                         "requestedAt": execution.data.get("integration", {}).get("requestedAt"),
+                                         "at": timestamp(self.clock), "approvedBy": actor["id"], "repositories": results}
+        if execution.data["integration"]["requestedAt"] is None:
+            del execution.data["integration"]["requestedAt"]
         execution.save()
         self._persist_enforcement_point(execution, enforcement_point(
             execution=execution.data["metadata"]["id"], action="merge", decision="ALLOW", mechanism_type="runtime",

@@ -45,7 +45,9 @@ def test_completion_keeps_before_merge_waiting_for_the_integration(tmp_path: Pat
     current = service.execution(identifier)
     assert current.data["status"] == "completed"
     assert next(item for item in current.data["policyGates"] if item["id"] == "before-merge")["status"] == "pending"
-    assert current.data["integration"] == {"status": "awaiting-approval", "gate": "before-merge", "repositories": ["main"]}
+    integration = current.data["integration"]
+    assert integration.pop("requestedAt")
+    assert integration == {"status": "awaiting-approval", "gate": "before-merge", "repositories": ["main"]}
     from aief.approval_hook import awaited_approvals
     assert {"execution": identifier, "gate": "before-merge", "kind": "policy"} in awaited_approvals(service)
 
@@ -109,16 +111,22 @@ def merge_gate_with_limit(tmp_path: Path, minutes: int = 30):
     current.data["reproducibility"]["humanGateProtocol"] = {
         "value": {"approvers": [], "responseLimitMinutes": minutes, "decisionRule": None}, "availability": "OBSERVED"}
     current.save()
-    gate = next(item for item in current.data["policyGates"] if item["id"] == "before-merge")
-    service.clock = FakeClock(datetime.fromisoformat(gate["timing"]["requestedAt"]).astimezone(timezone.utc))
+    service.clock = FakeClock(datetime.fromisoformat(current.data["integration"]["requestedAt"]).astimezone(timezone.utc))
     return service, identifier, root
 
 
-def test_before_merge_waits_from_its_request_and_shows_its_deadline(tmp_path: Path):
+def test_before_merge_waits_from_the_integration_request_not_from_the_policy(tmp_path: Path):
+    from datetime import datetime, timedelta
     service, identifier, root = merge_gate_with_limit(tmp_path)
+    current = service.execution(identifier)
+    # The policy required the gate when the execution started, long before the integration.
+    gate = next(item for item in current.data["policyGates"] if item["id"] == "before-merge")
+    requested = current.data["integration"]["requestedAt"]
+    gate["timing"]["requestedAt"] = (datetime.fromisoformat(requested) - timedelta(hours=1)).isoformat(); current.save()
     shown = next(item for item in service.gate_check(identifier)["gates"] if item["gate"] == "before-merge")
-    requested = next(item for item in service.execution(identifier).data["policyGates"] if item["id"] == "before-merge")["timing"]["requestedAt"]
-    assert shown["waitStartedAt"] == requested and shown["deadline"] is not None
+    assert shown["waitStartedAt"] == requested
+    assert shown["deadline"] == (datetime.fromisoformat(requested) + timedelta(minutes=30)).isoformat()
+    assert service.execution(identifier).data["integration"]["status"] == "awaiting-approval"
 
 
 def test_before_merge_expires_after_completion_without_cancelling_the_execution(tmp_path: Path):
@@ -158,3 +166,29 @@ def test_rejecting_before_merge_refuses_the_integration_and_keeps_the_execution_
     assert decision["decision"] == "rejected" and decision["evidence"]["comparator"] == "integration"
     assert git(root, "rev-parse", "main") == base
     assert_schema(ROOT, "execution.schema.json", current.data)
+
+
+def test_human_terminal_decides_before_merge_while_an_agent_holds_the_lease(tmp_path: Path):
+    from aief.concurrency import ExecutionLease
+    for decide, expected in ((lambda service, identifier: service.approve_policy_gate(identifier, "before-merge", approver="alice"), "integrated"),
+                             (lambda service, identifier: service.reject_gate(identifier, "mismatch: main:merge:clean", gate_id="before-merge", approver="alice"), "rejected")):
+        run = tmp_path / expected; run.mkdir()
+        service, identifier, root = completed_with_task_branch(run)
+        ExecutionLease(service.execution(identifier).root).acquire("codex:reviewer")
+        decide(service, identifier)
+        current = service.execution(identifier)
+        assert current.data["integration"]["status"] == expected
+        decision = next(item for item in current.data["gateDecisions"] if item["gate"] == "before-merge")
+        assert decision["actor"]["channel"] == "interactive-terminal"
+
+
+def test_an_agent_holding_the_lease_cannot_decide_before_merge(tmp_path: Path, monkeypatch):
+    from aief.concurrency import ExecutionLease
+    service, identifier, root = completed_with_task_branch(tmp_path)
+    ExecutionLease(service.execution(identifier).root).acquire("codex:reviewer")
+    monkeypatch.setenv("CLAUDECODE", "1")
+    with pytest.raises(PermissionError, match="OBSERVED"):
+        service.approve_policy_gate(identifier, "before-merge")
+    with pytest.raises(PermissionError, match="OBSERVED"):
+        service.approve_policy_gate(identifier, "before-merge", owner="codex:reviewer")
+    assert service.execution(identifier).data["integration"]["status"] == "awaiting-approval"

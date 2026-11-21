@@ -162,7 +162,7 @@
     "integration": {
       "description": "Integration of the execution's task branches into their base branch, performed by the Runtime after a human approved before-merge.",
       "type": "object", "required": ["status", "gate"],
-      "properties": {"status": {"enum": ["awaiting-approval", "integrated", "rejected", "expired"]}, "gate": {"type": "string"}, "at": {"type": "string", "format": "date-time"}, "approvedBy": {"type": "string"}, "rejectedBy": {"type": "string"}, "reason": {"type": "string"},
+      "properties": {"status": {"enum": ["awaiting-approval", "integrated", "rejected", "expired"]}, "gate": {"type": "string"}, "requestedAt": {"type": "string", "format": "date-time"}, "at": {"type": "string", "format": "date-time"}, "approvedBy": {"type": "string"}, "rejectedBy": {"type": "string"}, "reason": {"type": "string"},
                      "repositories": {"type": "array"}},
       "additionalProperties": false
     },

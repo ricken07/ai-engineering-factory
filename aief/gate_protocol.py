@@ -95,7 +95,8 @@ def holding_gates(execution: dict[str, Any]) -> list[dict[str, Any]]:
             held.append({"kind": "policy-gate", "gate": gate["id"], "phase": None,
                          "trigger": gate.get("trigger"), "timing": timing})
     # A completed execution does not wait, but its integration does: the merge
-    # gate waits for a human from the moment the Runtime requested it.
+    # gate waits for a human from the moment the Runtime requested the
+    # integration, not from the earlier moment the policy required the gate.
     integration = execution.get("integration") or {}
     if integration.get("status") == "awaiting-approval":
         for gate in execution.get("policyGates", []):
@@ -104,7 +105,8 @@ def holding_gates(execution: dict[str, Any]) -> list[dict[str, Any]]:
                     and gate["id"] not in {item["gate"] for item in held}:
                 held.append({"kind": "policy-gate", "gate": gate["id"], "phase": None, "trigger": gate.get("trigger"),
                              "integration": True,
-                             "timing": {**timing, "blockedAt": timing.get("blockedAt") or timing.get("requestedAt")}})
+                             "timing": {**timing, "blockedAt": integration.get("requestedAt") or timing.get("blockedAt")
+                                        or timing.get("requestedAt")}})
     return held
 
 

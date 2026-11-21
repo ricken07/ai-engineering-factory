@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed `before-merge` decisions on a completed execution: a human at the terminal decides without `--owner` while an agent holds the lease, and the response limit runs from the integration request (`integration.requestedAt`) rather than from the moment the policy first required the gate.
 - Applied the response limit to `before-merge` after completion: the merge gate waits from the moment the Runtime requests the integration, expires at its deadline and can be rejected; both keep the execution `completed` and set the integration to `expired` or `rejected`. `aief execution gate-check` now applies a passed deadline, and the experiment launcher polls through it.
 - Added the `integration` comparator for `before-merge`: completed execution awaiting integration, submission evidence, existing branches, task branch containing the validated revision, clean base branch and a clean merge checked with `git merge-tree` before the Runtime merges; `aief execution gate-check` now also shows `before-merge` on a completed execution.
 - Added comparator evidence for every study gate: `plan-criteria` (plan gate without bound plan), `governed-plan` (`before-implementation`), `proposal` (`apply-proposal`) and `submission-evidence` (`before-commit`, `before-submission`, submission gate), computed before the decision changes the execution and shown by `aief execution gate-check`.

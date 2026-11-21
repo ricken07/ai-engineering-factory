@@ -320,7 +320,8 @@ recorded.
 
 You can decide while the agent still holds the Execution lease. The lease
 isolates agent sessions from each other; it does not bind a human. While the
-Execution waits for a human (`waiting-approval` or `blocked`), `approve`,
+Execution waits for a human (`waiting-approval`, `blocked`, or a completed
+Execution whose integration awaits `before-merge`), `approve`,
 `approve-policy` and `reject` without `--owner` skip the lease check. They
 still pass only when the Runtime observes the decision coming from you at the
 terminal. An agent, with or without the lease, is still refused, and so is a
@@ -424,7 +425,8 @@ alter a running execution. The Runtime applies it as follows:
   `responseLimitMinutes` expires. The time is measured from the moment the
   gate holds the execution, not from the moment a policy requires it;
   `before-merge` of a completed execution waits from the moment the Runtime
-  requests the integration. Time does not trigger the Runtime by itself: the
+  requests the integration (`integration.requestedAt`), even when the policy
+  required the gate earlier. Time does not trigger the Runtime by itself: the
   first command that looks at the gate after the deadline applies the expiry
   (`execution next`, `gate-check`, `approve`, `approve-policy` or `reject`).
   That command dates the expiry at the deadline, records it, emits
