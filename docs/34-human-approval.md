@@ -309,6 +309,15 @@ through an agent), the approval is refused.
 `--approver` names you; without it, the operating-system account is
 recorded.
 
+You can decide while the agent still holds the Execution lease. The lease
+isolates agent sessions from each other; it does not bind a human. While the
+Execution waits for a human (`waiting-approval` or `blocked`), `approve`,
+`approve-policy` and `reject` without `--owner` skip the lease check. They
+still pass only when the Runtime observes the decision coming from you at the
+terminal. An agent, with or without the lease, is still refused, and so is a
+process without a terminal. A command that names an `--owner`, or comes while
+the agent is working, stays bound by the lease.
+
 ## Policy
 
 `core/policies/human-approval-policy.yaml` decides which gates require a

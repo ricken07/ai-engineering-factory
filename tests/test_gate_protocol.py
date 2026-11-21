@@ -236,3 +236,62 @@ def test_session_approval_accepts_gate_or_phase_id(tmp_path: Path):
     awaited = awaited_approvals(service)
     assert awaited == [{"execution": identifier, "gate": "plan-gate", "phase": "planning", "kind": "phase"}]
     assert select(["plan-gate"], awaited) == awaited and select(["planning"], awaited) == awaited
+
+
+def leased(service: RuntimeService, identifier: str, owner: str = "claude-code:session-1") -> str:
+    from aief.concurrency import ExecutionLease
+    ExecutionLease(service.execution(identifier).root).acquire(owner)
+    return owner
+
+
+def test_human_terminal_decides_while_the_agent_holds_the_lease(tmp_path: Path):
+    service = service_with(tmp_path, {"approvers": ["approver-a"]})
+    identifier = at_plan_gate(service); leased(service, identifier)
+    service.approve_execution(identifier, approver="approver-a")
+    current = service.execution(identifier)
+    assert current.data["status"] == "running"
+    assert current.data["gateDecisions"][0]["actor"]["channel"] == "interactive-terminal"
+
+
+def test_human_terminal_rejects_while_the_agent_holds_the_lease(tmp_path: Path):
+    service = service_with(tmp_path)
+    identifier = at_plan_gate(service); leased(service, identifier)
+    service.reject_gate(identifier, "hash mismatch", approver="approver-b")
+    assert service.execution(identifier).data["status"] == "cancelled"
+
+
+def test_agent_holding_the_lease_still_cannot_decide(tmp_path: Path, monkeypatch):
+    service = service_with(tmp_path)
+    identifier = at_plan_gate(service); owner = leased(service, identifier)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    for attempt in (lambda: service.approve_execution(identifier),
+                    lambda: service.approve_execution(identifier, owner=owner),
+                    lambda: service.reject_gate(identifier, "no"),
+                    lambda: service.reject_gate(identifier, "no", owner=owner)):
+        with pytest.raises(PermissionError, match="OBSERVED"):
+            attempt()
+    monkeypatch.delenv("CLAUDECODE")
+    from aief import approval
+    monkeypatch.setattr(approval, "terminal_confirm", lambda prompt: None)  # a process without a terminal
+    with pytest.raises(PermissionError, match="non-interactive"):
+        service.approve_execution(identifier)
+    current = service.execution(identifier)
+    assert current.data["status"] == "waiting-approval" and "gateDecisions" not in current.data
+    assert len(current.data["approvalRefusals"]) == 5
+
+
+def test_lease_still_binds_a_call_that_names_another_owner(tmp_path: Path):
+    service = service_with(tmp_path)
+    identifier = at_plan_gate(service); leased(service, identifier)
+    from aief.concurrency import LeaseConflict
+    with pytest.raises(LeaseConflict, match="leased by claude-code:session-1"):
+        service.approve_execution(identifier, owner="codex:other-session")
+    assert service.execution(identifier).data["status"] == "waiting-approval"
+
+
+def test_lease_still_binds_decisions_while_the_agent_works(tmp_path: Path):
+    service = service_with(tmp_path)
+    execution = service.start("Implémente une évolution locale", confirmed=True)
+    identifier = execution.data["metadata"]["id"]; leased(service, identifier)
+    with pytest.raises(PermissionError, match="owner is required"):
+        service.reject_gate(identifier, "no")

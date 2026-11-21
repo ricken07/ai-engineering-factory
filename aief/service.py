@@ -268,6 +268,23 @@ class RuntimeService:
             if owner is None: raise PermissionError("an execution lease is active; owner is required")
             lease.assert_owner(owner)
 
+    def _assert_decision_boundary(self, execution: Execution, owner: str | None, hook: dict[str, Any] | None) -> None:
+        """Lease boundary of a human gate decision (approve, approve-policy, reject).
+
+        The lease isolates agent sessions from each other; it is not a human
+        boundary. While the Runtime waits for a human (`waiting-approval`,
+        `blocked`), a decision made without `--owner` is not checked against
+        the lease: it passes only if the Runtime observes it coming from a
+        human (harness hook or interactive terminal, see _human_approval),
+        so an agent, with or without the lease, still cannot decide. A call
+        that names an owner, or comes while the agent works, stays bound by
+        the lease."""
+        if hook is not None:
+            return
+        if owner is None and execution.data["status"] in {"waiting-approval", "blocked"}:
+            return
+        self._assert_lease(execution, owner)
+
     @staticmethod
     def _append_closed_gates(execution: Execution, events: Any) -> None:
         for item in execution.closed_gates:
@@ -717,7 +734,7 @@ class RuntimeService:
         execution=self.execution(execution_id)
         # A harness-delivered approval comes from the human while the agent
         # waits for it; it is not a mutation by the leasing session.
-        if _hook is None: self._assert_lease(execution,owner)
+        self._assert_decision_boundary(execution, owner, _hook)
         payload={"decision":"approve"}
         if operation_id:
             OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner,approver=approver).data)
@@ -835,7 +852,7 @@ class RuntimeService:
                     approver: str | None = None, _hook: dict[str, Any] | None = None) -> Execution:
         """A human refuses the change at a gate: the execution is cancelled with the rationale."""
         execution = self.execution(execution_id)
-        if _hook is None: self._assert_lease(execution, owner)
+        self._assert_decision_boundary(execution, owner, _hook)
         if not (reason or "").strip():
             raise ValueError("a rationale is required to reject a gate")
         if self._expire_late_gates(execution):
@@ -1017,7 +1034,7 @@ class RuntimeService:
     def approve_policy_gate(self, execution_id: str, gate_id: str, owner: str | None = None,
                             approver: str | None = None, _hook: dict[str, Any] | None = None) -> Execution:
         execution=self.execution(execution_id)
-        if _hook is None: self._assert_lease(execution,owner)
+        self._assert_decision_boundary(execution, owner, _hook)
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
