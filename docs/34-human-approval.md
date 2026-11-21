@@ -17,6 +17,11 @@ set up the recommended one: typing `/approve` in the agent session.
 | "I approve" in plain words, or `/approve` without the hook | the agent session; the agent would have to relay it | refused, channel `agent-relay` | **no** |
 | any approval command without a terminal | a script, a CI job, an agent's shell | refused, channel `non-interactive` | **no** |
 
+The same channels carry the human's decisions on review findings: `/waive
+<finding-number> <justification>` (`$waive` in Codex) in the agent session, or
+`aief execution waive-finding` in your own terminal (see
+[29 — Human Decisions on Review Findings](29-evidence-chain-and-replay.md#human-decisions-on-review-findings)).
+
 The risk level decides **which** gates require a human. It never decides
 **how** the approval may reach the Runtime: that is always `OBSERVED`.
 
@@ -185,15 +190,15 @@ flowchart TD
 
 ### Set it up
 
-**On each developer machine.** `/approve` is a native command of the AIEF
+**On each developer machine.** `/approve` and `/waive` are native commands of the AIEF
 adapter. Install or refresh the adapter skills, after every Factory update
-too; otherwise the coding agent harness does not know the command and the
+too; otherwise the coding agent harness does not know the commands and the
 message never reaches the hook:
 
 ```bash
 aief setup-adapter claude-code --execute
 aief setup-adapter codex --execute
-aief verify-adapter claude-code     # approve must be LINKED
+aief verify-adapter claude-code     # approve and waive must be LINKED
 ```
 
 **Once per project.** Install the approval hook and the permission rules
@@ -227,9 +232,10 @@ coding agent harness so that the agent cannot even attempt an approval:
 |---|---|---|
 | `aief execution approve` | approve a phase | forbidden to the agent |
 | `aief execution approve-policy` | approve a policy gate | forbidden to the agent |
+| `aief execution waive-finding` | decide that a review finding does not block | forbidden to the agent |
 | `aief approval` (including `aief approval hook`) | call the approval hook entry point with a forged message | forbidden to the agent |
 
-- **Claude Code**: the three commands are in `permissions.deny` of
+- **Claude Code**: these commands are in `permissions.deny` of
   `.claude/settings.json`. A deny rule wins over the template's
   `allow: Bash(aief *)`, so the agent's shell tool cannot run them.
 - **Codex**: `.codex/rules/aief-approval.rules` declares them `forbidden`

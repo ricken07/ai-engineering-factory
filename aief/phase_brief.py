@@ -23,7 +23,8 @@ def _practices(contexts: list[dict[str, Any]]) -> list[tuple[dict[str, Any], lis
     return list(seen.values())
 
 
-def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]]) -> str:
+def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]],
+                       decisions: list[dict[str, Any]] | None = None) -> str:
     lines = [f"# Phase brief: {phase['id']} ({phase['skill']})", "",
              "Read this file completely before producing the phase output.", "",
              "## Skill contract", "",
@@ -49,6 +50,17 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
                     lines.append(f"  - Expected correction: {finding['correction']}")
             else:
                 lines += ["", f"- {finding}"]
+    if decisions:
+        lines += ["", "## Human decisions on review findings", "",
+                  "The human decided that these findings of an earlier review do not block the change."]
+        if phase.get("skill") == "review-change":
+            lines.append("Do not raise them again as blocking, unless the change made them materially worse; then report it as a new finding with its evidence.")
+        else:
+            lines.append("Do not address them as part of this change.")
+        for item in decisions:
+            lines += ["", f"- `{item['review']}` finding {item['finding']} ({item.get('summary', '')}): "
+                          f"not blocking, decided by `{item['actor'].get('id')}` ({item['actor'].get('assurance')})",
+                      f"  - Justification: {item['justification']}"]
     if phase.get("action") == "propose-change":
         lines += ["", "## Authorized action: propose-change", "",
                   "Authorized autonomy denies `modify-local-files`: do not create, edit or delete any file of the",
@@ -81,8 +93,9 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
     return "\n".join(lines) + "\n"
 
 
-def write_phase_brief(root: Path, phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]]) -> dict[str, Any]:
-    text = render_phase_brief(phase, skill_contract, contexts)
+def write_phase_brief(root: Path, phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]],
+                      decisions: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    text = render_phase_brief(phase, skill_contract, contexts, decisions)
     path = root / f"phase-brief-{phase['id']}.md"
     path.write_text(text, encoding="utf-8")
     content = text.encode("utf-8")

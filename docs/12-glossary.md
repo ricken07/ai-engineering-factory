@@ -26,6 +26,9 @@
   [34](34-human-approval.md).
 - **Rework**: return to implementation after a review that did not approve
   the change; bounded, recorded in `reworks`. See [29](29-evidence-chain-and-replay.md).
+- **Finding decision**: the human's explicit, justified decision that a
+  blocking review finding does not block the change (`/waive`); bound to the
+  review by its SHA-256 and kept as evidence. See [29](29-evidence-chain-and-replay.md).
 - **Review independence**: `INDEPENDENT`, `NOT_INDEPENDENT`, `UNVERIFIED` or
   `NOT_REQUIRED`, derived from Runtime-held identities rather than review text.
 - **EvidenceBundle**: fingerprinted index of evidence references, governance,

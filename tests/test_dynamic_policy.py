@@ -463,3 +463,74 @@ def test_an_approving_review_continues_to_the_submission_path(tmp_path: Path):
     service.complete_phase(identifier,review)
     current=service.execution(identifier)
     assert "reworks" not in current.data and current.next_phase()["id"] != "implementation"
+
+
+FINDINGS=[{"severity":"P1","criterion":"AC-1","location":"Guard.java:34","finding":"reads the resolved property","correction":"read the raw variable"},
+          {"severity":"P2","criterion":"AC-2","location":"Guard.java:44","finding":"message shows the value","correction":"omit it"}]
+
+
+def test_the_human_waives_findings_and_the_unstarted_rework_is_undone(tmp_path: Path, monkeypatch):
+    from aief.evidence import submission_evidence_gaps
+    service,identifier,review=reviewed(tmp_path,"changes_requested",FINDINGS)
+    service.complete_phase(identifier,review)
+    assert service.execution(identifier).next_phase()["id"] == "implementation"
+    monkeypatch.setenv("CLAUDECODE","1")
+    with pytest.raises(PermissionError, match="not agent-relay"):
+        service.waive_finding(identifier,1,"out of scope")
+    monkeypatch.delenv("CLAUDECODE")
+    assert service.execution(identifier).data["approvalRefusals"][0]["gate"] == "waive-finding-1"
+    with pytest.raises(ValueError, match="justification"):
+        service.waive_finding(identifier,1,"  ")
+    first=service.waive_finding(identifier,1,"out of scope for this ticket",approver="alice")
+    assert (first["remaining"], first["overruled"], first["next"]) == ([2], False, "implementation")
+    second=service.waive_finding(identifier,2,"value is not sensitive here",approver="alice")
+    assert second["overruled"] and second["next"] == "summary"
+    current=service.execution(identifier)
+    assert (current.root/"review.yaml").is_file() and "overruledAt" in current.data["reworks"][0]
+    assert {item["id"]:item["status"] for item in current.data["phases"]}["review"] == "completed"
+    decision=current.data["findingDecisions"][0]
+    assert (decision["finding"], decision["decision"], decision["actor"]["assurance"]) == (1, "not-blocking", "OBSERVED")
+    gaps=submission_evidence_gaps(current.root)
+    assert "review.details.decision must be approved" not in gaps
+    assert not any("blocking findings" in gap for gap in gaps)
+    assert "review.finding-waived" in [event["event"]["type"] for event in service.task_events(current.data["task"])]
+    assert_schema(ROOT,"execution.schema.json",current.data)
+
+
+def test_a_waived_finding_reaches_the_briefs_once_the_rework_started(tmp_path: Path):
+    from aief.phase_brief import render_phase_brief
+    service,identifier,review=reviewed(tmp_path,"changes_requested",FINDINGS)
+    service.complete_phase(identifier,review)
+    current=service.execution(identifier); current.next_phase()["preparedAt"]="2026-01-01T00:00:00+00:00"; current.save()
+    result=service.waive_finding(identifier,1,"out of scope",approver="alice")
+    result=service.waive_finding(identifier,2,"not sensitive",approver="alice")
+    assert not result["overruled"] and result["next"] == "implementation"
+    current=service.execution(identifier)
+    contract={"instructions":"i","manifest":"m","outputSchema":"o"}
+    implement=render_phase_brief(current.next_phase(),contract,[],current.data["findingDecisions"])
+    assert "## Human decisions on review findings" in implement and "Do not address them" in implement
+    review_phase=next(item for item in current.data["phases"] if item["skill"]=="review-change")
+    assert "Do not raise them again" in render_phase_brief(review_phase,contract,[],current.data["findingDecisions"])
+
+
+def test_waiving_every_finding_unblocks_an_exhausted_execution(tmp_path: Path):
+    import aief.service as module
+    service,identifier,review=reviewed(tmp_path,"changes_requested",FINDINGS[:1])
+    current=service.execution(identifier)
+    current.data["reworks"]=[{"number":n,"at":"2026-01-01T00:00:00+00:00","review":f"review-rework-{n}.yaml","decision":"changes_requested"} for n in range(1,module.MAX_REWORKS+1)]
+    current.save()
+    service.complete_phase(identifier,review)
+    assert service.execution(identifier).data["status"] == "blocked"
+    result=service.waive_finding(identifier,1,"accepted risk",approver="alice")
+    assert result["overruled"] and result["status"] == "running" and result["next"] == "summary"
+
+
+def test_the_hook_delivers_a_waive_typed_in_the_session(tmp_path: Path):
+    from aief.approval_hook import handle
+    service,identifier,review=reviewed(tmp_path,"changes_requested",FINDINGS[:1])
+    service.complete_phase(identifier,review)
+    code,out,err=handle({"prompt":"/waive 1 out of scope for this ticket","session_id":"s-9"},"claude-code",lambda cwd: service)
+    assert (code, err) == (0, "") and "AIEF: the human decided" in out and "summary" in out
+    decision=service.execution(identifier).data["findingDecisions"][0]
+    assert (decision["actor"]["channel"], decision["justification"]) == ("harness-hook", "out of scope for this ticket")
+    assert handle({"prompt":"/waive 1"},"claude-code",lambda cwd: service)[0] == 2

@@ -290,6 +290,7 @@ class Execution:
         number = record["number"]
         ids = [phase["id"] for phase in self.data["phases"]]
         archived = []
+        reopened_ids = ids[ids.index(first):ids.index(last) + 1]
         for phase in self.data["phases"][ids.index(first):ids.index(last) + 1]:
             for name in phase.get("artifacts", []):
                 source = self.root / name
@@ -303,11 +304,41 @@ class Execution:
                 phase.pop(key, None)
             phase.update({"status": "pending", "artifacts": [],
                           "timing": {"startedAt": None, "completedAt": None, "durationMs": unavailable_metric()}})
-        self.data.setdefault("reworks", []).append({**record, "archived": archived})
+        self.data.setdefault("reworks", []).append({**record, "archived": archived, "phases": reopened_ids})
         reopened = self.data["phases"][ids.index(first)]
         reopened["rework"] = {key: record[key] for key in ("number", "review", "decision", "findings") if key in record}
         self.data["status"] = "running"
         self._start_phase(reopened)
+        self.save()
+
+    def overrule_rework(self, record: dict[str, Any], at: str) -> None:
+        """Undo a rework whose findings the human all decided not to block,
+        before the reopened implementation started: the archived artifacts
+        return to their names and the reopened phases are completed again."""
+        number = record["number"]
+        suffix = f"-rework-{number}"
+        restored: dict[str, str] = {}
+        for name in record.get("archived", []):
+            path = self.root / name
+            stem, dot, extension = name.rpartition(".")
+            original = f"{stem[:-len(suffix)]}{dot}{extension}" if stem.endswith(suffix) else name
+            if path.is_file() and not (self.root / original).exists():
+                path.replace(self.root / original)
+                restored[name] = original
+        self.data["artifacts"] = [restored.get(item, item) for item in self.data["artifacts"]]
+        ids = record.get("phases") or []
+        for phase in self.data["phases"]:
+            if phase["id"] not in ids:
+                continue
+            skill = phase.get("skill", "")
+            phase["artifacts"] = [original for original in restored.values()
+                                  if original.startswith((f"{phase['id']}.", f"phase-brief-{phase['id']}."))
+                                  or (skill and original.startswith("engineering-context-") and original.endswith(f"-{skill}.yaml"))]
+            phase.pop("rework", None)
+            phase["status"] = "completed"
+        record["overruledAt"] = at
+        self.data["status"] = "running"
+        self._start_phase(self.next_phase())
         self.save()
 
     def block(self, reason: dict[str, str]) -> str:

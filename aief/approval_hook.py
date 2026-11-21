@@ -8,6 +8,10 @@ approval with the `harness-hook` channel and tells the model, as added
 context, that the approval is recorded. Without the hook the message reaches
 the model only, which cannot approve (the Runtime refuses relayed approvals):
 the human then approves in their own terminal.
+
+`/waive <finding-number> <justification>` (`$waive` in Codex) travels the same
+way: the human decides that a blocking review finding does not block the
+change (see aief.findings).
 """
 from __future__ import annotations
 
@@ -18,12 +22,14 @@ from typing import Any, Callable
 
 HOOK_EVENT = "UserPromptSubmit"
 COMMAND = re.compile(r"^\s*[/$]approve(?:\s+(?P<args>[^\n]*))?\s*$")
+WAIVE = re.compile(r"^\s*[/$]waive(?:\s+(?P<args>.*?))?\s*$", re.S)
 # Where each harness reads project hooks, and the rule that keeps the agent
 # itself from invoking the hook entry point through its shell tool.
 CONFIG = {"claude-code": Path(".claude/settings.json"), "codex": Path(".codex/hooks.json")}
 # Only the human approves: the agent may run neither the approval commands nor
 # the hook entry point (defense in depth; the Runtime refuses relays anyway).
-CLAUDE_DENY = ["Bash(aief approval *)", "Bash(aief execution approve *)", "Bash(aief execution approve-policy *)"]
+CLAUDE_DENY = ["Bash(aief approval *)", "Bash(aief execution approve *)", "Bash(aief execution approve-policy *)",
+               "Bash(aief execution waive-finding *)"]
 CODEX_RULES = Path(".codex/rules/aief-approval.rules")
 CODEX_RULE = """# Only the human approves a Factory gate: the agent may run neither the
 # approval commands nor the approval hook, which the Codex harness runs itself.
@@ -34,7 +40,7 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["aief", "execution", ["approve", "approve-policy"]],
+    pattern = ["aief", "execution", ["approve", "approve-policy", "waive-finding"]],
     decision = "forbidden",
     justification = "Only the human approves a Factory gate; the Runtime refuses relayed approvals",
 )
@@ -51,6 +57,36 @@ def parse(prompt: str | None) -> list[str] | None:
     if not match:
         return None
     return (match.group("args") or "").split()
+
+
+def parse_waive(prompt: str | None) -> tuple[str | None, int, str] | None:
+    """(execution id or None, finding number, justification) of a waive
+    message, None for any other message; ValueError when malformed."""
+    match = WAIVE.match(prompt or "")
+    if not match:
+        return None
+    text = (match.group("args") or "").strip()
+    execution = None
+    first = text.split(maxsplit=1)
+    if first and not first[0].isdigit():
+        execution, text = first[0], (first[1] if len(first) > 1 else "")
+    words = text.split(maxsplit=1)
+    if len(words) < 2 or not words[0].isdigit() or not words[1].strip():
+        raise ValueError("usage: waive [<execution-id>] <finding-number> <justification>")
+    return execution, int(words[0]), words[1].strip()
+
+
+def waivable_executions(service: Any) -> list[str]:
+    from .project import runtime_root
+    root = runtime_root(service.project_root, service.project) / "executions"
+    result = []
+    for path in sorted(root.glob("*/execution.yaml")) if root.is_dir() else []:
+        try:
+            service._waivable_review(service.execution(path.parent.name))
+        except (ValueError, StopIteration):
+            continue
+        result.append(path.parent.name)
+    return result
 
 
 def awaited_approvals(service: Any) -> list[dict[str, str]]:
@@ -96,7 +132,7 @@ def handle(payload: dict[str, Any], agent: str, open_service: Callable[[Path], A
     """(exit code, stdout, stderr) for the harness: exit 2 blocks the message."""
     arguments = parse(payload.get("prompt"))
     if arguments is None:
-        return 0, "", ""
+        return _handle_waive(payload, agent, open_service)
     fallback = ("To approve without the harness hook, run in your own terminal: "
                 "aief execution approve-policy <execution-id> <gate> --approver <name>")
     try:
@@ -117,6 +153,40 @@ def handle(payload: dict[str, Any], agent: str, open_service: Callable[[Path], A
                f"{agent} harness delivered it to the Runtime, which recorded it (channel harness-hook, "
                f"OBSERVED). Do not run any approval command. Continue with "
                f"'aief execution next {execution}'.\n"), ""
+
+
+def _handle_waive(payload: dict[str, Any], agent: str, open_service: Callable[[Path], Any]) -> tuple[int, str, str]:
+    fallback = ("To decide without the harness hook, run in your own terminal: "
+                "aief execution waive-finding <execution-id> <finding-number> --reason <justification> --approver <name>")
+    try:
+        parsed = parse_waive(payload.get("prompt"))
+        if parsed is None:
+            return 0, "", ""
+        execution, finding, justification = parsed
+        service = open_service(Path(payload.get("cwd") or "."))
+        candidates = waivable_executions(service)
+        if execution is None:
+            if len(candidates) != 1:
+                raise ValueError("no execution has a review finding waiting for a decision" if not candidates
+                                 else "several executions have review findings; name one: " + ", ".join(candidates))
+            execution = candidates[0]
+        hook = {"agent": agent, "session": payload.get("session_id"),
+                "prompt": payload.get("prompt_id") or payload.get("turn_id")}
+        result = service.waive_finding(execution, finding, justification, _hook=hook)
+    except Exception as error:  # noqa: BLE001 - every refusal is reported to the human
+        return 2, "", f"AIEF decision not recorded: {error}. {fallback}"
+    if result["overruled"]:
+        follow = (f"Every blocking finding of {result['review']} is now decided: the Runtime continues the execution "
+                  f"(next phase: {result['next']}). Continue with 'aief execution next {execution}'.")
+    elif result["remaining"]:
+        follow = (f"Findings still blocking: {', '.join(map(str, result['remaining']))}. Address them; do not address "
+                  f"finding {finding}. Continue with 'aief execution next {execution}'.")
+    else:
+        follow = (f"The rework already started: do not address finding {finding}. Continue with "
+                  f"'aief execution next {execution}'.")
+    return 0, (f"AIEF: the human decided in this message that finding {finding} of {result['review']} does not block "
+               f"execution {execution}; the {agent} coding agent harness delivered it to the Runtime, which recorded "
+               f"it (OBSERVED). Run no decision command yourself. {follow}\n"), ""
 
 
 def _entries(config: dict[str, Any]) -> list[dict[str, Any]]:

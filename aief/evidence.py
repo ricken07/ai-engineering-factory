@@ -120,10 +120,16 @@ def submission_evidence_gaps(execution_root: Path) -> list[str]:
     independence = review_independence(actors.get("producer"), actors.get("reviewer"), required=required)
     if not independent_review_satisfied(independence, required):
         gaps.append(f"review independence is {independence}; INDEPENDENT is required")
-    if review_details.get("decision") != "approved":
+    # A blocking finding the human explicitly decided not to block (see
+    # aief.findings) no longer blocks; a review with no other reason to
+    # withhold approval is then accepted.
+    from .findings import unresolved
+    blocking = review_details.get("blockingFindings") or []
+    remaining = unresolved(execution, execution_root / "review.yaml") if blocking else []
+    if review_details.get("decision") != "approved" and not (blocking and not remaining):
         gaps.append("review.details.decision must be approved")
-    if review_details.get("blockingFindings"):
-        gaps.append("review contains blocking findings")
+    if remaining:
+        gaps.append("review contains blocking findings without a human decision")
     if not criteria:
         gaps.append("planning.details.acceptanceCriteria is missing")
     return gaps
@@ -162,6 +168,7 @@ def build_evidence_bundle(execution_root: Path, *, factory: Path | None = None,
         "verification": {
             "revision": validation.get("details", {}).get("commits", {}),
             "validation": "validation.yaml" if validation else None,
+            "findingDecisions": list(execution.get("findingDecisions", [])),
         },
         "gates": execution.get("policyGates", []),
         "metrics": execution.get("metrics", {}),

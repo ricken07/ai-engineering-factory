@@ -60,18 +60,18 @@ def test_doctor_reports_lock_authentication_and_agent_configuration(tmp_path):
     assert statuses=={"catalog-resolution":"ok","integration-lock":"missing","agent-mcp":"missing"}
 
 def test_adapter_install_is_plannable_and_idempotent(tmp_path):
-    assert len(adapter_plan(ROOT,"codex",tmp_path))==9
+    assert len(adapter_plan(ROOT,"codex",tmp_path))==10
     installed=install_adapter(ROOT,"codex",tmp_path)
-    assert len(installed)==9
+    assert len(installed)==10
     assert install_adapter(ROOT,"codex",tmp_path)==installed
 
 def test_adapter_status_reflects_install_and_uninstall_reverses_it(tmp_path):
     assert {entry["status"] for entry in adapter_status(ROOT,"codex",tmp_path)}=={"absent"}
     install_adapter(ROOT,"codex",tmp_path)
     statuses=adapter_status(ROOT,"codex",tmp_path)
-    assert len(statuses)==9 and all(entry["status"]=="linked" for entry in statuses)
+    assert len(statuses)==10 and all(entry["status"]=="linked" for entry in statuses)
     removed=uninstall_adapter(ROOT,"codex",tmp_path)
-    assert len(removed)==9
+    assert len(removed)==10
     assert {entry["status"] for entry in adapter_status(ROOT,"codex",tmp_path)}=={"absent"}
     assert uninstall_adapter(ROOT,"codex",tmp_path)==[]
 
@@ -82,7 +82,7 @@ def test_uninstall_adapter_requires_copy_flag_for_a_copied_installation(tmp_path
     except FileExistsError: pass
     else: raise AssertionError("copied installation removed without --copy")
     removed=uninstall_adapter(ROOT,"codex",tmp_path,copy=True)
-    assert len(removed)==9
+    assert len(removed)==10
     assert not any(tmp_path.iterdir())
 
 def test_every_adapter_skill_enters_the_shared_runtime_protocol():
@@ -95,7 +95,7 @@ def test_every_adapter_skill_enters_the_shared_runtime_protocol():
         assert identity in protocol
         # Every workflow skill enters the Runtime; `approve` records a human
         # decision on an execution that already did.
-        skills=sorted(path for path in (adapter / "skills").glob("*/SKILL.md") if path.parent.name != "approve")
+        skills=sorted(path for path in (adapter / "skills").glob("*/SKILL.md") if path.parent.name not in ("approve", "waive"))
         assert len(skills)==8
         for skill in skills:
             content=skill.read_text(encoding="utf-8")

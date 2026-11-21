@@ -126,6 +126,56 @@ whether to cancel it and start again, for example with a revised task. A
 review-only workflow, which implements nothing, reports its decision without
 rework.
 
+## Human Decisions on Review Findings
+
+A review is an agent's assessment: its findings are evidence for the human,
+not control authority (reference model, invariants 5 "isolation of
+probabilistic reasoning from control authority" and 12 "explicit human
+accountability"). The human may therefore decide that a blocking finding does
+not block the change. Without that decision, a blocking finding keeps
+blocking: nothing is waived implicitly.
+
+The decision is made finding by finding, with a justification, through a
+human channel the Runtime observes, exactly like a gate approval (see
+[34 — Human Approval](34-human-approval.md)):
+
+```text
+/waive 1 the raw variable is out of scope for BK-02      # in the agent session ($waive in Codex)
+```
+
+```bash
+aief execution waive-finding <execution-id> 1 \
+  --reason "the raw variable is out of scope for BK-02" --approver alice   # in your own terminal
+```
+
+The finding number is its position in the review's `blockingFindings`. The
+target is the review that triggered the latest rework, or the review that
+blocked the Execution after the last allowed rework. An agent cannot decide:
+a relayed decision is refused and recorded in `approvalRefusals`.
+
+Each decision is kept in `findingDecisions`, bound to the exact review it
+answers by the review artifact's SHA-256, with the finding summary, the
+justification, the time and the human actor (`OBSERVED`); it is emitted as a
+`review.finding-waived` event and included in the EvidenceBundle under
+`verification.findingDecisions`.
+
+When every blocking finding of that review is decided:
+
+- if the rework it triggered has not started (its implementation phase was
+  not prepared), the Runtime undoes it: the archived artifacts get their
+  names back, the reopened phases are completed again, the rework is marked
+  `overruledAt`, and the Execution continues towards submission;
+- if the Execution was blocked after the last allowed rework, it resumes
+  towards submission;
+- if the rework already started, the decisions stand and are carried by the
+  phase briefs: the implementation brief tells the producer not to address
+  the waived findings, and the review brief tells the next reviewer not to
+  raise them again as blocking unless the change made them materially worse.
+
+At submission, a review whose decision is not `approved` is accepted only
+when it has blocking findings and the human decided every one of them; all
+other submission evidence checks still apply.
+
 ## Replay
 
 Validations can be replayed with:

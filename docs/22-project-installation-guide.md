@@ -381,7 +381,7 @@ native `implement` command.
 
 Gate approvals are typed by the human in the agent session (`/approve` in
 Claude Code, `$approve` in Codex). The `approve` command is one of the adapter
-skills installed above (rerun `setup-adapter` after a Factory update). The coding agent harness delivers them to the Runtime
+skills installed above, like `waive` for decisions on review findings (rerun `setup-adapter` after a Factory update). The coding agent harness delivers them to the Runtime
 through a project hook; projects created with `aief init` already have it.
 For an existing project:
 

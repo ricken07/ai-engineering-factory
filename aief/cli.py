@@ -84,6 +84,7 @@ def parser() -> argparse.ArgumentParser:
     complete=execution_sub.add_parser("complete-phase"); complete.add_argument("id"); complete.add_argument("--output",required=True); complete.add_argument("--operation-id"); complete.add_argument("--owner"); complete.add_argument("--project",default="."); complete.add_argument("--factory",default=None); complete.add_argument("--json",action="store_true")
     approve_execution=execution_sub.add_parser("approve"); approve_execution.add_argument("id"); approve_execution.add_argument("--operation-id"); approve_execution.add_argument("--owner"); approve_execution.add_argument("--approver"); approve_execution.add_argument("--project",default="."); approve_execution.add_argument("--factory",default=None); approve_execution.add_argument("--json",action="store_true")
     approve_policy=execution_sub.add_parser("approve-policy"); approve_policy.add_argument("id"); approve_policy.add_argument("gate"); approve_policy.add_argument("--owner"); approve_policy.add_argument("--approver"); approve_policy.add_argument("--project",default="."); approve_policy.add_argument("--factory",default=None); approve_policy.add_argument("--json",action="store_true")
+    waive=execution_sub.add_parser("waive-finding"); waive.add_argument("id"); waive.add_argument("finding",type=int); waive.add_argument("--reason",required=True); waive.add_argument("--approver"); waive.add_argument("--project",default="."); waive.add_argument("--factory",default=None); waive.add_argument("--json",action="store_true")
     cancel=execution_sub.add_parser("cancel"); cancel.add_argument("id"); cancel.add_argument("--reason",required=True); cancel.add_argument("--owner"); cancel.add_argument("--project",default="."); cancel.add_argument("--factory",default=None); cancel.add_argument("--json",action="store_true")
     ask_user=execution_sub.add_parser("ask-user"); ask_user.add_argument("id"); ask_user.add_argument("--question",required=True); ask_user.add_argument("--requires-authority",action="store_true"); ask_user.add_argument("--owner"); ask_user.add_argument("--project",default="."); ask_user.add_argument("--factory",default=None); ask_user.add_argument("--json",action="store_true")
     answer_question=execution_sub.add_parser("answer-question"); answer_question.add_argument("id"); answer_question.add_argument("--answer",required=True); answer_question.add_argument("--owner"); answer_question.add_argument("--project",default="."); answer_question.add_argument("--factory",default=None); answer_question.add_argument("--json",action="store_true")
@@ -221,6 +222,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="evidence":
             data=service.evidence_bundle(args.id)
+            print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
+        if args.execution_command=="waive-finding":
+            data=service.waive_finding(args.id,args.finding,args.reason,args.approver)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="metrics":
             data=service.metrics(args.id)

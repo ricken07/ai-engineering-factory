@@ -106,7 +106,7 @@ def human_approval_actor(
     if relayed_by or harness:
         return actor_identity(approver or "human", "human", "adapter", "DECLARED",
                               channel="agent-relay", relayedBy=relayed_by, **observations)
-    answer = confirm(f"Approve {gate} for execution {execution_id}? Type '{gate}' to confirm: ")
+    answer = confirm(f"Confirm {gate} for execution {execution_id}? Type '{gate}' to confirm: ")
     if answer is None:
         return actor_identity(approver or observations["osUser"] or "human", "human", "runtime", "DECLARED",
                               channel="non-interactive", **observations)

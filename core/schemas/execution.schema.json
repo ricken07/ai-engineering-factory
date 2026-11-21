@@ -111,7 +111,12 @@
     "reworks": {
       "description": "Returns to implementation after a review that did not approve the change. The superseded artifacts keep a -rework-N suffix.",
       "type": "array",
-      "items": {"type": "object", "required": ["number", "at", "review", "decision"], "properties": {"number": {"type": "integer", "minimum": 1}, "at": {"type": "string", "format": "date-time"}, "review": {"type": "string"}, "decision": {"type": "string"}, "findings": {"type": "array"}, "archived": {"type": "array", "items": {"type": "string"}}, "proposal": {"type": "object"}, "applyGate": {"type": "object"}}, "additionalProperties": false}
+      "items": {"type": "object", "required": ["number", "at", "review", "decision"], "properties": {"number": {"type": "integer", "minimum": 1}, "at": {"type": "string", "format": "date-time"}, "review": {"type": "string"}, "decision": {"type": "string"}, "findings": {"type": "array"}, "archived": {"type": "array", "items": {"type": "string"}}, "phases": {"type": "array", "items": {"type": "string"}}, "overruledAt": {"type": "string", "format": "date-time"}, "proposal": {"type": "object"}, "applyGate": {"type": "object"}}, "additionalProperties": false}
+    },
+    "findingDecisions": {
+      "description": "Human decisions on blocking findings of an independent review, bound to the review artifact they answer.",
+      "type": "array",
+      "items": {"type": "object", "required": ["review", "reviewSha256", "finding", "decision", "justification", "at", "actor"], "properties": {"review": {"type": "string"}, "reviewSha256": {"type": "string"}, "finding": {"type": "integer", "minimum": 1}, "summary": {"type": "string"}, "decision": {"enum": ["not-blocking"]}, "justification": {"type": "string", "minLength": 1}, "at": {"type": "string", "format": "date-time"}, "actor": {"$ref": "actor-identity.schema.json"}}, "additionalProperties": false}
     },
     "approvalRefusals": {
       "description": "Human gate approvals the Runtime refused, kept as evidence (for example an approval relayed by an agent session).",

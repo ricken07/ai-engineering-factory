@@ -133,6 +133,14 @@ one of them, then validation and an independent review run again. Never
 change the acceptance criteria to fit the implementation; ask the human when
 a criterion itself is wrong.
 
+Only the human decides that a review finding does not block the change, by
+typing `$waive <finding-number> <justification>` in the session; never run
+`aief execution waive-finding` yourself. When the human disagrees with a
+finding, tell them about `$waive`. A finding the human waived appears in the
+phase brief under "Human decisions on review findings": do not address it
+(producer), and do not raise it again as blocking unless the change made it
+materially worse (reviewer).
+
 For research runs, the initial command also supplies
 `--experiment-condition L0|L1|L2|L3`, `--repeat-index`,
 `--environment-identifier` and, when observable, `--model-identifier`.

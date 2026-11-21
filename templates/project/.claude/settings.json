@@ -65,7 +65,8 @@
       "Bash(rm -rf *)",
       "Bash(aief approval *)",
       "Bash(aief execution approve *)",
-      "Bash(aief execution approve-policy *)"
+      "Bash(aief execution approve-policy *)",
+      "Bash(aief execution waive-finding *)"
     ]
   },
   "hooks": {

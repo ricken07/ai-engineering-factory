@@ -405,6 +405,80 @@ class RuntimeService:
             self.reassess_tracking(execution.data["task"],observations)
         return execution
 
+    def _waivable_review(self, execution: Execution) -> tuple[str, dict[str, Any] | None]:
+        """The review whose blocking findings the human may decide on: the
+        review that blocked the Execution after the last allowed rework, or
+        the review that triggered the latest rework."""
+        reason = execution.data.get("blockingReason") or {}
+        if execution.data["status"] == "blocked" and reason.get("type") == "review-rework-exhausted":
+            review = next(phase for phase in reversed(execution.data["phases"])
+                          if phase.get("skill") == "review-change" and phase["status"] == "completed")
+            return f"{review['id']}.yaml", None
+        reworks = execution.data.get("reworks", [])
+        if reworks and "overruledAt" not in reworks[-1] and execution.data["status"] not in {"completed", "failed", "cancelled"}:
+            return reworks[-1]["review"], reworks[-1]
+        raise ValueError("no review with blocking findings is waiting for a human decision in this execution")
+
+    @measured_runtime
+    def waive_finding(self, execution_id: str, finding: int, justification: str, approver: str | None = None,
+                      owner: str | None = None, _hook: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Record the human's decision that a blocking review finding does not
+        block the change (see aief.findings). When every blocking finding of
+        that review is waived before its rework started, the rework is undone
+        and the Execution continues towards submission."""
+        from .findings import WAIVED, blocking_findings, label, review_sha256, unresolved
+        execution = self.execution(execution_id)
+        if not (justification or "").strip():
+            raise ValueError("a justification is required to decide that a finding does not block the change")
+        name, rework = self._waivable_review(execution)
+        path = execution.root / name
+        findings = blocking_findings(path)
+        if not 1 <= finding <= len(findings):
+            raise ValueError(f"{name} has {len(findings)} blocking finding(s); there is no finding {finding}")
+        sha = review_sha256(path)
+        existing = next((item for item in execution.data.get("findingDecisions", [])
+                         if item["reviewSha256"] == sha and item["finding"] == finding), None)
+        if existing is None:
+            actor = self._human_approval(execution, f"waive-finding-{finding}", owner, approver, _hook)
+            existing = {"review": name, "reviewSha256": sha, "finding": finding, "summary": label(findings[finding - 1]),
+                        "decision": WAIVED, "justification": justification.strip(), "at": timestamp(self.clock), "actor": actor}
+            execution.data.setdefault("findingDecisions", []).append(existing)
+            execution.save()
+            self._events(execution.data["task"]).append(
+                "review.finding-waived", execution=execution_id,
+                payload={"agent": execution.data.get("agent", {}).get("adapter"), **{key: existing[key] for key in
+                         ("review", "finding", "summary", "decision", "justification")}, "actor": existing["actor"]})
+        remaining = unresolved(execution.data, path)
+        overruled = False
+        if not remaining:
+            overruled = self._overrule_review(execution, rework)
+        return {"execution": execution_id, "review": name, "finding": finding, "decision": WAIVED,
+                "remaining": remaining, "overruled": overruled, "status": self.execution(execution_id).data["status"],
+                "next": (self.execution(execution_id).next_phase() or {}).get("id")}
+
+    def _overrule_review(self, execution: Execution, rework: dict[str, Any] | None) -> bool:
+        """Every blocking finding is waived: continue as if the review let the
+        change through, when nothing was redone since."""
+        if rework is None:
+            execution.resume("review-rework-exhausted")
+            return True
+        first = next((phase for phase in execution.data["phases"] if phase["id"] in (rework.get("phases") or [])), None)
+        if first is None or first.get("preparedAt") or first["status"] != "pending":
+            # The rework already started: the decisions still apply, and the
+            # briefs carry them to the producer and the next reviewer.
+            return False
+        record = execution.data["reworks"][-1]
+        if "proposal" in record:
+            execution.data["proposal"] = record["proposal"]
+        if "applyGate" in record:
+            execution.data.setdefault("policyGates", []).append(record["applyGate"])
+        if "review" in execution.data:
+            required = execution.data["review"].get("independentRequired", True)
+            actors = execution.data.get("actors", {})
+            execution.data["review"]["independence"] = review_independence(actors.get("producer"), actors.get("reviewer"), required=required)
+        execution.overrule_rework(record, timestamp(self.clock))
+        return True
+
     @staticmethod
     def _rework_target(compiled: dict[str, Any], phase: dict[str, Any], output: dict[str, Any]) -> str | None:
         """Implementation phase to reopen when a completed review does not
@@ -1077,7 +1151,8 @@ class RuntimeService:
         phase = execution.next_phase()
         if phase["skill"] == "implement-change":
             self._prepare_implementation_action(execution, phase)
-        brief = write_phase_brief(execution.root, phase, skill_contract, contexts)
+        decisions = execution.data.get("findingDecisions", []) if phase["skill"] in {"implement-change", "review-change"} else []
+        brief = write_phase_brief(execution.root, phase, skill_contract, contexts, decisions)
         name = Path(brief["path"]).name
         for artifacts in (phase.setdefault("artifacts", []), execution.data.setdefault("artifacts", [])):
             if name not in artifacts: artifacts.append(name)
