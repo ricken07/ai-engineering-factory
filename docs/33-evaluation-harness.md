@@ -134,7 +134,10 @@ Rules the launcher holds:
   check and metrics. The task oracle and the analysis run separately on those
   records. `tools/experiment/check_decisions.py` checks every recorded gate
   decision against the pinned decision rule, independently of the Runtime and
-  of the approvers, and classifies each rejection.
+  of the approvers, and classifies each rejection. `study_outcome.py` maps the
+  Runtime facts of each L3 run to its study outcome (`completed`,
+  `execution-failure`, `setup-invalid`, `operationally-invalid`, `incomplete`,
+  `protocol-deviation`) in a separate file, without rewriting them.
 - **Observed values only.** Agent version and Factory commit are read at run
   time; the model identifier comes from the run descriptor and is otherwise
   `UNAVAILABLE`. Step durations are wall-clock observations of the agent

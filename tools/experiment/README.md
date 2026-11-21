@@ -106,3 +106,28 @@ differs from the head the launcher recorded at the start of the run. The
 exit status is 1 when any decision departs from the rule. For an
 `execution.yaml` outside a launcher run, pass `--repo` and
 `--initial-branch NAME=SHA`.
+
+## Study outcome
+
+`study_outcome.py` maps the Runtime facts of an L3 run to its study outcome.
+It reads the records the launcher collected and writes `study-outcome.yaml`
+next to them, with the facts it used copied verbatim; it never rewrites a
+Runtime record:
+
+```bash
+python3 tools/experiment/study_outcome.py runs/<run-id> [...] --rule-sha256 <pinned rule hash> --write
+```
+
+| Outcome | When |
+|---|---|
+| `protocol-deviation` | a gate decision departs from the decision rule, a review finding was waived, review waivers were not disabled, or the execution was cancelled without a gate decision |
+| `setup-invalid` | the deciding rejection is setup-invalid under the rule, or required enforcement is unavailable on the runner |
+| `operationally-invalid` | the deciding gate expired; eligible for one predeclared replay |
+| `incomplete` | a human gate still waits when the run is collected: not finished, not scored |
+| `execution-failure` | the deciding rejection is attributed to the execution, the execution failed, review rework is exhausted, the execution is left blocked for another reason, or the agent stopped before it ended |
+| `completed` | completed and, when `before-merge` is required, integrated |
+
+The outcomes are listed by precedence. `completed` says the governed
+execution ended as the protocol requires; the task oracle decides whether the
+change is correct.
+
