@@ -105,3 +105,50 @@ def test_unknown_gate_has_no_comparator(tmp_path: Path):
     service, identifier = at_before_implementation(tmp_path)
     execution = service.execution(identifier)
     assert service._gate_evidence(execution, {"kind": "policy-gate", "gate": "before-external-action", "phase": None}) is None
+
+
+def merge_evidence(service, identifier):
+    gate = next(item for item in service.gate_check(identifier)["gates"] if item["gate"] == "before-merge")
+    return gate["evidence"]
+
+
+def test_before_merge_evidence_checks_the_integration(tmp_path: Path):
+    from tests.test_integration import completed_with_task_branch, git
+    service, identifier, root = completed_with_task_branch(tmp_path)
+    (service.execution(identifier).root / "validation.yaml").write_text(
+        yaml.safe_dump({"details": {"commits": {"main": git(root, "rev-parse", "aief/t")}}}))
+    evidence = merge_evidence(service, identifier)
+    checks = items(evidence)
+    assert evidence["comparator"] == "integration"
+    for item in ("execution:status", "integration:status", "main:branch:aief/t", "main:branch:main",
+                 "main:task-branch:contains-validated-revision", "main:base-branch:clean", "main:merge:clean"):
+        assert checks[item]["outcome"] == "match", (item, checks[item])
+    assert any(item.startswith("submission:") for item in checks)
+    service.approve_policy_gate(identifier, "before-merge", approver="alice")
+    current = service.execution(identifier)
+    decision = next(item for item in current.data["gateDecisions"] if item["gate"] == "before-merge")
+    # Taken before the merge: the integration was still awaiting approval.
+    assert items(decision["evidence"])["integration:status"]["observed"] == "awaiting-approval"
+    assert current.data["integration"]["status"] == "integrated"
+    assert_schema(ROOT, "execution.schema.json", current.data)
+
+
+def test_before_merge_evidence_reports_a_conflict_and_a_foreign_revision(tmp_path: Path):
+    from tests.test_integration import completed_with_task_branch
+    service, identifier, root = completed_with_task_branch(tmp_path, conflicting=True)
+    (service.execution(identifier).root / "validation.yaml").write_text(
+        yaml.safe_dump({"details": {"commits": {"main": "0" * 40}}}))
+    evidence = merge_evidence(service, identifier)
+    checks = items(evidence)
+    assert evidence["outcome"] == "mismatch"
+    assert checks["main:merge:clean"]["observed"] == "conflicts"
+    assert checks["main:task-branch:contains-validated-revision"]["outcome"] == "mismatch"
+
+
+def test_before_merge_evidence_reports_a_dirty_base_branch(tmp_path: Path):
+    from tests.test_integration import completed_with_task_branch, git
+    service, identifier, root = completed_with_task_branch(tmp_path)
+    git(root, "switch", "-q", "main"); (root / "app.txt").write_text("uncommitted\n")
+    checks = items(merge_evidence(service, identifier))
+    assert checks["main:base-branch:clean"]["outcome"] == "mismatch"
+    assert checks["main:task-branch:contains-validated-revision"]["outcome"] == "unavailable"

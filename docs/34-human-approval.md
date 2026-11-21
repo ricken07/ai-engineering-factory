@@ -469,6 +469,7 @@ evidence is what the approver saw:
 | `before-implementation` | `governed-plan` | governed plan fingerprint recomputed and equal to the recorded one; policy decision equal to the recorded fingerprint; every enforcement point enforceable; planning completed; bound-plan hashes match when a plan is bound |
 | `apply-proposal` | `proposal` | each patch unchanged since it was proposed; workspace unchanged since the proposal; patches still apply (`git apply --check`) |
 | `before-commit`, `before-submission`, submission gate | `submission-evidence` | every submission evidence gap (planning, validation, review, evidence matrix, review independence, findings); required enforcement proven |
+| `before-merge` | `integration` | execution completed and awaiting integration; submission evidence; for each repository: task and base branches exist, the task branch contains the revision the Runtime validated, the base branch is not checked out with local changes, the merge is clean (`git merge-tree`, nothing is written) |
 
 Other gates carry no `evidence` until a comparator exists for them.
 
@@ -489,8 +490,9 @@ hash was given). Before deciding, the approver reads the same evidence:
 aief execution gate-check <execution-id>
 ```
 
-It prints the waiting gates, their deadline, the rule document and the
-comparator evidence. A deterministic rule document can then state each
+It prints the gates waiting for a decision, their deadline, the rule document
+and the comparator evidence. This includes `before-merge` once the execution
+is completed and waits for its integration. A deterministic rule document can then state each
 decision from the outcome alone. For example: approve on `match`; reject on
 `mismatch`, quoting the failing checks.
 

@@ -12,6 +12,7 @@ its expected value, observed value and outcome:
 | `before-implementation` | `governed-plan` | integrity of the governed plan and policy decision, enforceable points, approved plan |
 | `apply-proposal` | `proposal` | patch integrity, unchanged workspace, patches that still apply |
 | `before-commit`, `before-submission`, submission gate | `submission-evidence` | submission evidence gaps and required enforcement |
+| `before-merge` | `integration` | completed execution awaiting integration, submission evidence, and per repository: branches exist, task branch contains the validated revision, base branch clean, merge clean |
 
 A check is `match`, `mismatch` or `unavailable`; the comparator outcome is
 `mismatch` when any check differs, `match` when every check holds, and
@@ -118,3 +119,13 @@ def submission(root: Path, execution: dict[str, Any]) -> dict[str, Any]:
     failing = [str(point.get("action")) for point in points if point and not required_enforcement_satisfied(point)]
     checks.append(check("required-enforcement", "proven", ", ".join(failing) if failing else "proven"))
     return result("submission-evidence", checks)
+
+
+def integration(root: Path, execution: dict[str, Any], repository_checks: list[dict[str, Any]]) -> dict[str, Any]:
+    """`repository_checks` come from aief.integration.integration_checks, one block per task branch."""
+    checks = [check("execution:status", "completed", execution.get("status")),
+              check("integration:status", "awaiting-approval", (execution.get("integration") or {}).get("status"))]
+    checks += [{**item, "item": f"submission:{item['item']}"} for item in submission(root, execution)["checks"]]
+    if not repository_checks:
+        checks.append(check("integration:targets", "task branch", None))
+    return result("integration", checks + repository_checks)

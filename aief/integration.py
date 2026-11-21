@@ -82,3 +82,26 @@ def integrate(target: dict[str, str], execution_id: str, runner: Runner = subpro
         finally:
             _run(root, ["worktree", "remove", str(temporary)], runner)
     return {**target, "taskCommit": task_commit, "baseBefore": base_before, "baseAfter": merged, "method": "merge"}
+
+
+def integration_checks(target: dict[str, str], validated: str | None, runner: Runner = subprocess.run) -> list[dict[str, Any]]:
+    """What a human approving `before-merge` decides on, for one repository, without changing anything:
+    both branches exist, the task branch still contains the revision the Runtime validated, the base branch
+    is not checked out with local changes, and the merge is clean (`git merge-tree`)."""
+    from .gate_evidence import check
+    root, name = Path(target["gitRoot"]), target["repository"]
+    task, base = target["taskBranch"], target["baseBranch"]
+    exists = {branch: _exists(root, ["rev-parse", "--verify", "-q", f"refs/heads/{branch}"], runner) for branch in (task, base)}
+    checks = [check(f"{name}:branch:{branch}", "exists", "exists" if present else "missing") for branch, present in exists.items()]
+    if not all(exists.values()):
+        return checks
+    task_commit = _run(root, ["rev-parse", task], runner)
+    contains = None if not validated else (
+        "yes" if _exists(root, ["merge-base", "--is-ancestor", validated, task_commit], runner) else "no")
+    checks.append(check(f"{name}:task-branch:contains-validated-revision", "yes" if validated else None, contains))
+    checked_out = _worktree_of(root, base, runner)
+    dirty = bool(checked_out) and bool(_run(checked_out, ["status", "--porcelain", "--untracked-files=no"], runner))
+    checks.append(check(f"{name}:base-branch:clean", "clean", "local changes" if dirty else "clean"))
+    clean = _exists(root, ["merge-tree", "--write-tree", base, task], runner)
+    checks.append(check(f"{name}:merge:clean", "clean", "clean" if clean else "conflicts"))
+    return checks

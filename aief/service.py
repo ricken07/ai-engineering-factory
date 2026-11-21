@@ -30,7 +30,7 @@ from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
 from . import gate_evidence, gate_protocol, plan_binding, payload_ledger
 from .phase_brief import compact_prepared, write_phase_brief
-from .integration import MERGE_GATE, integrate, integration_targets
+from .integration import MERGE_GATE, integrate, integration_checks, integration_targets
 from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
 from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
@@ -892,6 +892,14 @@ class RuntimeService:
                 return None
             return gate_evidence.proposal(execution.root, execution.data,
                                           lambda: changed_roots(data.get("baseline", {}), runtime), patches_apply)
+        if gate == MERGE_GATE:
+            validation = execution.root / "validation.yaml"
+            validated = (load_yaml(validation).get("details", {}).get("commits", {}) if validation.is_file() else {}) or {}
+            repository_checks = []
+            for target in self._integration_targets(execution):
+                revision = validated.get(target["repository"])
+                repository_checks += integration_checks(target, revision if revision not in {None, "unavailable"} else None)
+            return gate_evidence.integration(execution.root, execution.data, repository_checks)
         if gate in gate_evidence.SUBMISSION_GATES or (phase is not None and phase.get("skill") == "submit-change"):
             return gate_evidence.submission(execution.root, execution.data)
         return None
@@ -901,7 +909,16 @@ class RuntimeService:
         execution = self.execution(execution_id)
         protocol = gate_protocol.of_execution(execution.data)
         gates = []
-        for held in gate_protocol.holding_gates(execution.data):
+        waiting = gate_protocol.holding_gates(execution.data)
+        # A gate can wait for a decision without holding the execution, such
+        # as before-merge once the execution is completed.
+        held_ids = {item["gate"] for item in waiting}
+        if execution.data.get("integration", {}).get("status") == "awaiting-approval":
+            waiting += [{"kind": "policy-gate", "gate": gate["id"], "phase": None, "trigger": gate.get("trigger"),
+                         "timing": gate.get("timing", {})}
+                        for gate in execution.data.get("policyGates", [])
+                        if gate["id"] == MERGE_GATE and gate["status"] == "pending" and gate["id"] not in held_ids]
+        for held in waiting:
             deadline = gate_protocol.deadline(held, protocol)
             gates.append({"gate": held["gate"], "kind": held["kind"], "phase": held.get("phase"),
                           "waitStartedAt": held["timing"].get("blockedAt"),
