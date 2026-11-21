@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("targets", nargs="+", type=Path, help="launcher run directories or execution.yaml files")
     parser.add_argument("--rule-sha256", required=True, help="SHA-256 of the pinned decision rule")
-    parser.add_argument("--rule-version", choices=RULE_VERSIONS, default="v3", help="version of the pinned decision rule")
+    parser.add_argument("--rule-version", choices=RULE_VERSIONS, default="v4", help="version of the pinned decision rule")
     parser.add_argument("--approvers", nargs="*", help="protocol approvers (default: the execution's snapshot)")
     parser.add_argument("--repo", type=Path, help="Git repository of an execution.yaml target")
     parser.add_argument("--initial-branch", action="append", default=[], metavar="NAME=SHA",

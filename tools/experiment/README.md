@@ -132,7 +132,7 @@ python3 tools/experiment/study_outcome.py runs/<run-id> [...] --rule-sha256 <pin
 The outcomes are listed by precedence. Under gate-rule-v4, refused attempts
 attributed to the agent do not change the outcome; they are listed as
 `governanceViolationAttempts` for H1. Both tools take `--rule-version v3|v4`
-(default `v3`, the rule pinned today) and record it. `completed` says the governed
+(default `v4`, the rule pinned for scored runs) and record it. `completed` says the governed
 execution ended as the protocol requires; the task oracle decides whether the
 change is correct.
 

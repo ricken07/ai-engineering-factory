@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("runs", nargs="+", type=Path, help="launcher run directories")
     parser.add_argument("--rule-sha256", required=True, help="SHA-256 of the pinned decision rule")
-    parser.add_argument("--rule-version", choices=check_decisions.RULE_VERSIONS, default="v3",
+    parser.add_argument("--rule-version", choices=check_decisions.RULE_VERSIONS, default="v4",
                         help="version of the pinned decision rule")
     parser.add_argument("--write", action="store_true", help=f"write {OUTPUT} into each run directory")
     parser.add_argument("--json", action="store_true")
