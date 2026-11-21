@@ -179,7 +179,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | [26 — Task Execution Log](26-task-execution-log.md) | Query and inspect the local task journal (events.jsonl) | Operators, debuggers |
 | [29 — Evidence Chain & Validation Replay](29-evidence-chain-and-replay.md) | Acceptance criteria, revision-bound validation, trusted review identity, bounded rework, human decisions on review findings and fingerprinted EvidenceBundle. | Developers, reviewers |
 | [32 — Runtime Observability](32-runtime-observability.md) | Structured events and monotonic timing with explicit availability and redaction. | Operators, debuggers |
-| [33 — Evaluation Harness](33-evaluation-harness.md) | Conformance levels plus explicit experimental conditions L0–L3 and reproducibility metadata. | Developers, QA |
+| [33 — Evaluation Harness](33-evaluation-harness.md) | Conformance levels, experimental conditions L0–L3, the launcher of experimental units and reproducibility metadata. | Developers, QA |
 
 **What you'll learn:**
 - How to debug a failed task

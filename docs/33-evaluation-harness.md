@@ -65,14 +65,71 @@ repository, starting commit, agent, acceptance criteria, environment and repeat
 number. The harness records the condition; it does not claim to execute or
 judge an LLM experiment.
 
-Running the units is the job of a separate maintainer tool,
-`tools/experiment/aief_experiment.py`: it prepares an isolated clone at the
-task's starting commit, prepares the condition (L0 without project or agent
-configuration, L1 with a frozen project context, L2 with the frozen plan and
-verification, L3 through the Runtime with the same frozen plan and
-verification bound), invokes the coding agent headless and writes one run
-record per unit. It never decides a human gate and does not evaluate
-outcomes.
+Running the units is the job of a separate maintainer tool, described in
+[Running experimental units](#running-experimental-units). The Runtime itself
+only ever runs L3.
+
+## Running experimental units
+
+`tools/experiment/aief_experiment.py` runs one experimental unit: one coding
+agent execution of one frozen task under one condition, for one repeat. It is
+maintainer tooling outside the Runtime; its full reference is
+[tools/experiment/README.md](../tools/experiment/README.md).
+
+| Condition | What the agent receives | How the launcher prepares it |
+|---|---|---|
+| L0 raw agent | the request | isolated clone at the starting commit; `.ai/`, `.claude/`, `.codex/`, `AGENTS.md` and `CLAUDE.md` removed in a setup commit |
+| L1 contextualized agent | L0 plus a project context | the frozen context file as `AGENTS.md` (and `CLAUDE.md` importing it) |
+| L2 structured engineering | L1 plus plan and verification | the frozen plan and verification specification under `.experiment/` |
+| L3 governed control plane | the AIEF native command | the project unchanged; the same frozen plan and verification bound with `--bound-plan`/`--bound-verification` and their expected SHA-256 |
+
+```mermaid
+flowchart LR
+    subgraph OP["Maintainer tooling"]
+        L["Experiment launcher"]
+        R[("Run record<br/>run.yaml, prompts, logs,<br/>final patch, AIEF outputs")]
+    end
+    subgraph H["Coding agent harness"]
+        HK["Settings, hooks,<br/>permission rules"]
+    end
+    subgraph A["Coding agent"]
+        AG["Headless session"]
+    end
+    subgraph F["AIEF (L3 only)"]
+        RT["Runtime: phases, gates,<br/>independent review, evidence"]
+    end
+    HU(("Human"))
+    L -- "prepare clone and condition,<br/>send prompt" --> HK
+    HK --> AG
+    AG -- "L3: aief run / next / handoff" --> RT
+    HU -- "decides every gate<br/>(OBSERVED)" --> RT
+    L -- "wait, review, continue, finish" --> RT
+    L --> R
+```
+
+Rules the launcher holds:
+
+- **Frozen treatments.** Context, plan and verification files are checked
+  against their frozen SHA-256 before a run; a modified file is refused. L1
+  and L2 receive the same context, L2 and L3 the same plan and verification.
+  The prompt templates are hashed and recorded with every run.
+- **Isolation.** In L0–L2, Codex runs with an isolated `HOME` and without user
+  configuration or rules; Claude Code runs without skills, commands or user
+  settings, and with an isolated `HOME` when the operator supplies a
+  long-lived token. Settings and hooks managed by the account's organization
+  still apply, and the run records it.
+- **No decision.** The launcher never approves, rejects or waives. In L3 the
+  human decides each gate from their own terminal, recorded as `OBSERVED`
+  ([34 — Human Approval](34-human-approval.md)). A cancelled or blocked
+  execution is a final state of the run, recorded as the Runtime left it.
+- **No judgment.** The launcher records the final workspace patch, the branch
+  patches and, in L3, the execution, evidence bundle, payload ledger, gate
+  check and metrics. The task oracle and the analysis run separately on those
+  records.
+- **Observed values only.** Agent version and Factory commit are read at run
+  time; the model identifier comes from the run descriptor and is otherwise
+  `UNAVAILABLE`. Step durations are wall-clock observations of the agent
+  process; tokens and cost are not recorded.
 
 ## Fixtures
 
