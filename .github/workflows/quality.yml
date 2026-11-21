@@ -9,7 +9,8 @@ jobs:
         with:
           version: "0.9.28"
           python-version: "3.12"
-      # Installs exactly the committed uv.lock; fails if the lock is out of date.
-      - run: uv sync --frozen --extra dev
-      - run: uv run --frozen pytest
-      - run: uv run --frozen python tools/validate_package.py
+      # The lock must match pyproject.toml; the install is exactly the committed lock.
+      - run: uv lock --check
+      - run: uv sync --locked --extra dev
+      - run: uv run --locked pytest
+      - run: uv run --locked python tools/validate_package.py

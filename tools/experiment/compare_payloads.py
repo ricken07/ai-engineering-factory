@@ -161,9 +161,11 @@ def compare(execution_dir: Path, l1_context: Path, l2_plan: Path, l2_verificatio
         lines = [line.strip() for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
                  if len(line.strip()) >= MIN_FORBIDDEN_LINE]
         for entry, name, text in snapshots:
-            leaked = [line for line in lines if line in text]
+            # Report counts and positions only: the report must never carry oracle content.
+            leaked = [index for index, line in enumerate(lines, 1) if line in text]
             if leaked:
-                facts.append(f"{name}: contains {len(leaked)} line(s) of {path.name}, first: {leaked[0][:80]!r}")
+                facts.append(f"{name}: contains {len(leaked)} line(s) of a forbidden file ({path.name}), "
+                             f"forbidden-file line numbers {leaked[:10]}")
     procedural = sorted({section["id"] for _, section in sections if section["id"] in ACCEPTED_AS_PROCEDURAL})
     comparisons["no_additional_task_semantic_facts"] = _result(
         FAILED if facts else (NEEDS_REVIEW if needs_review else VERIFIED), facts,

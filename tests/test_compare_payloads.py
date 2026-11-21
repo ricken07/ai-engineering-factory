@@ -105,6 +105,8 @@ def test_forbidden_content_reaching_the_agent_fails(tmp_path: Path):
                                      "brief": brief("implementation", extra="assert greeting() == 'Hello'  # hidden oracle line")}])
     report = tool.compare(root, forbidden=[oracle], **treatment(tmp_path))
     assert statuses(report)["no_additional_task_semantic_facts"] == "FAILED"
+    # The finding locates the leak without repeating the oracle content.
+    assert "hidden oracle" not in str(report) and "line numbers [1]" in str(report)
 
 
 def test_review_feedback_is_counted_against_the_rework_budget(tmp_path: Path):
