@@ -30,7 +30,7 @@ but it must never expand the autonomy calculated by the Factory.
 | --- | --- | --- |
 | Allowed | read, `aief validate`, Execution inspection, Git state | without repetitive confirmation |
 | Confirmation | external ticket creation, commit/push, branch/worktree mutation, validation outside sandbox | ask human |
-| Forbidden | force-push, hard reset, destructive git clean, secret read, gate approval (`aief execution approve`, `approve-policy`, `aief approval`) | block |
+| Forbidden | force-push, hard reset, destructive git clean, secret read, gate approval and finding decisions (`aief execution approve`, `approve-policy`, `waive-finding`, `aief approval`), `git merge`, `git cherry-pick`, `git rebase`, push to a base branch | block |
 
 The shared model is deliberately conservative. An MCP provider's permissions are
 configured separately and remain subject to the same policies.
@@ -181,7 +181,9 @@ auto-approve:
 
 - a Factory human gate;
 - external task creation or linking;
-- commit, push, merge or rebase;
+- commit or push of a task branch (merge, cherry-pick, rebase and push to a
+  base branch are forbidden to the agent: the Runtime integrates after
+  `before-merge`, see [18](18-workspace-git-safety.md#governed-integration));
 - workspace preparation or rollback;
 - adding an MCP or elevating its permissions;
 - any command requiring network or out-of-workspace access not documented.

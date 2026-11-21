@@ -18,7 +18,7 @@ EVENT_TYPES = {
     "gate.requested", "gate.approved", "gate.approval-refused", "review.finding-waived", "gate.rejected", "gate.expired", "gate.closed",
     "workspace.prepared", "workspace.blocked", "proposal.checked",
     "integration.resolved", "integration.failed",
-    "execution.completed", "execution.failed", "execution.cancelled", "execution.reworked",
+    "execution.completed", "execution.failed", "execution.cancelled", "execution.reworked", "execution.integrated",
     "question.asked", "question.answered",
 }
 

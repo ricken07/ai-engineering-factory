@@ -70,3 +70,16 @@ prefix_rule(
     decision = "forbidden",
     justification = "Only the harness delivers a human approval to the Runtime",
 )
+
+# Only the Runtime integrates a task branch, after a human approved before-merge.
+prefix_rule(
+    pattern = ["git", ["merge", "cherry-pick", "rebase"]],
+    decision = "forbidden",
+    justification = "The Runtime integrates task branches after the human approves before-merge",
+)
+
+prefix_rule(
+    pattern = ["git", "push", "origin", ["main", "HEAD:main"]],
+    decision = "forbidden",
+    justification = "The agent never pushes to a base branch",
+)

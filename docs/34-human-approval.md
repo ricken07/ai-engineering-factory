@@ -17,6 +17,10 @@ set up the recommended one: typing `/approve` in the agent session.
 | "I approve" in plain words, or `/approve` without the hook | the agent session; the agent would have to relay it | refused, channel `agent-relay` | **no** |
 | any approval command without a terminal | a script, a CI job, an agent's shell | refused, channel `non-interactive` | **no** |
 
+`/approve` also approves the integration of a completed Execution
+(`before-merge`): the Runtime then merges its task branch into the base branch
+(see [18 — Governed Integration](18-workspace-git-safety.md#governed-integration)).
+
 The same channels carry the human's decisions on review findings: `/waive
 <finding-number> <justification>` (`$waive` in Codex) in the agent session, or
 `aief execution waive-finding` in your own terminal (see
@@ -233,6 +237,8 @@ coding agent harness so that the agent cannot even attempt an approval:
 | `aief execution approve` | approve a phase | forbidden to the agent |
 | `aief execution approve-policy` | approve a policy gate | forbidden to the agent |
 | `aief execution waive-finding` | decide that a review finding does not block | forbidden to the agent |
+| `git merge`, `git cherry-pick`, `git rebase` | integrate or rewrite a task branch | forbidden to the agent: the Runtime integrates after `before-merge` ([18](18-workspace-git-safety.md#governed-integration)) |
+| `git push` to a base branch (`main`, or the project's base branches) | publish onto a base branch | forbidden to the agent |
 | `aief approval` (including `aief approval hook`) | call the approval hook entry point with a forged message | forbidden to the agent |
 
 - **Claude Code**: these commands are in `permissions.deny` of

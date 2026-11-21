@@ -138,6 +138,45 @@ evidence remain in the canonical State Store outside that worktree.
 
 Rollback is planned by default. With `--execute`, it only removes a worktree owned and recorded by the execution, or switches a clean strict-mode workspace back to its configured base branch. It refuses dirty execution workspaces, never deletes the task branch, and never resets files.
 
+## Governed integration
+
+When the policy requires `before-merge` (high or critical risk), integrating
+the task branch into its base branch is a governed action performed by the
+Runtime, never by the agent:
+
+1. when the Execution completes, `before-merge` is not closed: the Execution
+   records `integration.status: awaiting-approval` for each repository with a
+   task branch, and an enforcement point for `merge` (`DENY`, `ENFORCEABLE`);
+2. the human approves the integration through an `OBSERVED` channel, like any
+   gate: `/approve` in the agent session (`$approve` in Codex), or
+   `aief execution approve-policy <execution-id> before-merge --approver <name>`
+   in their own terminal; the agent cannot approve it;
+3. the Runtime merges each task branch into its base branch (`git merge
+   --no-ff`, message `Merge <task> into <base> (AIEF execution <id>)`). When
+   the base branch is checked out in a worktree, the merge happens there and
+   requires that worktree to have no uncommitted change; otherwise it happens
+   in a temporary worktree that is removed afterwards. The developer's current
+   branch and uncommitted work are never touched;
+4. on success, `before-merge` is approved, `integration.status` becomes
+   `integrated` with, per repository, the task commit and the base commit
+   before and after; the `merge` enforcement point becomes `ALLOW`,
+   `ENFORCED`; an `execution.integrated` event is emitted and the
+   EvidenceBundle is rebuilt with the integration;
+5. on a conflict, the merge is aborted: the base branch is unchanged, the gate
+   stays pending, and the human updates the task branch in a new Execution
+   before approving again.
+
+The integration is local: pushing the base branch stays the developer's
+decision, outside this step. An Execution that is cancelled, failed or that
+produced no task branch closes `before-merge` as `not-triggered`.
+
+A merge made outside AIEF (by hand, or by an agent whose coding agent harness
+lets it) is invisible to the Runtime: the gate then stays pending and the
+evidence shows that no governed integration happened. The project's coding
+agent harness permissions therefore forbid the agent `git merge`, `git
+cherry-pick`, `git rebase` and `git push` to a base branch (see
+[34 — Human Approval](34-human-approval.md#coding-agent-harness-permissions-defense-in-depth)).
+
 ## Forbidden operations
 
 The structured Git boundary rejects force push (including force-with-lease), hard reset, clean, branch deletion and discard-changes. Rollback cannot reset a developer workspace or discard agent changes.

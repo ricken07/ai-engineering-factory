@@ -47,10 +47,7 @@
       "Bash(git reset *)",
       "Bash(git stash *)",
       "Bash(git worktree *)",
-      "Bash(git cherry-pick *)",
-      "Bash(git pull *)",
-      "Bash(git merge *)",
-      "Bash(git rebase *)"
+      "Bash(git pull *)"
     ],
     "deny": [
       "Read(./.env)",
@@ -66,7 +63,18 @@
       "Bash(aief approval *)",
       "Bash(aief execution approve *)",
       "Bash(aief execution approve-policy *)",
-      "Bash(aief execution waive-finding *)"
+      "Bash(aief execution waive-finding *)",
+      "Bash(git merge *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git rebase *)",
+      "Bash(git -C * merge *)",
+      "Bash(git -C * cherry-pick *)",
+      "Bash(git -C * rebase *)",
+      "Bash(git push * main)",
+      "Bash(git push * main *)",
+      "Bash(git push * HEAD:main*)",
+      "Bash(git -C * push * main)",
+      "Bash(git -C * push * HEAD:main*)"
     ]
   },
   "hooks": {

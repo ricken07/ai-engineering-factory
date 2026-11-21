@@ -47,6 +47,48 @@ prefix_rule(
 """
 
 
+# The Runtime integrates a task branch into its base branch after a human
+# approved before-merge (aief.integration): the agent never merges, rewrites
+# history onto a base branch or pushes to it.
+GIT_DENY = ["Bash(git merge *)", "Bash(git cherry-pick *)", "Bash(git rebase *)",
+            "Bash(git -C * merge *)", "Bash(git -C * cherry-pick *)", "Bash(git -C * rebase *)"]
+
+
+def base_branches(project_root: Path) -> list[str]:
+    """Base branches declared by the project (workspace default and per repository)."""
+    from .yamlio import load_yaml
+    path = project_root / ".ai" / "project.yaml"
+    project = load_yaml(path) if path.is_file() else {}
+    bases = {project.get("workspaceSafety", {}).get("baseBranch") or "main"}
+    bases |= {item.get("git", {}).get("baseBranch") for item in project.get("repositories", []) if isinstance(item, dict)}
+    return sorted(base for base in bases if base)
+
+
+def claude_deny(bases: list[str]) -> list[str]:
+    pushes = [rule for base in bases for rule in (
+        f"Bash(git push * {base})", f"Bash(git push * {base} *)", f"Bash(git push * HEAD:{base}*)",
+        f"Bash(git -C * push * {base})", f"Bash(git -C * push * HEAD:{base}*)")]
+    return CLAUDE_DENY + GIT_DENY + pushes
+
+
+def codex_rules(bases: list[str]) -> str:
+    targets = ", ".join(f'"{item}"' for base in bases for item in (base, f"HEAD:{base}"))
+    return CODEX_RULE + f"""
+# Only the Runtime integrates a task branch, after a human approved before-merge.
+prefix_rule(
+    pattern = ["git", ["merge", "cherry-pick", "rebase"]],
+    decision = "forbidden",
+    justification = "The Runtime integrates task branches after the human approves before-merge",
+)
+
+prefix_rule(
+    pattern = ["git", "push", "origin", [{targets}]],
+    decision = "forbidden",
+    justification = "The agent never pushes to a base branch",
+)
+"""
+
+
 def hook_command(agent: str) -> str:
     return f"aief approval hook --agent {agent}"
 
@@ -140,6 +182,12 @@ def awaited_approvals(service: Any) -> list[dict[str, str]]:
     result = []
     for path in sorted(root.glob("*/execution.yaml")) if root.is_dir() else []:
         execution = service.execution(path.parent.name)
+        if execution.data.get("status") == "completed" \
+                and execution.data.get("integration", {}).get("status") == "awaiting-approval":
+            # A completed execution waits for the human to approve its
+            # integration into the base branch (aief.integration).
+            result.append({"execution": execution.data["metadata"]["id"], "gate": "before-merge", "kind": "policy"})
+            continue
         if execution.data.get("status") != "waiting-approval":
             continue
         phase = execution.next_phase()
@@ -261,11 +309,11 @@ def install(project_root: Path, agent: str) -> Path:
         _entries(config).append({"hooks": [{"type": "command", "command": hook_command(agent), "timeout": 120}]})
     if agent == "claude-code":
         deny = config.setdefault("permissions", {}).setdefault("deny", [])
-        deny.extend(rule for rule in CLAUDE_DENY if rule not in deny)
+        deny.extend(rule for rule in claude_deny(base_branches(project_root)) if rule not in deny)
     else:
         rules = project_root / CODEX_RULES
         rules.parent.mkdir(parents=True, exist_ok=True)
-        rules.write_text(CODEX_RULE, encoding="utf-8")
+        rules.write_text(codex_rules(base_branches(project_root)), encoding="utf-8")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     return path

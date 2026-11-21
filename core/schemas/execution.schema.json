@@ -159,6 +159,13 @@
       "type": "array",
       "items": {"type": "object", "required": ["number", "at", "review", "decision"], "properties": {"number": {"type": "integer", "minimum": 1}, "at": {"type": "string", "format": "date-time"}, "review": {"type": "string"}, "decision": {"type": "string"}, "findings": {"type": "array"}, "archived": {"type": "array", "items": {"type": "string"}}, "phases": {"type": "array", "items": {"type": "string"}}, "overruledAt": {"type": "string", "format": "date-time"}, "proposal": {"type": "object"}, "applyGate": {"type": "object"}}, "additionalProperties": false}
     },
+    "integration": {
+      "description": "Integration of the execution's task branches into their base branch, performed by the Runtime after a human approved before-merge.",
+      "type": "object", "required": ["status", "gate"],
+      "properties": {"status": {"enum": ["awaiting-approval", "integrated"]}, "gate": {"type": "string"}, "at": {"type": "string", "format": "date-time"}, "approvedBy": {"type": "string"},
+                     "repositories": {"type": "array"}},
+      "additionalProperties": false
+    },
     "findingDecisions": {
       "description": "Human decisions on blocking findings of an independent review, bound to the review artifact they answer.",
       "type": "array",

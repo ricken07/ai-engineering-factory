@@ -30,6 +30,7 @@ from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
 from . import gate_protocol, plan_binding, payload_ledger
 from .phase_brief import compact_prepared, write_phase_brief
+from .integration import MERGE_GATE, integrate, integration_targets
 from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
 from .governance import governed_execution_plan, assert_action_authorized
 from .validation import assert_schema
@@ -766,6 +767,7 @@ class RuntimeService:
         """Consolidate the evidence of an Execution that just completed,
         whichever transition completed it (a phase output or a human approval
         of the last phase), then close its gates and record the completion."""
+        self._await_integration(execution)
         bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
         assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
         if "evidence-bundle.yaml" not in execution.data["artifacts"]:
@@ -776,6 +778,59 @@ class RuntimeService:
             payload={"agent": execution.data.get("agent", {}).get("adapter"),
                      "workflow": execution.data["workflow"], "evidenceBundle": bundle["fingerprint"]},
         )
+
+    def _integration_targets(self, execution: Execution) -> list[dict[str, str]]:
+        try:
+            workspace = WorkspaceManager(self.project_root, self.project, execution.root).load()
+        except FileNotFoundError:
+            return []
+        return integration_targets(workspace)
+
+    def _await_integration(self, execution: Execution) -> None:
+        """A completed Execution whose policy requires `before-merge` keeps
+        that gate pending until a human approves the integration, which the
+        Runtime then performs (approve_policy_gate). Without a task branch
+        there is nothing to integrate and the gate is closed."""
+        gate = next((item for item in execution.data.get("policyGates", [])
+                     if item["id"] == MERGE_GATE and item["status"] == "pending"), None)
+        if gate is None:
+            return
+        targets = self._integration_targets(execution)
+        if not targets:
+            execution._request_gate(gate)
+            execution._complete_gate_wait(gate, closed=True)
+            gate["status"] = "not-triggered"
+            execution.closed_gates.append({"gate": gate["id"], "status": gate["status"]})
+            execution.save()
+            return
+        execution.data["integration"] = {"status": "awaiting-approval", "gate": MERGE_GATE,
+                                         "repositories": [item["repository"] for item in targets]}
+        execution._request_gate(gate)
+        execution.save()
+        self._persist_enforcement_point(execution, enforcement_point(
+            execution=execution.data["metadata"]["id"], action="merge", decision="DENY", mechanism_type="runtime",
+            capability="phase-gate", status="ENFORCEABLE", evidence_ref="execution.yaml", required=False))
+
+    def _integrate(self, execution: Execution, actor: dict[str, Any]) -> None:
+        """Merge every task branch of the completed Execution into its base
+        branch, after the human approved `before-merge`."""
+        if execution.data["status"] != "completed":
+            raise RuntimeError("an execution is integrated once it is completed: finish its phases first")
+        targets = self._integration_targets(execution)
+        if not targets:
+            raise RuntimeError("this execution has no task branch to integrate")
+        results = [integrate(target, execution.data["metadata"]["id"]) for target in targets]
+        execution.data["integration"] = {"status": "integrated", "gate": MERGE_GATE, "at": timestamp(self.clock),
+                                         "approvedBy": actor["id"], "repositories": results}
+        execution.save()
+        self._persist_enforcement_point(execution, enforcement_point(
+            execution=execution.data["metadata"]["id"], action="merge", decision="ALLOW", mechanism_type="runtime",
+            capability="phase-gate", status="ENFORCED", evidence_ref="execution.yaml", required=True))
+        self._events(execution.data["task"]).append(
+            "execution.integrated", execution=execution.data["metadata"]["id"],
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "approvedBy": actor["id"],
+                     "repositories": [{key: item[key] for key in ("repository", "taskBranch", "baseBranch", "baseAfter", "method")}
+                                      for item in results]})
 
     @staticmethod
     def _phase_gate_id(phase: dict[str, Any] | None) -> str:
@@ -1080,7 +1135,12 @@ class RuntimeService:
                                    terminal_command=f"aief execution approve-policy {execution_id} {gate_id}",
                                    in_session="'/approve' (or '$approve')")
         if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
+        if gate_id == MERGE_GATE and execution.data.get("integration", {}).get("status") == "awaiting-approval":
+            self._integrate(execution, actor)
         self._approve_policy_gate(execution,gate_id,actor)
+        if gate_id == MERGE_GATE and execution.data["status"] == "completed":
+            bundle = build_evidence_bundle(execution.root, factory=self.factory, project_root=self.project_root)
+            assert_schema(self.factory, "evidence-bundle.schema.json", bundle)
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()
         self._events(execution.data["task"]).append(
             "gate.approved", execution=execution_id,

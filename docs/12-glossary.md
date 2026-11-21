@@ -35,6 +35,9 @@
   `aief execution payload-ledger`.
 - **Rework**: return to implementation after a review that did not approve
   the change; bounded, recorded in `reworks`. See [29](29-evidence-chain-and-replay.md).
+- **Governed integration**: merge of a completed Execution's task branch into
+  its base branch, performed by the Runtime after a human approved
+  `before-merge`; recorded in `integration`. See [18](18-workspace-git-safety.md).
 - **Finding decision**: the human's explicit, justified decision that a
   blocking review finding does not block the change (`/waive`); bound to the
   review by its SHA-256 and kept as evidence. See [29](29-evidence-chain-and-replay.md).

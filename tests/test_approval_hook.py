@@ -47,7 +47,8 @@ def test_install_is_idempotent_and_denies_the_entry_point_to_the_agent(tmp_path:
         install(tmp_path, "claude-code"); install(tmp_path, "codex")
     claude = json.loads((tmp_path / ".claude/settings.json").read_text())
     assert len(claude["hooks"]["UserPromptSubmit"]) == 1
-    assert claude["permissions"] == {"allow": ["Bash(aief *)"], "deny": approval_hook.CLAUDE_DENY}
+    assert claude["permissions"] == {"allow": ["Bash(aief *)"], "deny": approval_hook.claude_deny(["main"])}
+    assert "Bash(git merge *)" in claude["permissions"]["deny"] and "Bash(git push * HEAD:main*)" in claude["permissions"]["deny"]
     codex = json.loads((tmp_path / ".codex/hooks.json").read_text())
     assert codex["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] == "aief approval hook --agent codex"
     assert installed(tmp_path, "claude-code") and installed(tmp_path, "codex")

@@ -200,6 +200,10 @@ class Execution:
         for gate in self.data.get("policyGates", []):
             if gate.get("status") != "pending":
                 continue
+            if gate["id"] == "before-merge" and self.data.get("status") == "completed":
+                # A completed Execution is integrated afterwards: the Runtime
+                # decides whether this gate waits for it (aief.integration).
+                continue
             timing = gate.get("timing", {})
             # Executions persisted before `blockedAt` started waiting on request.
             blocked = timing.get("blockedAt") is not None or "startedMonotonicNs" in timing
