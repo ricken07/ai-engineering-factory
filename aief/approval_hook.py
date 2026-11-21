@@ -59,9 +59,14 @@ def parse(prompt: str | None) -> list[str] | None:
     return (match.group("args") or "").split()
 
 
-def parse_waive(prompt: str | None) -> tuple[str | None, int, str] | None:
+USAGE_WAIVE = "waive [<execution-id>] <finding-number> <justification>"
+
+
+def parse_waive(prompt: str | None) -> tuple[str | None, int | None, str | None] | None:
     """(execution id or None, finding number, justification) of a waive
-    message, None for any other message; ValueError when malformed."""
+    message, None for any other message. An incomplete message (no number or
+    no justification) yields None for the missing parts: the hook then lists
+    the findings waiting for a decision."""
     match = WAIVE.match(prompt or "")
     if not match:
         return None
@@ -71,9 +76,48 @@ def parse_waive(prompt: str | None) -> tuple[str | None, int, str] | None:
     if first and not first[0].isdigit():
         execution, text = first[0], (first[1] if len(first) > 1 else "")
     words = text.split(maxsplit=1)
-    if len(words) < 2 or not words[0].isdigit() or not words[1].strip():
-        raise ValueError("usage: waive [<execution-id>] <finding-number> <justification>")
-    return execution, int(words[0]), words[1].strip()
+    if not words:
+        return execution, None, None
+    if not words[0].isdigit():
+        raise ValueError(f"usage: {USAGE_WAIVE}")
+    justification = words[1].strip() if len(words) > 1 else ""
+    return execution, int(words[0]), justification or None
+
+
+def pending_findings(service: Any, execution: str) -> tuple[str, list[str]]:
+    """Review name and numbered lines of its blocking findings still waiting
+    for a human decision."""
+    from .findings import blocking_findings, unresolved
+    record = service.execution(execution)
+    name, _ = service._waivable_review(record)
+    findings = blocking_findings(record.root / name)
+    lines = []
+    for number in unresolved(record.data, record.root / name):
+        item = findings[number - 1]
+        if isinstance(item, dict):
+            head = " ".join(str(item[key]) for key in ("severity", "criterion") if item.get(key)) or "finding"
+            where = f" ({item['location']})" if item.get("location") else ""
+            text = " ".join(str(item.get("finding", "")).split())
+            lines.append(f"  {number}. {head}{where}: {text[:220]}{'...' if len(text) > 220 else ''}")
+        else:
+            lines.append(f"  {number}. {' '.join(str(item).split())[:220]}")
+    return name, lines
+
+
+def waive_listing(service: Any, execution: str | None, candidates: list[str]) -> str:
+    """What the human needs to type a complete waive: the findings waiting
+    for a decision, numbered, and the exact syntax."""
+    targets = [execution] if execution else candidates
+    if not targets:
+        return "No review finding of this project is waiting for a decision."
+    blocks = []
+    for identifier in targets:
+        name, lines = pending_findings(service, identifier)
+        blocks.append(f"Execution {identifier}, review {name}:\n" + ("\n".join(lines) or "  (every finding is decided)"))
+    example = "/waive 1 <why this finding does not block the change>" if len(targets) == 1 \
+        else f"/waive {targets[0]} 1 <why this finding does not block the change>"
+    return ("Blocking findings waiting for your decision:\n" + "\n".join(blocks) +
+            f"\nType: {USAGE_WAIVE} (for example: {example}); $waive in Codex.")
 
 
 def waivable_executions(service: Any) -> list[str]:
@@ -165,6 +209,11 @@ def _handle_waive(payload: dict[str, Any], agent: str, open_service: Callable[[P
         execution, finding, justification = parsed
         service = open_service(Path(payload.get("cwd") or "."))
         candidates = waivable_executions(service)
+        if finding is None or justification is None:
+            # Incomplete message: nothing is decided; show what can be.
+            listing = waive_listing(service, execution, candidates)
+            missing = "" if finding is None else "A justification is required. "
+            return 2, "", f"AIEF decision not recorded. {missing}{listing}"
         if execution is None:
             if len(candidates) != 1:
                 raise ValueError("no execution has a review finding waiting for a decision" if not candidates

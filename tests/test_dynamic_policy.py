@@ -534,3 +534,18 @@ def test_the_hook_delivers_a_waive_typed_in_the_session(tmp_path: Path):
     decision=service.execution(identifier).data["findingDecisions"][0]
     assert (decision["actor"]["channel"], decision["justification"]) == ("harness-hook", "out of scope for this ticket")
     assert handle({"prompt":"/waive 1"},"claude-code",lambda cwd: service)[0] == 2
+
+
+def test_an_incomplete_waive_lists_the_findings_waiting_for_a_decision(tmp_path: Path):
+    from aief.approval_hook import handle
+    service,identifier,review=reviewed(tmp_path,"changes_requested",FINDINGS)
+    service.complete_phase(identifier,review)
+    for prompt in ("/waive", f"/waive {identifier}", "/waive 2"):
+        code,out,err=handle({"prompt":prompt},"claude-code",lambda cwd: service)
+        assert code == 2 and out == "" and "1. P1 AC-1 (Guard.java:34): reads the resolved property" in err
+        assert "2. P2 AC-2 (Guard.java:44)" in err and "/waive 1 <why" in err
+    assert "A justification is required" in handle({"prompt":"/waive 2"},"claude-code",lambda cwd: service)[2]
+    assert "findingDecisions" not in service.execution(identifier).data
+    service.waive_finding(identifier,1,"out of scope",approver="alice")
+    err=handle({"prompt":"/waive"},"claude-code",lambda cwd: service)[2]
+    assert "1. P1" not in err and "2. P2" in err

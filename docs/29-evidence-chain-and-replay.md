@@ -173,7 +173,10 @@ aief execution waive-finding <execution-id> 1 \
   --reason "the raw variable is out of scope for BK-02" --approver alice   # in your own terminal
 ```
 
-The finding number is its position in the review's `blockingFindings`. The
+Typing `/waive` alone, or without a justification, decides nothing: the
+message is blocked and the hook shows the blocking findings still waiting for
+a decision, numbered, with the exact syntax. The finding number is its
+position in the review's `blockingFindings`. The
 target is the review that triggered the latest rework, or the review that
 blocked the Execution after the last allowed rework. An agent cannot decide:
 a relayed decision is refused and recorded in `approvalRefusals`.
