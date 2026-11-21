@@ -463,7 +463,10 @@ class RuntimeService:
         existing = next((item for item in execution.data.get("findingDecisions", [])
                          if item["reviewSha256"] == sha and item["finding"] == finding), None)
         if existing is None:
-            actor = self._human_approval(execution, f"waive-finding-{finding}", owner, approver, _hook)
+            actor = self._human_approval(
+                execution, f"waive-finding-{finding}", owner, approver, _hook,
+                terminal_command=f"aief execution waive-finding {execution_id} {finding} --reason <justification>",
+                in_session=f"'/waive {finding} <justification>' (or '$waive {finding} <justification>')")
             existing = {"review": name, "reviewSha256": sha, "finding": finding, "summary": label(findings[finding - 1]),
                         "decision": WAIVED, "justification": justification.strip(), "at": timestamp(self.clock), "actor": actor}
             execution.data.setdefault("findingDecisions", []).append(existing)
@@ -723,7 +726,10 @@ class RuntimeService:
         if self._expire_late_gates(execution):
             raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
         held=next((item for item in gate_protocol.holding_gates(execution.data) if item["kind"] == "phase-gate"), None)
-        actor=self._human_approval(execution, phase["id"] if phase else "phase-gate", owner, approver, _hook)
+        gate_name=self._phase_gate_id(phase)
+        actor=self._human_approval(execution, gate_name, owner, approver, _hook,
+                                   terminal_command=f"aief execution approve {execution_id}",
+                                   in_session="'/approve' (or '$approve')")
         execution.advance(approved=True)
         if held: self._record_gate_decision(execution, held, "approved", actor)
         if phase and phase.get("skill") == "create-plan": self._approve_policy_gate(execution,"before-implementation",actor)
@@ -732,7 +738,7 @@ class RuntimeService:
             "gate.approved", execution=execution_id,
             payload={"agent": execution.data.get("agent", {}).get("adapter"),
                      "phase": phase["id"] if phase else None, "status":"approved",
-                     "approvedBy":actor["id"], "gate":"phase-gate", "actor": actor},
+                     "approvedBy":actor["id"], "gate":gate_name, "actor": actor},
         )
         if execution.data["status"] == "completed":
             self._append_closed_gates(execution, events)
@@ -743,8 +749,16 @@ class RuntimeService:
             )
         return execution
 
+    @staticmethod
+    def _phase_gate_id(phase: dict[str, Any] | None) -> str:
+        """The gate id of a phase approval (for example plan-gate), the same in every record."""
+        if phase is None:
+            return "phase-gate"
+        return (phase.get("gate") or {}).get("id") or phase["id"]
+
     def _human_approval(self, execution: Execution, gate: str, owner: str | None, approver: str | None,
-                        hook: dict[str, Any] | None = None) -> dict[str, Any]:
+                        hook: dict[str, Any] | None = None, *, terminal_command: str,
+                        in_session: str | None = None) -> dict[str, Any]:
         """Approver identity as the Runtime established it (see aief.approval).
 
         A human gate is a mandatory control: it passes only when the Runtime
@@ -758,11 +772,11 @@ class RuntimeService:
                                                   lease=ExecutionLease(execution.root).active(),
                                                   confirm=approval.terminal_confirm, hook=hook)
             if actor["assurance"] != approval.REQUIRED_ASSURANCE:
+                how = (f"the human types {in_session} in the agent session where the approval hook is installed, "
+                       f"or runs '{terminal_command}' in their own terminal" if in_session
+                       else f"the human runs '{terminal_command}' in their own terminal")
                 raise PermissionError(
-                    f"a human gate requires an approval the Runtime observed (OBSERVED), not {actor['channel']}: "
-                    f"the human types '/approve' (or '$approve') in the agent session where the approval hook is "
-                    f"installed, or runs 'aief execution approve-policy {execution.data['metadata']['id']} {gate}' "
-                    f"in their own terminal")
+                    f"a human gate requires a decision the Runtime observed (OBSERVED), not {actor['channel']}: {how}")
             approvers = gate_protocol.of_execution(execution.data)["approvers"]
             if approvers and actor["id"] not in approvers:
                 raise PermissionError(f"{actor['id']} is not an approver of this execution's human gate protocol "
@@ -830,7 +844,8 @@ class RuntimeService:
         held = next((item for item in held_gates if gate_id in {None, item["gate"], item.get("phase")}), None)
         if held is None:
             raise RuntimeError("no human gate is waiting for a decision" + (f": {gate_id}" if gate_id else ""))
-        actor = self._human_approval(execution, held.get("phase") or held["gate"], owner, approver, _hook)
+        actor = self._human_approval(execution, held["gate"], owner, approver, _hook,
+                                     terminal_command=f"aief execution reject {execution_id} --gate {held['gate']} --reason <rationale>")
         if held["kind"] == "phase-gate":
             phase = next(item for item in execution.data["phases"] if item["id"] == held["phase"])
             execution._complete_gate_wait(execution._phase_gate(phase))
@@ -1009,7 +1024,9 @@ class RuntimeService:
         if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
         if self._expire_late_gates(execution):
             raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
-        actor=self._human_approval(execution, gate_id, owner, approver, _hook)
+        actor=self._human_approval(execution, gate_id, owner, approver, _hook,
+                                   terminal_command=f"aief execution approve-policy {execution_id} {gate_id}",
+                                   in_session="'/approve' (or '$approve')")
         if gate_id == APPLY_GATE: self._apply_proposal(execution, actor["id"])
         self._approve_policy_gate(execution,gate_id,actor)
         if execution.data["status"] == "waiting-approval": execution.data["status"]="running"; execution.save()

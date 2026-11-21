@@ -198,3 +198,41 @@ def test_cli_reject(tmp_path: Path):
     assert result.returncode != 0
     assert service.execution(identifier).data["status"] == "waiting-approval"
     assert json.dumps(service.execution(identifier).data["approvalRefusals"])
+
+
+def test_every_record_names_the_same_gate(tmp_path: Path, monkeypatch):
+    service = service_with(tmp_path)
+    identifier = at_plan_gate(service)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    with pytest.raises(PermissionError) as refused:
+        service.approve_execution(identifier, approver="alice")
+    assert f"aief execution approve {identifier}" in str(refused.value) and "approve-policy" not in str(refused.value)
+    monkeypatch.delenv("CLAUDECODE")
+    service.approve_execution(identifier, approver="alice")
+    current = service.execution(identifier)
+    approved = [event for event in events(service, identifier) if event["event"]["type"] == "gate.approved"]
+    refusal_events = [event for event in events(service, identifier) if event["event"]["type"] == "gate.approval-refused"]
+    assert current.data["approvalRefusals"][0]["gate"] == "plan-gate"
+    assert refusal_events[0]["payload"]["gate"] == "plan-gate"
+    assert approved[0]["payload"]["gate"] == "plan-gate" and approved[0]["payload"]["phase"] == "planning"
+    assert current.data["gateDecisions"][0]["gate"] == "plan-gate"
+
+
+def test_refused_rejection_points_to_the_reject_command(tmp_path: Path, monkeypatch):
+    service = service_with(tmp_path)
+    identifier = at_plan_gate(service)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    with pytest.raises(PermissionError) as refused:
+        service.reject_gate(identifier, "no", approver="alice")
+    message = str(refused.value)
+    assert f"aief execution reject {identifier} --gate plan-gate" in message
+    assert "approve" not in message and "/approve" not in message
+
+
+def test_session_approval_accepts_gate_or_phase_id(tmp_path: Path):
+    from aief.approval_hook import awaited_approvals, select
+    service = service_with(tmp_path)
+    identifier = at_plan_gate(service)
+    awaited = awaited_approvals(service)
+    assert awaited == [{"execution": identifier, "gate": "plan-gate", "phase": "planning", "kind": "phase"}]
+    assert select(["plan-gate"], awaited) == awaited and select(["planning"], awaited) == awaited

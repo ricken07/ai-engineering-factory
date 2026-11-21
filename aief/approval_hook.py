@@ -147,7 +147,8 @@ def awaited_approvals(service: Any) -> list[dict[str, str]]:
             continue
         identifier = execution.data["metadata"]["id"]
         if phase.get("status") == "waiting-approval":
-            result.append({"execution": identifier, "gate": phase["id"], "kind": "phase"})
+            gate = (phase.get("gate") or {}).get("id") or phase["id"]
+            result.append({"execution": identifier, "gate": gate, "phase": phase["id"], "kind": "phase"})
             continue
         for gate in sorted(service._pending_policy_gates(execution, phase["id"])):
             result.append({"execution": identifier, "gate": gate, "kind": "policy"})
@@ -162,7 +163,7 @@ def select(arguments: list[str], awaited: list[dict[str, str]]) -> list[dict[str
         raise ValueError("usage: approve [<execution-id>] [<gate>]")
     candidates = [item for item in awaited
                   if (wanted_execution is None or item["execution"] == wanted_execution)
-                  and (not gates or item["gate"] == gates[0])]
+                  and (not gates or gates[0] in {item["gate"], item.get("phase")})]
     if not candidates:
         raise ValueError("no execution is waiting for this approval" if awaited
                          else "no execution of this project is waiting for an approval")
@@ -178,7 +179,8 @@ def handle(payload: dict[str, Any], agent: str, open_service: Callable[[Path], A
     if arguments is None:
         return _handle_waive(payload, agent, open_service)
     fallback = ("To approve without the harness hook, run in your own terminal: "
-                "aief execution approve-policy <execution-id> <gate> --approver <name>")
+                "aief execution approve <execution-id> --approver <name> for a phase gate (for example plan-gate), "
+                "or aief execution approve-policy <execution-id> <gate> --approver <name> for a policy gate")
     try:
         service = open_service(Path(payload.get("cwd") or "."))
         chosen = select(arguments, awaited_approvals(service))

@@ -300,7 +300,10 @@ aief execution approve <execution-id> --approver <name>     # phase approval
 ```
 
 Run it in your own terminal, outside the agent: the Runtime asks you to
-retype the gate name. Without a terminal (a script, or a command run by or
+retype the gate id. A phase approval uses the gate id of the phase (for
+example `plan-gate` for `planning`). The same id appears in `approvalRefusals`,
+in the `gate.*` events and in `gateDecisions`. `/approve` in the session also
+accepts the phase id (`/approve planning`). Without a terminal (a script, or a command run by or
 through an agent), the approval is refused.
 
 `--approver` names you; without it, the operating-system account is
@@ -353,9 +356,9 @@ agent session that tried to relay it:
 
 ```yaml
 approvalRefusals:
-  - gate: planning
+  - gate: plan-gate
     at: 2026-11-21T02:22:05Z
-    reason: "a human gate requires an approval the Runtime observed (OBSERVED), not agent-relay: ..."
+    reason: "a human gate requires a decision the Runtime observed (OBSERVED), not agent-relay: ..."
     relayedBy: claude-code:<session>
     channel: agent-relay
 ```
