@@ -10,6 +10,7 @@ Without such a decision a blocking finding keeps blocking.
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -47,3 +48,19 @@ def label(finding: Any) -> str:
         location = f" {finding['location']}" if finding.get("location") else ""
         return (" ".join(parts) or "finding") + location
     return str(finding)[:120]
+
+
+def accepted_criteria(execution: dict[str, Any], path: Path, criteria: list[str]) -> set[str]:
+    """Acceptance criteria named by the waived findings of that review.
+
+    A human decision that a finding does not block also accepts the criteria
+    the finding names (its `criterion`), which the reviewer marked other than
+    verified because of it. Criteria no waived finding names keep blocking."""
+    findings = blocking_findings(path) if path.is_file() else []
+    if not findings:
+        return set()
+    names = set()
+    for number in waived(execution, review_sha256(path)):
+        if 1 <= number <= len(findings) and isinstance(findings[number - 1], dict):
+            names.update(re.findall(r"[A-Za-z0-9_.-]+", str(findings[number - 1].get("criterion", ""))))
+    return {criterion for criterion in criteria if criterion in names}

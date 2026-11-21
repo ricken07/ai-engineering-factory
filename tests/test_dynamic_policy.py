@@ -549,3 +549,18 @@ def test_an_incomplete_waive_lists_the_findings_waiting_for_a_decision(tmp_path:
     service.waive_finding(identifier,1,"out of scope",approver="alice")
     err=handle({"prompt":"/waive"},"claude-code",lambda cwd: service)[2]
     assert "1. P1" not in err and "2. P2" in err
+
+
+def test_a_waived_finding_accepts_the_criteria_it_names(tmp_path: Path):
+    from aief.findings import accepted_criteria, waived
+    from aief.evidence import evidence_matrix_gaps
+    service,identifier,review=reviewed(tmp_path,"changes_requested",[{"severity":"P2","criterion":"AC-1, AC-3","location":"x","finding":"f"}])
+    service.complete_phase(identifier,review)
+    service.waive_finding(identifier,1,"limited to the test classpath",approver="alice")
+    current=service.execution(identifier)
+    path=current.root/"review.yaml"
+    assert accepted_criteria(current.data,path,["AC-1","AC-2","AC-3"]) == {"AC-1","AC-3"}
+    matrix=[{"id":"AC-1","status":"partial","evidence":["review:x"]},{"id":"AC-2","status":"partial","evidence":["review:y"]},
+            {"id":"AC-3","status":"verified","evidence":["review:z"]}]
+    criteria=[{"id":"AC-1","statement":"a"},{"id":"AC-2","statement":"b"},{"id":"AC-3","statement":"c"}]
+    assert evidence_matrix_gaps(criteria,matrix,None,{"AC-1","AC-3"}) == ["evidence matrix item AC-2 is not verified"]

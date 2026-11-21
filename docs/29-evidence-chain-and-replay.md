@@ -201,8 +201,12 @@ When every blocking finding of that review is decided:
   raise them again as blocking unless the change made them materially worse.
 
 At submission, a review whose decision is not `approved` is accepted only
-when it has blocking findings and the human decided every one of them; all
-other submission evidence checks still apply.
+when it has blocking findings and the human decided every one of them. A
+decision also accepts the acceptance criteria its finding names (the
+finding's `criterion`, for example `AC2, AC4`) when the reviewer marked them
+other than `verified` in the evidence matrix: the human accepted that
+shortfall. Every criterion no waived finding names must still be `verified`,
+and all other submission evidence checks still apply.
 
 ### Optional project-level waiver prohibition
 

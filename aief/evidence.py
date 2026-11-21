@@ -49,17 +49,22 @@ def acceptance_criteria_gaps(plan_details: dict[str, Any]) -> list[str]:
     return gaps
 
 
-def evidence_matrix_gaps(criteria: list[Any], matrix: Any, observed: set[str] | None) -> list[str]:
+def evidence_matrix_gaps(criteria: list[Any], matrix: Any, observed: set[str] | None,
+                         accepted: set[str] | None = None) -> list[str]:
     """Coverage of the acceptance criteria by a matrix.
 
     With `observed`, each evidence entry must be a validation result the
-    Runtime observed, or an explicit reviewer observation (`review:...`)."""
+    Runtime observed, or an explicit reviewer observation (`review:...`).
+    `accepted` lists criteria the human accepted although the reviewer did
+    not mark them verified (see aief.findings.accepted_criteria)."""
     if not isinstance(matrix, list) or not matrix:
         return ["evidenceMatrix is missing or empty"]
     gaps = []
     for index, item in enumerate(matrix):
+        if isinstance(item, dict) and item.get("status") != "verified" and item.get("id") in (accepted or set()):
+            continue
         if not isinstance(item, dict) or item.get("status") != "verified":
-            gaps.append(f"evidence matrix item {index} is not verified")
+            gaps.append(f"evidence matrix item {item.get('id', index) if isinstance(item, dict) else index} is not verified")
         elif not item.get("evidence"):
             gaps.append(f"evidence matrix item {index} has no evidence")
         elif observed is not None:
@@ -102,8 +107,12 @@ def submission_evidence_gaps(execution_root: Path) -> list[str]:
     # matrix is accepted for executions recorded before that rule.
     review_matrix = review.get("details", {}).get("evidenceMatrix")
     if review_matrix is not None:
+        from .findings import accepted_criteria
+        execution_file = execution_root / "execution.yaml"
+        accepted = accepted_criteria(load_yaml(execution_file) if execution_file.is_file() else {}, review_path,
+                                     [item.get("id") for item in criteria if isinstance(item, dict)])
         gaps += ["review.details." + gap if gap.startswith("evidenceMatrix") else gap
-                 for gap in evidence_matrix_gaps(criteria, review_matrix, observed_validation_evidence(validation))]
+                 for gap in evidence_matrix_gaps(criteria, review_matrix, observed_validation_evidence(validation), accepted)]
     else:
         gaps += ["validation.details." + gap if gap.startswith("evidenceMatrix") else gap
                  for gap in evidence_matrix_gaps(criteria, validation.get("details", {}).get("evidenceMatrix"), None)]
