@@ -181,13 +181,26 @@ flowchart TD
     T --> O
     O --> OK
     Z -->|"any approval command"| X
+```
+
+### Set it up
+
+**On each developer machine.** `/approve` is a native command of the AIEF
+adapter. Install or refresh the adapter skills, after every Factory update
+too; otherwise the coding agent harness does not know the command and the
+message never reaches the hook:
+
 ```bash
 aief setup-adapter claude-code --execute
 aief setup-adapter codex --execute
 aief verify-adapter claude-code     # approve must be LINKED
 ```
 
-Then, once per project:
+**Once per project.** Install the approval hook and the permission rules
+described below, then commit the files so every developer of the project
+has them. Projects created from the Factory template (`aief init`) already
+contain them; `install-hook` is idempotent and also updates the rules of a
+project installed with an earlier version.
 
 ```bash
 aief approval install-hook --agent claude-code --project .
@@ -195,24 +208,54 @@ aief approval install-hook --agent codex --project .
 aief approval hook-status --agent claude-code --project .
 ```
 
-`install-hook` adds the hook to the project's coding agent harness configuration and is
-idempotent. Commit the result so every developer of the project has it.
-Projects created from the Factory template (`aief init`) already contain it.
-
-| Agent | Hook file | Also added | You still need to |
+| Agent | Hook | Permission rules | You still need to |
 |---|---|---|---|
-| Claude Code | `.claude/settings.json` (`hooks.UserPromptSubmit`) | `permissions.deny: Bash(aief approval *)` | accept the project's workspace trust |
-| Codex | `.codex/hooks.json` (`hooks.UserPromptSubmit`) | `.codex/rules/aief-approval.rules`: `aief approval` is `forbidden` | trust the project, then trust the hook with `/hooks` in Codex |
+| Claude Code | `.claude/settings.json`, `hooks.UserPromptSubmit` | `.claude/settings.json`, `permissions.deny` | accept the project's workspace trust |
+| Codex | `.codex/hooks.json`, `hooks.UserPromptSubmit` | `.codex/rules/aief-approval.rules`, `forbidden` rules | trust the project, then trust the hook with `/hooks` |
 
-The coding agent harness runs the hook directly, so these rules do not affect it; they keep
-the agent from calling the hook entry point itself through its shell tool.
-For Codex, rules govern the commands the agent requests outside the sandbox;
-a command the sandbox runs on its own is not checked against them, which is
-one more reason the approval stays `OBSERVED` rather than `TRUSTED`.
+Requirements: `aief` on the `PATH` of the coding agent harness, and the
+Factory resolvable from the project (`AI_FACTORY_HOME`). The reference hook
+definitions are in `adapters/<agent>/hooks/approval.json`.
 
-Requirements: `aief` on the `PATH` of the coding agent harness, and the Factory resolvable
-from the project (`AI_FACTORY_HOME`). The reference hook definitions are in
-`adapters/<agent>/hooks/approval.json`.
+### Coding agent harness permissions (defense in depth)
+
+The guarantee is the Runtime: it refuses every approval it did not observe,
+whatever the coding agent can run. In addition, the project configures the
+coding agent harness so that the agent cannot even attempt an approval:
+
+| Command | What it would do | Rule |
+|---|---|---|
+| `aief execution approve` | approve a phase | forbidden to the agent |
+| `aief execution approve-policy` | approve a policy gate | forbidden to the agent |
+| `aief approval` (including `aief approval hook`) | call the approval hook entry point with a forged message | forbidden to the agent |
+
+- **Claude Code**: the three commands are in `permissions.deny` of
+  `.claude/settings.json`. A deny rule wins over the template's
+  `allow: Bash(aief *)`, so the agent's shell tool cannot run them.
+- **Codex**: `.codex/rules/aief-approval.rules` declares them `forbidden`
+  (check with `codex execpolicy check --rules .codex/rules/aief-approval.rules
+  -- aief execution approve x`).
+- **The hook still runs**: the coding agent harness runs the hook itself, not
+  through the agent's shell tool, so these rules never block it.
+- **The human is not affected**: the rules apply to the agent's commands
+  only; your own terminal runs `aief execution approve-policy` normally.
+
+Why these rules are only a second line:
+
+- they are local configuration: a broad `allow`, a permissive permission
+  mode, `--allowedTools` in a headless run or a user-level setting can
+  neutralize them;
+- Codex applies its rules to commands the agent requests outside its
+  sandbox; a command the sandbox runs on its own is not checked against them;
+- an agent with a general-purpose interpreter could reach the Runtime by
+  another path.
+
+None of these cases lets an approval through: the command reaches the
+Runtime, which refuses it, keeps the gate closed and records the attempt as a
+`gate.approval-refused` event (see [What is recorded](#what-is-recorded)). The
+rules avoid the attempt; the Runtime makes it harmless and visible. Because a
+process that runs the hook entry point despite the rules could forge a
+message, a hook-delivered approval is `OBSERVED`, not `TRUSTED`.
 
 ### Agent support
 
@@ -238,8 +281,8 @@ command. You approve in your own terminal.
   (scheduled tasks, messages from other sessions). Only a message that is
   exactly an approval command is acted on.
 - A process able to write to the session input, or to run `aief approval
-  hook` despite the deny rule, can approve. This is why the assurance is
-  `OBSERVED`, not `TRUSTED`.
+  hook` despite the permission rules, can approve. This is why the assurance
+  is `OBSERVED`, not `TRUSTED`.
 
 ## Approving in your terminal
 
@@ -268,10 +311,9 @@ The `PolicyDecision` (`gates.approvalAssurance`) and the
 evidence. No governance layer can lower it: layers may only strengthen
 controls (restrictive composition, invariant 6).
 
-The coding agent harness permissions shipped with the project template also
-forbid the agent to run `aief execution approve`, `approve-policy` and
-`aief approval`. That is defense in depth, not the guarantee: a permissive
-harness that lets the command run still meets the Runtime's refusal.
+The coding agent harness permissions forbid the agent to run the approval
+commands; they are defense in depth, not the guarantee (see
+[Coding agent harness permissions](#coding-agent-harness-permissions-defense-in-depth)).
 
 ## What is recorded
 
