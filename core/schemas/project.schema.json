@@ -76,6 +76,14 @@
       },
       "additionalProperties": false
     },
+    "review": {
+      "description": "Project review controls, independent of experimental condition and autonomy.",
+      "type": "object",
+      "properties": {
+        "waivers": {"type": "string", "enum": ["enabled", "disabled"], "default": "enabled"}
+      },
+      "additionalProperties": false
+    },
     "repositories": {
       "type": "array",
       "items": {
