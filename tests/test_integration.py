@@ -98,3 +98,63 @@ def test_a_cancelled_execution_does_not_wait_for_integration(tmp_path: Path):
     service.cancel_execution(identifier, "stop")
     gate = next(item for item in service.execution(identifier).data["policyGates"] if item["id"] == "before-merge")
     assert gate["status"] == "not-triggered"
+
+
+def merge_gate_with_limit(tmp_path: Path, minutes: int = 30):
+    """A completed execution awaiting integration, under a response limit, with a clock the test moves."""
+    from datetime import datetime, timezone
+    from aief.timing import FakeClock
+    service, identifier, root = completed_with_task_branch(tmp_path)
+    current = service.execution(identifier)
+    current.data["reproducibility"]["humanGateProtocol"] = {
+        "value": {"approvers": [], "responseLimitMinutes": minutes, "decisionRule": None}, "availability": "OBSERVED"}
+    current.save()
+    gate = next(item for item in current.data["policyGates"] if item["id"] == "before-merge")
+    service.clock = FakeClock(datetime.fromisoformat(gate["timing"]["requestedAt"]).astimezone(timezone.utc))
+    return service, identifier, root
+
+
+def test_before_merge_waits_from_its_request_and_shows_its_deadline(tmp_path: Path):
+    service, identifier, root = merge_gate_with_limit(tmp_path)
+    shown = next(item for item in service.gate_check(identifier)["gates"] if item["gate"] == "before-merge")
+    requested = next(item for item in service.execution(identifier).data["policyGates"] if item["id"] == "before-merge")["timing"]["requestedAt"]
+    assert shown["waitStartedAt"] == requested and shown["deadline"] is not None
+
+
+def test_before_merge_expires_after_completion_without_cancelling_the_execution(tmp_path: Path):
+    service, identifier, root = merge_gate_with_limit(tmp_path)
+    base = git(root, "rev-parse", "main")
+    service.clock.advance(milliseconds=31 * 60_000)
+    checked = service.gate_check(identifier)
+    assert checked["gates"] == [] and checked["integration"] == "expired" and "integration is refused" in checked["expired"]
+    current = service.execution(identifier)
+    assert current.data["status"] == "completed"
+    assert next(item for item in current.data["policyGates"] if item["id"] == "before-merge")["status"] == "expired"
+    decision = next(item for item in current.data["gateDecisions"] if item["gate"] == "before-merge")
+    assert decision["decision"] == "expired" and decision["waitDurationMs"] == {"value": 1_800_000, "availability": "DERIVED"}
+    assert decision["evidence"]["comparator"] == "integration"
+    assert git(root, "rev-parse", "main") == base  # nothing was merged
+    with pytest.raises(RuntimeError, match="expired"):
+        service.approve_policy_gate(identifier, "before-merge", approver="alice")
+    assert_schema(ROOT, "execution.schema.json", current.data)
+
+
+def test_an_approval_after_the_deadline_is_refused_and_records_the_expiry(tmp_path: Path):
+    service, identifier, root = merge_gate_with_limit(tmp_path, minutes=5)
+    service.clock.advance(milliseconds=6 * 60_000)
+    with pytest.raises(PermissionError, match="integration is refused"):
+        service.approve_policy_gate(identifier, "before-merge", approver="alice")
+    assert service.execution(identifier).data["integration"]["status"] == "expired"
+
+
+def test_rejecting_before_merge_refuses_the_integration_and_keeps_the_execution_completed(tmp_path: Path):
+    service, identifier, root = completed_with_task_branch(tmp_path)
+    base = git(root, "rev-parse", "main")
+    service.reject_gate(identifier, "mismatch: main:merge:clean", gate_id="before-merge", approver="alice")
+    current = service.execution(identifier)
+    assert current.data["status"] == "completed"
+    assert current.data["integration"]["status"] == "rejected" and current.data["integration"]["rejectedBy"] == "alice"
+    decision = next(item for item in current.data["gateDecisions"] if item["gate"] == "before-merge")
+    assert decision["decision"] == "rejected" and decision["evidence"]["comparator"] == "integration"
+    assert git(root, "rev-parse", "main") == base
+    assert_schema(ROOT, "execution.schema.json", current.data)

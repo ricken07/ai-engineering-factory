@@ -742,8 +742,8 @@ class RuntimeService:
             OperationJournal(execution.root).execute(operation_id,"approve-gate",payload,lambda:self.approve_execution(execution_id,owner=owner,approver=approver).data)
             return self.execution(execution_id)
         phase=execution.next_phase()
-        if self._expire_late_gates(execution):
-            raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
+        if expired := self._expire_late_gates(execution):
+            raise PermissionError(f"the gate expired before this decision (humanGates.responseLimitMinutes): {expired}")
         held=next((item for item in gate_protocol.holding_gates(execution.data) if item["kind"] == "phase-gate"), None)
         evidence=self._gate_evidence(execution, held) if held else None
         gate_name=self._phase_gate_id(phase)
@@ -909,23 +909,24 @@ class RuntimeService:
         execution = self.execution(execution_id)
         protocol = gate_protocol.of_execution(execution.data)
         gates = []
+        # Looking at the gates applies a deadline that has passed, so that an
+        # approver, or a launcher polling the execution, never sees an expired
+        # gate as waiting.
+        expired = self._expire_late_gates(execution)
         waiting = gate_protocol.holding_gates(execution.data)
-        # A gate can wait for a decision without holding the execution, such
-        # as before-merge once the execution is completed.
-        held_ids = {item["gate"] for item in waiting}
-        if execution.data.get("integration", {}).get("status") == "awaiting-approval":
-            waiting += [{"kind": "policy-gate", "gate": gate["id"], "phase": None, "trigger": gate.get("trigger"),
-                         "timing": gate.get("timing", {})}
-                        for gate in execution.data.get("policyGates", [])
-                        if gate["id"] == MERGE_GATE and gate["status"] == "pending" and gate["id"] not in held_ids]
         for held in waiting:
             deadline = gate_protocol.deadline(held, protocol)
             gates.append({"gate": held["gate"], "kind": held["kind"], "phase": held.get("phase"),
                           "waitStartedAt": held["timing"].get("blockedAt"),
                           "deadline": deadline.isoformat() if deadline else None,
                           "evidence": self._gate_evidence(execution, held)})
-        return {"execution": execution_id, "status": execution.data["status"],
-                "decisionRule": protocol.get("decisionRule"), "approvers": protocol.get("approvers"), "gates": gates}
+        result = {"execution": execution_id, "status": execution.data["status"],
+                  "decisionRule": protocol.get("decisionRule"), "approvers": protocol.get("approvers"), "gates": gates}
+        if execution.data.get("integration"):
+            result["integration"] = execution.data["integration"]["status"]
+        if expired:
+            result["expired"] = expired
+        return result
 
     def _record_gate_decision(self, execution: Execution, held: dict[str, Any], outcome: str,
                               actor: dict[str, Any] | None = None, rationale: str | None = None,
@@ -938,21 +939,25 @@ class RuntimeService:
         execution.save()
         return record
 
-    def _expire_late_gates(self, execution: Execution) -> bool:
-        """Cancels the execution when a gate held it longer than the protocol allows.
+    def _expire_late_gates(self, execution: Execution) -> str | None:
+        """Applies the response limit to every gate waiting past its deadline.
 
-        Time does not trigger the Runtime by itself: the expiry is applied by
-        the first command that looks at the gate after its deadline, and dated
-        at the deadline."""
-        if execution.data["status"] in {"completed", "failed", "cancelled"}:
-            return False
+        A gate that holds a running execution cancels it. The merge gate of a
+        completed execution leaves the execution completed and refuses its
+        integration. Time does not trigger the Runtime by itself: the expiry
+        is applied by the first command that looks at the gate after its
+        deadline, and dated at the deadline. Returns what the expiry did, or
+        None when no gate expired."""
+        if execution.data["status"] in {"failed", "cancelled"}:
+            return None
         protocol = gate_protocol.of_execution(execution.data)
         clock = getattr(self, "clock", None) or SystemClock()
         now = clock.now()
         late = [(held, deadline) for held in gate_protocol.holding_gates(execution.data)
-                if (deadline := gate_protocol.deadline(held, protocol)) is not None and now > deadline]
+                if (deadline := gate_protocol.deadline(held, protocol)) is not None and now > deadline
+                and (execution.data["status"] != "completed" or held.get("integration"))]
         if not late:
-            return False
+            return None
         events = self._events(execution.data["task"])
         for held, deadline in late:
             record = gate_protocol.decision(held, "expired", timestamp(clock), protocol,
@@ -964,15 +969,23 @@ class RuntimeService:
             for gate in execution.data.get("policyGates", []):
                 if gate["id"] == held["gate"] and held["kind"] == "policy-gate":
                     gate["status"] = "expired"
+                    if held.get("integration"):
+                        execution._complete_gate_wait(gate, closed=True)
+            if held.get("integration"):
+                execution.data["integration"] = {**execution.data["integration"], "status": "expired",
+                                                 "at": deadline.isoformat()}
             events.append("gate.expired", execution=execution.data["metadata"]["id"],
                           payload={"agent": execution.data.get("agent", {}).get("adapter"), "gate": held["gate"],
                                    "deadline": deadline.isoformat(), "responseLimitMinutes": protocol["responseLimitMinutes"]})
+        if execution.data["status"] == "completed":
+            execution.save()
+            return "the integration is refused; the execution stays completed"
         reason = "human gate expired: " + ", ".join(held["gate"] for held, _ in late)
         execution.cancel(reason)
         self._append_closed_gates(execution, events)
         events.append("execution.cancelled", execution=execution.data["metadata"]["id"],
                       payload={"agent": execution.data.get("agent", {}).get("adapter"), "reason": reason})
-        return True
+        return "the execution is cancelled"
 
     @measured_runtime
     def reject_gate(self, execution_id: str, reason: str, gate_id: str | None = None, owner: str | None = None,
@@ -982,8 +995,8 @@ class RuntimeService:
         self._assert_decision_boundary(execution, owner, _hook)
         if not (reason or "").strip():
             raise ValueError("a rationale is required to reject a gate")
-        if self._expire_late_gates(execution):
-            raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
+        if expired := self._expire_late_gates(execution):
+            raise PermissionError(f"the gate expired before this decision (humanGates.responseLimitMinutes): {expired}")
         held_gates = gate_protocol.holding_gates(execution.data)
         held = next((item for item in held_gates if gate_id in {None, item["gate"], item.get("phase")}), None)
         if held is None:
@@ -997,12 +1010,18 @@ class RuntimeService:
         else:
             gate = next(item for item in execution.data["policyGates"] if item["id"] == held["gate"])
             gate["status"] = "rejected"; execution.complete_policy_gate(gate)
+        if held.get("integration"):
+            # The completed execution stays completed; only its integration is refused.
+            execution.data["integration"] = {**execution.data["integration"], "status": "rejected",
+                                             "at": timestamp(self.clock), "rejectedBy": actor["id"], "reason": reason.strip()}
         record = self._record_gate_decision(execution, held, "rejected", actor, reason.strip(), evidence)
         events = self._events(execution.data["task"])
         events.append("gate.rejected", execution=execution_id,
                       payload={"agent": execution.data.get("agent", {}).get("adapter"), "gate": held["gate"],
                                "phase": held.get("phase"), "status": "rejected", "rejectedBy": actor["id"],
                                "actor": actor, "rationale": record["rationale"]})
+        if held.get("integration"):
+            return execution
         execution.cancel(f"gate {held['gate']} rejected: {reason.strip()}")
         self._append_closed_gates(execution, events)
         events.append("execution.cancelled", execution=execution_id,
@@ -1170,8 +1189,8 @@ class RuntimeService:
         if not gate: raise KeyError(f"policy gate is not required: {gate_id}")
         if gate["status"] == "approved": return execution
         if gate["status"] != "pending": raise RuntimeError(f"policy gate is {gate['status']}: {gate_id}")
-        if self._expire_late_gates(execution):
-            raise PermissionError("the gate expired before this decision (humanGates.responseLimitMinutes): the execution is cancelled")
+        if expired := self._expire_late_gates(execution):
+            raise PermissionError(f"the gate expired before this decision (humanGates.responseLimitMinutes): {expired}")
         actor=self._human_approval(execution, gate_id, owner, approver, _hook,
                                    terminal_command=f"aief execution approve-policy {execution_id} {gate_id}",
                                    in_session="'/approve' (or '$approve')")
@@ -1361,7 +1380,7 @@ class RuntimeService:
     @measured_runtime
     def prepare_phase(self, execution_id: str) -> dict[str, Any]:
         execution = self.execution(execution_id)
-        if self._expire_late_gates(execution):
+        if self._expire_late_gates(execution) and execution.data["status"] == "cancelled":
             return {"execution":execution_id,"status":execution.data["status"],"phase":None,"engineeringContexts":[],
                     "cancelledReason":execution.data["cancelledReason"]}
         phase = execution.next_phase()

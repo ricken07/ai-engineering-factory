@@ -396,7 +396,9 @@ The rejection goes through the same channel check as an approval: it must be
 `OBSERVED`, and a rejection relayed by an agent is refused and recorded. A
 rationale is required. The gate is closed as `rejected`, the execution is
 cancelled with the rationale, and a `gate.rejected` event carries the actor
-and the rationale.
+and the rationale. `before-merge` waits after the execution is completed: its
+rejection keeps the execution `completed` and sets the integration to
+`rejected`, so nothing is merged.
 
 ## Human gate protocol
 
@@ -420,12 +422,15 @@ alter a running execution. The Runtime applies it as follows:
   observed, not an authenticated principal.
 - **Response limit.** A gate that holds the execution longer than
   `responseLimitMinutes` expires. The time is measured from the moment the
-  gate holds the execution, not from the moment a policy requires it. Time
-  does not trigger the Runtime by itself: the first command that looks at the
-  gate after the deadline applies the expiry (`execution next`, `approve`,
-  `approve-policy` or `reject`). That command dates the expiry at the
-  deadline, records it, emits `gate.expired` and cancels the execution. A
-  decision that arrives later is refused.
+  gate holds the execution, not from the moment a policy requires it;
+  `before-merge` of a completed execution waits from the moment the Runtime
+  requests the integration. Time does not trigger the Runtime by itself: the
+  first command that looks at the gate after the deadline applies the expiry
+  (`execution next`, `gate-check`, `approve`, `approve-policy` or `reject`).
+  That command dates the expiry at the deadline, records it, emits
+  `gate.expired` and cancels the execution; for `before-merge` the execution
+  stays `completed` and its integration becomes `expired`. A decision that
+  arrives later is refused.
 - **Decision rule.** `decisionRule` is the path of the document that states
   the rule. When an execution starts, the Runtime hashes the document and
   refuses to start if it differs from `decisionRuleSha256`. It keeps a copy

@@ -173,3 +173,28 @@ def test_finish_records_the_change_without_touching_the_index(campaign):
     assert "+two" in patch and "agent-note.txt" in patch
     assert record["status"] == "finished" and record["final"]["workspacePatchSha256"]
     assert git(repo, "diff", "--cached", "--name-only") == ""
+
+
+FAKE_AIEF = """#!/usr/bin/env python3
+import sys
+from pathlib import Path
+# gate-check applies the passed deadline: the integration of the completed execution expires.
+if sys.argv[1:3] == ["execution", "gate-check"]:
+    path = Path(".ai/runtime/executions/exec-1/execution.yaml")
+    path.write_text(path.read_text().replace("integration: {status: awaiting-approval", "integration: {status: expired"))
+    Path("gate-checks.txt").open("a").write("checked\\n")
+"""
+
+
+def test_wait_goes_through_the_runtime_so_an_undecided_gate_expires(campaign, tmp_path, monkeypatch):
+    bin_dir = tmp_path / "aief-bin"; bin_dir.mkdir()
+    (bin_dir / "aief").write_text(FAKE_AIEF); (bin_dir / "aief").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{__import__('os').environ['PATH']}")
+    run_dir = launcher.prepare(frozen_l3(campaign), campaign["environment"], campaign["output"])
+    launcher.start(run_dir)
+    execution = run_dir / "repo" / ".ai" / "runtime" / "executions" / "exec-1" / "execution.yaml"
+    execution.write_text("metadata: {id: exec-1}\nstatus: completed\nphases: []\n"
+                         "integration: {status: awaiting-approval, gate: before-merge}\n")
+    state = launcher.wait(run_dir, interval=0.01, timeout=5)
+    assert state["status"] == "completed" and state["integration"] == "expired"
+    assert (run_dir / "repo" / "gate-checks.txt").read_text() == "checked\n"

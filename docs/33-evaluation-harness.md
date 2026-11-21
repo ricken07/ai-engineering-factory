@@ -123,8 +123,12 @@ Rules the launcher holds:
   still apply, and the run records it.
 - **No decision.** The launcher never approves, rejects or waives. In L3 the
   human decides each gate from their own terminal, recorded as `OBSERVED`
-  ([34 — Human Approval](34-human-approval.md)). A cancelled or blocked
-  execution is a final state of the run, recorded as the Runtime left it.
+  ([34 — Human Approval](34-human-approval.md)). While a gate or the
+  integration waits, the launcher polls through `aief execution gate-check`,
+  which applies a passed response limit, so an undecided gate expires instead
+  of keeping the run waiting. A cancelled or blocked execution, and an
+  integration rejected or expired, are final states of the run, recorded as
+  the Runtime left them.
 - **No judgment.** The launcher records the final workspace patch, the branch
   patches and, in L3, the execution, evidence bundle, payload ledger, gate
   check and metrics. The task oracle and the analysis run separately on those

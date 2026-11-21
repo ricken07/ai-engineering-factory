@@ -412,6 +412,8 @@ def _observe(run_dir: Path) -> dict[str, Any] | None:
         record["aief"] = {"executionId": data["metadata"]["id"], "executions": len(executions),
                           "status": data.get("status"), "nextPhase": phase["id"] if phase else None,
                           "blockingReason": data.get("blockingReason"), "observedAt": now()}
+        if data.get("integration"):
+            record["aief"]["integration"] = data["integration"].get("status")
     write_yaml(run_dir / "run.yaml", record)
     return record["aief"]
 
@@ -444,12 +446,34 @@ def review(run_dir: Path, agent: str) -> dict[str, Any]:
     return step
 
 
+def _aief(run_dir: Path, args: list[str]) -> subprocess.CompletedProcess | None:
+    """Runs an `aief execution` command on the run's project, with the Factory of the run."""
+    factory = load_yaml(run_dir / "run.yaml").get("factory", {}).get("home")
+    env = {**os.environ, **({"AI_FACTORY_HOME": factory} if factory else {})}
+    try:
+        return subprocess.run(["aief", "execution", *args, "--project", str(run_dir / "repo")],
+                              cwd=run_dir / "repo", env=env, capture_output=True, text=True)
+    except FileNotFoundError:
+        return None
+
+
+def _waiting(state: dict[str, Any]) -> bool:
+    return state.get("status") == "waiting-approval" or state.get("integration") == "awaiting-approval"
+
+
 def wait(run_dir: Path, interval: float = 20.0, timeout: float = 0.0) -> dict[str, Any]:
-    """Wait while the execution waits for a human: the human decides from their own terminal."""
+    """Wait while the execution, or its integration, waits for a human: the human decides from their own terminal.
+
+    Each poll goes through `aief execution gate-check`, which applies a
+    response limit that has passed: a gate that nobody decided expires at its
+    deadline instead of keeping the run waiting."""
     clock = time.monotonic()
     while True:
         state = _observe(run_dir) or {}
-        if state.get("status") != "waiting-approval":
+        if state.get("executionId") and _waiting(state):
+            _aief(run_dir, ["gate-check", state["executionId"], "--json"])
+            state = _observe(run_dir) or {}
+        if not _waiting(state):
             return state
         if timeout and time.monotonic() - clock > timeout:
             return state
@@ -472,16 +496,17 @@ def _aief_outputs(run_dir: Path, execution: str, factory: str | None) -> dict[st
     out = run_dir / "aief"
     out.mkdir(exist_ok=True)
     root = run_dir / "repo" / ".ai" / "runtime" / "executions" / execution
-    for name in ("execution.yaml", "evidence-bundle.yaml", "workspace.yaml"):
-        if (root / name).is_file():
-            shutil.copy2(root / name, out / name)
     env = {**os.environ, **({"AI_FACTORY_HOME": factory} if factory else {})}
     results = {}
-    for command in (["payload-ledger", "--json"], ["gate-check", "--json"], ["metrics", "--json"]):
+    # gate-check first: it applies a passed deadline, so the copied state is final.
+    for command in (["gate-check", "--json"], ["payload-ledger", "--json"], ["metrics", "--json"]):
         result = subprocess.run(["aief", "execution", command[0], execution, *command[1:], "--project", str(run_dir / "repo")],
                                 cwd=run_dir / "repo", env=env, capture_output=True, text=True)
         (out / f"{command[0]}.json").write_text(result.stdout, encoding="utf-8")
         results[command[0]] = result.returncode
+    for name in ("execution.yaml", "evidence-bundle.yaml", "workspace.yaml"):
+        if (root / name).is_file():
+            shutil.copy2(root / name, out / name)
     return results
 
 

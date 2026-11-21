@@ -19,7 +19,10 @@ hash is recorded with every run.
 The launcher **never approves, rejects or waives** anything. In L3 the human
 decides every gate from their own terminal (`aief execution approve-policy`,
 `aief execution approve`, `reject`, `waive-finding`), which the Runtime records
-as `OBSERVED`. A cancelled execution (gate rejected or expired) and a blocked
+as `OBSERVED`. `wait` polls through `aief execution gate-check`, which applies
+a passed response limit, and also waits while the integration of a completed
+execution awaits `before-merge`. A cancelled execution (gate rejected or
+expired), an integration rejected or expired, and a blocked
 one (`review-rework-exhausted`) are final states of the run, recorded as the
 Runtime left them.
 
