@@ -74,7 +74,7 @@ only ever runs L3.
 `tools/experiment/aief_experiment.py` runs one experimental unit: one coding
 agent execution of one frozen task under one condition, for one repeat. It is
 maintainer tooling outside the Runtime; its full reference is
-[tools/experiment/README.md](../tools/experiment/README.md).
+`tools/experiment/README.md`.
 
 | Condition | What the agent receives | How the launcher prepares it |
 |---|---|---|
