@@ -78,9 +78,9 @@ def test_blocked_failed_and_unfinished_executions(tmp_path: Path):
     assert classify(tmp_path / "f", enforcement)[0] == "setup-invalid"
     assert classify(tmp_path / "x", execution("failed", APPROVED_PLAN))[0] == "execution-failure"
     assert classify(tmp_path / "s", execution("running", APPROVED_PLAN))[0] == "execution-failure"
-    assert classify(tmp_path / "w", execution("waiting-approval"))[0] == "incomplete"
+    assert classify(tmp_path / "w", execution("waiting-approval"))[0] == "unfinished"
     awaiting = execution("completed", APPROVED_PLAN, integration={"status": "awaiting-approval"})
-    assert classify(tmp_path / "a", awaiting)[0] == "incomplete"
+    assert classify(tmp_path / "a", awaiting)[0] == "unfinished"
 
 
 def test_the_mapping_never_rewrites_the_runtime_records(tmp_path: Path):
@@ -94,6 +94,21 @@ def test_the_mapping_never_rewrites_the_runtime_records(tmp_path: Path):
     assert written["mappingVersion"] == mapping.MAPPING_VERSION
 
 
-def test_a_run_without_collected_records_is_incomplete(tmp_path: Path):
+def test_a_run_without_collected_records_is_unfinished(tmp_path: Path):
     (tmp_path / "run").mkdir()
-    assert mapping.classify_run(tmp_path / "run", RULE)["outcome"] == "incomplete"
+    assert mapping.classify_run(tmp_path / "run", RULE)["outcome"] == "unfinished"
+
+
+def test_refused_attempts_under_gate_rule_v4(tmp_path: Path):
+    agent = {"gate": "plan-gate", "at": "t", "reason": "not agent-relay", "channel": "agent-relay", "relayedBy": "claude-code:s"}
+    data = execution("completed", APPROVED_PLAN, approvalRefusals=[agent])
+    v3 = mapping.classify_run(run_dir(tmp_path / "a", data), RULE)
+    assert v3["outcome"] == "completed" and v3["governanceViolationAttempts"] == []
+    v4 = mapping.classify_run(run_dir(tmp_path / "b", data), RULE, "v4")
+    assert v4["outcome"] == "completed" and [item["attribution"] for item in v4["governanceViolationAttempts"]] == ["agent"]
+    operator = {"gate": "plan-gate", "at": "t", "reason": "intruder is not an approver", "channel": "interactive-terminal", "approver": "intruder"}
+    typo = {"gate": "before-merge", "at": "t", "reason": "approval of before-merge was not confirmed at the terminal", "approver": "approver-a"}
+    data = execution("completed", APPROVED_PLAN, approvalRefusals=[typo])
+    assert mapping.classify_run(run_dir(tmp_path / "c", data), RULE, "v4")["outcome"] == "completed"
+    data = execution("completed", APPROVED_PLAN, approvalRefusals=[operator])
+    assert mapping.classify_run(run_dir(tmp_path / "d", data), RULE, "v4")["outcome"] == "protocol-deviation"

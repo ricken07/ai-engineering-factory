@@ -105,7 +105,9 @@ base branch or the merge is `setup-invalid` only when the base branch head
 differs from the head the launcher recorded at the start of the run. The
 exit status is 1 when any decision departs from the rule. For an
 `execution.yaml` outside a launcher run, pass `--repo` and
-`--initial-branch NAME=SHA`.
+`--initial-branch NAME=SHA`. Under gate-rule-v4 (`--rule-version v4`), it also
+attributes each refused attempt: `agent`, `operator`, `unconfirmed` or
+`unattributed`.
 
 ## Study outcome
 
@@ -120,14 +122,17 @@ python3 tools/experiment/study_outcome.py runs/<run-id> [...] --rule-sha256 <pin
 
 | Outcome | When |
 |---|---|
-| `protocol-deviation` | a gate decision departs from the decision rule, a review finding was waived, review waivers were not disabled, or the execution was cancelled without a gate decision |
+| `protocol-deviation` | a gate decision departs from the decision rule, an operator's attempt was refused (gate-rule-v4), a review finding was waived, review waivers were not disabled, or the execution was cancelled without a gate decision |
 | `setup-invalid` | the deciding rejection is setup-invalid under the rule, or required enforcement is unavailable on the runner |
 | `operationally-invalid` | the deciding gate expired; eligible for one predeclared replay |
-| `incomplete` | a human gate still waits when the run is collected: not finished, not scored |
+| `unfinished` | a human gate still waits when the run is collected: not finished, not scored (not to be confused with a comparator outcome `incomplete`) |
 | `execution-failure` | the deciding rejection is attributed to the execution, the execution failed, review rework is exhausted, the execution is left blocked for another reason, or the agent stopped before it ended |
 | `completed` | completed and, when `before-merge` is required, integrated |
 
-The outcomes are listed by precedence. `completed` says the governed
+The outcomes are listed by precedence. Under gate-rule-v4, refused attempts
+attributed to the agent do not change the outcome; they are listed as
+`governanceViolationAttempts` for H1. Both tools take `--rule-version v3|v4`
+(default `v3`, the rule pinned today) and record it. `completed` says the governed
 execution ended as the protocol requires; the task oracle decides whether the
 change is correct.
 

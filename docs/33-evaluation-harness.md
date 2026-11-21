@@ -136,7 +136,7 @@ Rules the launcher holds:
   decision against the pinned decision rule, independently of the Runtime and
   of the approvers, and classifies each rejection. `study_outcome.py` maps the
   Runtime facts of each L3 run to its study outcome (`completed`,
-  `execution-failure`, `setup-invalid`, `operationally-invalid`, `incomplete`,
+  `execution-failure`, `setup-invalid`, `operationally-invalid`, `unfinished`,
   `protocol-deviation`) in a separate file, without rewriting them.
 - **Observed values only.** Agent version and Factory commit are read at run
   time; the model identifier comes from the run descriptor and is otherwise

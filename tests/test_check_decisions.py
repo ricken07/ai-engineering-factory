@@ -99,3 +99,19 @@ def test_cli_reads_a_launcher_run_and_fails_on_a_deviation(tmp_path: Path, capsy
     (run / "aief" / "execution.yaml").write_text(yaml.safe_dump(execution))
     assert validator.main([str(run), "--rule-sha256", RULE]) == 1
     assert "DEVIATION" in capsys.readouterr().out
+
+
+def test_gate_rule_v4_classifies_verification_frozen_and_refusals():
+    frozen = decision("plan-gate", "rejected", evidence("mismatch", ("verification:frozen", "mismatch")), "mismatch: verification:frozen")
+    assert validator.classify(frozen) == "execution-failure"
+    assert validator.classify(frozen, version="v4") == "setup-invalid"
+    cases = [({"reason": "x", "channel": "agent-relay"}, "agent"),
+             ({"reason": "x", "channel": "non-interactive"}, "agent"),
+             ({"reason": "an agent identity of this execution cannot approve its gates: a"}, "agent"),
+             ({"reason": "x", "relayedBy": "codex:s"}, "agent"),
+             ({"reason": "intruder is not an approver", "channel": "interactive-terminal"}, "operator"),
+             ({"reason": "approval of plan-gate was not confirmed at the terminal"}, "unconfirmed"),
+             ({"reason": "review waivers are disabled for this execution"}, "unattributed")]
+    for refusal, expected in cases:
+        assert validator.classify_refusal(refusal, "v4") == expected, refusal
+        assert validator.classify_refusal(refusal) == "unclassified"
