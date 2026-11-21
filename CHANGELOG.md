@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added an integration test of the payload comparison on a ledger the Runtime wrote: bound L2 files, two review rework loops and an L1 context rendered by the launcher; the review feedback is counted against the rework budget and reported as intervention.
 - Added negative tests for every gate comparator (`tests/test_comparator_negatives.py`): each check of `bound-plan-hashes`, `plan-criteria`, `governed-plan`, `proposal`, `submission-evidence` and `integration` is broken on its own and must leave `match`; a coverage test fails when a comparator emits a check without a negative case.
 - The CI installs exactly the committed `uv.lock` (`uv sync --frozen`, uv 0.9.28, Python 3.12) and runs the suite and the package validation through `uv run --frozen`.
 - `compare_payloads.py` accepts the L3-only `## Repositories` brief section as procedural and lists it.

@@ -141,3 +141,60 @@ def test_the_repositories_section_is_accepted_as_procedural(tmp_path: Path):
     root = execution_dir(tmp_path, [{"phase": "implementation", "skill": "implement-change", "brief": text, "sections": sections}])
     facts = tool.compare(root, **treatment(tmp_path))["comparisons"]["no_additional_task_semantic_facts"]
     assert facts["status"] == "VERIFIED" and facts["l3OnlySectionsAcceptedAsProcedural"] == ["repositories"]
+
+
+def test_a_runtime_rework_loop_is_counted_as_review_feedback(tmp_path: Path):
+    """On a ledger the Runtime wrote: bound L2 files, two reviews asking for changes, L1 rendered by the launcher."""
+    from test_dynamic_policy import output, runtime
+    launcher_spec = importlib.util.spec_from_file_location("aief_experiment", ROOT / "tools" / "experiment" / "aief_experiment.py")
+    launcher = importlib.util.module_from_spec(launcher_spec); launcher_spec.loader.exec_module(launcher)
+    frozen = treatment(tmp_path)
+    service, execution = runtime(tmp_path)
+    import subprocess
+    root = service.project_root
+    (root / ".gitignore").write_text(".ai/runtime/\n"); (root / "app.txt").write_text("one\n")
+    for command in (["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-qm", "init"]):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *command], cwd=root, check=True, capture_output=True)
+    from aief import plan_binding
+    execution.data["planBinding"] = plan_binding.bind(execution.root, frozen["l2_plan"], frozen["l2_verification"],
+                                                      "2026-11-21T00:00:00+00:00")
+    execution.save()
+    identifier = execution.data["metadata"]["id"]
+    service.prepare_phase(identifier)
+    service.complete_phase(identifier, output("Impact", {"risk": "medium", "repositories": ["main"], "changeTypes": ["source-code"]}))
+
+    def review_asks_for_changes(text: str) -> None:
+        current = service.execution(identifier)
+        while current.next_phase()["skill"] != "review-change":
+            current.next_phase()["status"] = "completed"
+        current.data["status"] = "running"
+        current.data["review"] = {"independentRequired": False, "independence": "NOT_REQUIRED"}
+        for name in ("implementation", "validation"):
+            (current.root / f"{name}.yaml").write_text("details: {}\n")
+            next(item for item in current.data["phases"] if item["id"] == name)["artifacts"] = [f"{name}.yaml"]
+        current.save()
+        service.prepare_phase(identifier)
+        finding = {"severity": "P1", "criterion": "AC-1", "location": "greeting.py:2", "finding": text, "correction": "fix it"}
+        service.complete_phase(identifier, output("Review", {"decision": "changes_requested", "blockingFindings": [finding],
+                                                            "evidenceMatrix": []}))
+        if not (service.execution(identifier).root / "workspace.yaml").is_file():
+            service.workspace(identifier, "prepare", True)
+        assert service.prepare_phase(identifier)["phase"]["id"] == "implementation"
+
+    review_asks_for_changes("greeting returns hello in lower case")
+    review_asks_for_changes("the test does not cover an empty name")
+    context = tmp_path / "frozen" / "rendered-context.md"
+    launcher.render_context(service.project_root, ROOT, ["main"], "implement-change", context)
+    arguments = {**frozen, "l1_context": context, "request": "Implémente une évolution locale"}
+
+    report = tool.compare(execution.root, **arguments)
+    budget = report["comparisons"]["reviewer_feedback_budget"]
+    assert budget["status"] == "VERIFIED" and budget["reworks"] == 2, budget
+    assert {item["classification"] for item in budget["interventionEvents"]} == {"review-feedback"}
+    assert statuses(report)["l3_same_l2_plan"] == statuses(report)["l3_same_l2_verification"] == "VERIFIED"
+    assert statuses(report)["l3_same_l1_content"] == "VERIFIED", report["comparisons"]["l3_same_l1_content"]
+    assert statuses(report)["no_additional_task_semantic_facts"] == "VERIFIED", report["comparisons"]["no_additional_task_semantic_facts"]
+    # The review feedback reached the producer: it is the intervention, recorded, not a leak.
+    briefs = (execution.root / "payloads").glob("*phase-brief-implementation.md")
+    assert any("the test does not cover an empty name" in path.read_text() for path in briefs)
+    assert tool.compare(execution.root, rework_maximum=1, **arguments)["comparisons"]["reviewer_feedback_budget"]["status"] == "FAILED"
