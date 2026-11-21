@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The CI installs exactly the committed `uv.lock` (`uv sync --frozen`, uv 0.9.28, Python 3.12) and runs the suite and the package validation through `uv run --frozen`.
+- `compare_payloads.py` accepts the L3-only `## Repositories` brief section as procedural and lists it.
 - Added `tools/experiment/compare_payloads.py`, which compares the payload ledger of an L3 execution with the frozen L1/L2 treatment (same plan, verification and practices; no extra task facts, forbidden content or decision rationale delivered; review feedback within the rework budget).
 - Fixed test imports that broke collection under a plain `pytest` invocation, as the CI runs it.
 - The study tools default to `--rule-version v4`, the decision rule pinned for scored runs.

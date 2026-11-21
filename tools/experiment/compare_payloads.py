@@ -17,6 +17,11 @@ comparisons of the re-freeze contract §3:
 | `reviewer_feedback_budget` | review feedback reached the agent at most `--rework-maximum` times |
 | `no_decision_rationale_leak` | no rationale of a human gate decision appears in a snapshot delivered after it |
 
+The `## Repositories` brief section (repository ids, profiles, engineering
+context ids) is L3-only project metadata. The study accepts it as procedural
+(decision of 2026-11-21): it says where the Runtime-governed work happens, not
+what the change is; it is reported, not counted as a task fact.
+
 A comparison is `VERIFIED`, `FAILED` or `NEEDS_REVIEW` (the tool found
 something a person has to judge, listed in `findings`). Review feedback and
 human decisions are reported as intervention events: they are part of the L3
@@ -85,6 +90,7 @@ def _result(status: str, findings: list[str], **extra: Any) -> dict[str, Any]:
     return {"status": status, "findings": findings, **extra}
 
 
+ACCEPTED_AS_PROCEDURAL = {"repositories"}  # L3-only brief sections the study accepts as procedural
 REVIEWER_SKILLS = {"review-change"}  # phases run by the independent reviewer session, which L2 does not have
 
 
@@ -158,13 +164,10 @@ def compare(execution_dir: Path, l1_context: Path, l2_plan: Path, l2_verificatio
             leaked = [line for line in lines if line in text]
             if leaked:
                 facts.append(f"{name}: contains {len(leaked)} line(s) of {path.name}, first: {leaked[0][:80]!r}")
-    repositories = sorted({section["heading"] for _, section in sections if section["id"] == "repositories"})
-    if repositories:
-        needs_review = True
+    procedural = sorted({section["id"] for _, section in sections if section["id"] in ACCEPTED_AS_PROCEDURAL})
     comparisons["no_additional_task_semantic_facts"] = _result(
         FAILED if facts else (NEEDS_REVIEW if needs_review else VERIFIED), facts,
-        reviewNote=("the `## Repositories` section (repository ids, profiles, context ids) is L3-only project "
-                    "metadata; judge whether the L1 context must carry it") if needs_review else None)
+        l3OnlySectionsAcceptedAsProcedural=procedural)
 
     for sequence, section in sections:
         if section["classification"] in {"review-feedback", "human-decision"}:

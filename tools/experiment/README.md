@@ -152,6 +152,7 @@ It reports `l3_same_l2_plan`, `l3_same_l2_verification`, `l3_same_l1_content`
 are listed as part of the review intervention), `no_additional_task_semantic_facts`
 (classified sections, task context limited to the request, scope and
 classification, no line of a `--forbidden` file in any snapshot),
-`reviewer_feedback_budget` and `no_decision_rationale_leak`. Each is
+`reviewer_feedback_budget` and `no_decision_rationale_leak`. The L3-only `## Repositories` brief section is accepted as
+procedural and listed, not counted as a task fact. Each is
 `VERIFIED`, `FAILED` or `NEEDS_REVIEW`; the exit status is 1 on `FAILED`.
 

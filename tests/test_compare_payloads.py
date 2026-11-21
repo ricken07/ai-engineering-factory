@@ -131,3 +131,13 @@ def test_brief_parsers_match_the_rendered_formats():
     assert tool.practices_of_context(L1) == {"testing-baseline": PRACTICE}
     assert tool.practices_of_brief(brief("x")) == {"testing-baseline": PRACTICE}
     assert hashlib.sha256(PLAN.encode()).hexdigest()
+
+
+def test_the_repositories_section_is_accepted_as_procedural(tmp_path: Path):
+    text = brief("implementation", extra="\n## Repositories\n\n- `main`: profiles maven; context `c` (0123)")
+    sections = [section("# Phase brief: implementation (skill)", "preamble", "procedural"),
+                section("## Repositories", "repositories", "project-context"),
+                section("## Practices", "practices", "project-context")]
+    root = execution_dir(tmp_path, [{"phase": "implementation", "skill": "implement-change", "brief": text, "sections": sections}])
+    facts = tool.compare(root, **treatment(tmp_path))["comparisons"]["no_additional_task_semantic_facts"]
+    assert facts["status"] == "VERIFIED" and facts["l3OnlySectionsAcceptedAsProcedural"] == ["repositories"]
