@@ -20,7 +20,7 @@
     "scope": {"type": "object"},
     "policyDecisionRef": {"type": "string"},
     "policyDecision": {"type": "string"},
-    "requirements": {"type": "object", "required": ["independentReviewRequired"], "properties": {"independentReviewRequired": {"type": "boolean"}}, "additionalProperties": false},
+    "requirements": {"type": "object", "required": ["independentReviewRequired"], "properties": {"independentReviewRequired": {"type": "boolean"}, "approvalAssurance": {"enum": ["DECLARED", "OBSERVED"]}}, "additionalProperties": false},
     "enforcementPoints": {"type": "array", "items": {"$ref": "#/$defs/enforcementPoint"}},
     "fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
   },

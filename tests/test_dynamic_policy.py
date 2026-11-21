@@ -359,3 +359,23 @@ def test_gate_approval_records_how_the_human_approver_was_established(tmp_path: 
     assert gate["approvedBy"] == "alice" and current.data["proposal"]["approvedBy"] == "alice"
     assert (gate["actor"]["assurance"], gate["actor"]["channel"]) == ("OBSERVED", "interactive-terminal")
     assert_schema(ROOT,"execution.schema.json",current.data)
+
+
+def test_critical_execution_requires_approvals_typed_at_a_terminal(tmp_path: Path, monkeypatch):
+    from aief import approval
+    service,identifier,root=critical_implementation(tmp_path)
+    execution=service.execution(identifier)
+    plan=yaml.safe_load((execution.root/execution.data["governedExecutionPlan"]).read_text())
+    assert plan["requirements"]["approvalAssurance"] == "OBSERVED"
+    gate=next(item for item in execution.data["policyGates"] if item["id"]=="before-implementation")
+    assert gate["actor"]["assurance"] == "OBSERVED"
+    (execution.root/"change.patch").write_text(PATCH)
+    service.complete_phase(identifier,output("Proposed",{"repositories":["main"],"proposal":{"patches":[{"repository":"main","path":"change.patch"}]}}))
+    monkeypatch.setenv("CLAUDECODE","1")
+    with pytest.raises(PermissionError, match="typed at a terminal"):
+        service.approve_policy_gate(identifier,"apply-proposal")
+    monkeypatch.delenv("CLAUDECODE")
+    monkeypatch.setattr(approval,"terminal_confirm",lambda prompt: None)
+    with pytest.raises(PermissionError, match="not non-interactive"):
+        service.approve_policy_gate(identifier,"apply-proposal")
+    assert (root/"app.txt").read_text() == "one\n"

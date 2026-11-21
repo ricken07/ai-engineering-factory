@@ -84,6 +84,10 @@
       "properties": {
         "required": {
           "$ref": "common.schema.json#/$defs/stringArray"
+        },
+        "approvalAssurance": {
+          "description": "Minimum assurance of the human approver identity for every gate of the execution.",
+          "enum": ["DECLARED", "OBSERVED"]
         }
       },
       "additionalProperties": false

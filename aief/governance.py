@@ -38,7 +38,7 @@ def governed_execution_plan(api_version: str, execution: dict[str, Any], decisio
             "scope":decision["observations"], "policyDecisionRef":policy_ref, "policyDecision":policy_ref,
             "requirements":{"independentReviewRequired": any(
                 phase.get("skill") == "review-change" for phase in execution.get("phases", [])
-            )},
+            ), "approvalAssurance": decision.get("approvalAssurance", "DECLARED")},
             "enforcementPoints":enforcement_points(decision, policy_ref)}
     body["fingerprint"] = _fingerprint(body)
     return body

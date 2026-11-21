@@ -447,7 +447,7 @@ class RuntimeService:
                   "risk":{"effective":decision["effectiveRisk"],"reasons":decision["reasons"]},
                   "autonomy":{"requested":decision["requestedAutonomy"],"authorized":decision["authorizedAutonomy"],"reasons":decision["reasons"]},
                   "permissions":{"allowed":decision["allowedActions"],"denied":decision["deniedActions"]},
-                  "gates":{"required":decision["requiredGates"]},"matchedRules":decision["matchedRules"],
+                  "gates":{"required":decision["requiredGates"],"approvalAssurance":decision.get("approvalAssurance","DECLARED")},"matchedRules":decision["matchedRules"],
                   "provenance":decision.get("provenance",[])}
         from .policy import policy_fingerprint
         artifact["fingerprint"] = policy_fingerprint({key:value for key,value in artifact.items() if key != "fingerprint"})
@@ -586,9 +586,16 @@ class RuntimeService:
 
         An owner is the agent session that holds the lease: it relays a human
         decision, it never is the approver."""
-        return approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
-                                             lease=ExecutionLease(execution.root).active(),
-                                             confirm=approval.terminal_confirm)
+        actor = approval.human_approval_actor(execution.data, gate, approver=approver, relayed_by=owner,
+                                              lease=ExecutionLease(execution.root).active(),
+                                              confirm=approval.terminal_confirm)
+        plan_name = execution.data.get("governedExecutionPlan")
+        plan = load_yaml(execution.root / plan_name) if plan_name and (execution.root / plan_name).is_file() else {}
+        if plan.get("requirements", {}).get("approvalAssurance") == "OBSERVED" and actor["assurance"] != "OBSERVED":
+            raise PermissionError(
+                f"a {plan.get('risk', {}).get('level', 'governed')}-risk execution requires a human approval typed at a "
+                f"terminal (OBSERVED), not {actor['channel']}: the human runs the approval command in their own terminal")
+        return actor
 
     def _approve_policy_gate(self, execution: Execution, gate_id: str, actor: dict[str, Any]) -> None:
         gate=next((item for item in execution.data.get("policyGates",[]) if item["id"]==gate_id),None)

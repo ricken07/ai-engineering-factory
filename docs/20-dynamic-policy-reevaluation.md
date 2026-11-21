@@ -82,6 +82,16 @@ Whatever the channel, an agent identity of the execution (producer,
 reviewer, lease owner, handoff sender) is refused as approver, so a session
 cannot record its own decision as a human one.
 
+The human approval policy sets the minimum assurance. At `critical` risk
+(`approvalAssurance: OBSERVED` in `core/policies/human-approval-policy.yaml`),
+every human approval of the execution, phase approvals and policy gates
+alike, must be typed at a terminal: a relayed or non-interactive approval is
+refused and the gate stays pending. The requirement is carried by the
+`PolicyDecision` (`gates.approvalAssurance`) and the `GovernedExecutionPlan`
+(`requirements.approvalAssurance`), so a reassessment that raises the risk to
+`critical` applies it to the gates still pending. Below `critical`, a
+`DECLARED` approval is accepted and recorded as such.
+
 `before-implementation` protects the implementation phase. `before-commit` and `before-submission` protect submission. Merge remains outside the current local Runtime and therefore cannot be implicitly authorized.
 
 ## Resolution rules

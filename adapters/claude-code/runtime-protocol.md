@@ -153,6 +153,9 @@ and use `aief execution approve` only after explicit human approval. When
 you relay that approval, pass your `--owner` and never your own identity as
 `--approver`: the Runtime records the approval as `DECLARED` by an agent relay.
 An approval the human types in their own terminal is recorded as `OBSERVED`.
+At `critical` risk the Runtime refuses relayed approvals: give the human the
+exact `aief execution approve-policy` or `aief execution approve` command to
+run in their own terminal, and wait.
 
 When `execution next` reports `blocked` because the current phase's
 `recovery.status` is `waiting-user`, do not resolve the question in

@@ -6,7 +6,9 @@ priority: 100
 rules:
   - id: critical-gates
     when: {risk: critical}
-    effect: {requireApproval: [before-implementation, before-commit, before-submission, before-merge]}
+    # Every human approval of a critical execution is typed at a terminal
+    # (aief.approval): a decision relayed by an agent is not enough.
+    effect: {requireApproval: [before-implementation, before-commit, before-submission, before-merge], approvalAssurance: OBSERVED}
   - id: high-gates
     when: {risk: high}
     effect: {requireApproval: [before-commit, before-submission, before-merge]}
