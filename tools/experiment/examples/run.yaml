@@ -17,7 +17,7 @@ treatment:                          # frozen files; hashes checked before the ru
   context: treatment/T-01/context.md          # L1, L2
   plan: treatment/T-01/plan.md                # L2, L3 (bound plan)
   verification: treatment/T-01/verification.yaml  # L2, L3 (bound verification, with acceptanceCriteria)
-  sha256:
+  sha256:                          # required for plan and verification in L3
     context: null
     plan: null
     verification: null

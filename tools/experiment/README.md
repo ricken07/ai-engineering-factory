@@ -32,6 +32,9 @@ and the analysis are separate and run on the recorded runs.
   request, acceptance criteria, AIEF intent for L3), condition, agent and
   model, repeat index, frozen treatment files and their expected SHA-256. The
   launcher refuses a treatment file whose hash differs from the frozen one.
+  L3 requires the frozen hashes of the plan and the verification: they are
+  passed as `--expect-*-sha256`, and the plan gate compares the bound files
+  with them, so a run without them is refused rather than self-certified.
 - **Environment** (`examples/environment.yaml`): environment identifier, the
   Factory used by L3, and per agent the command and the arguments of the
   `plain` group (L0–L2) and the `governed` group (L3).

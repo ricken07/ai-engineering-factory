@@ -132,6 +132,13 @@ def _descriptor(run: dict[str, Any], base: Path) -> dict[str, Any]:
             if frozen and frozen != digest:
                 raise LaunchError(f"treatment.{key} {path} has SHA-256 {digest}, not the frozen {frozen}")
             files[key] = {"source": str(path), "sha256": digest, "frozen": frozen}
+    if condition == "L3":
+        # The plan gate compares the bound files with these hashes; without them it could only compare a file
+        # with itself, and a plan that drifted from the freeze would pass the gate unseen.
+        missing = [key for key in ("plan", "verification") if not files[key]["frozen"]]
+        if missing:
+            raise LaunchError("condition L3 needs the frozen SHA-256 of " + " and ".join(f"treatment.{key}" for key in missing)
+                              + " in treatment.sha256: the plan gate compares the bound files with them")
     if "plan" in files and "verification" in files and Path(files["plan"]["source"]).name == Path(files["verification"]["source"]).name:
         raise LaunchError("the plan and the verification files need distinct names")
     return {"task": task, "condition": condition, "agent": run["agent"], "repeatIndex": run["repeatIndex"],
@@ -356,8 +363,8 @@ def _governed_flags(record: dict[str, Any], run_dir: Path) -> str:
              "--environment-identifier", record["environmentIdentifier"],
              "--agent-session", f"{record['agent']['name']}:{record['runId']}",
              "--bound-plan", treatment["plan"]["copy"], "--bound-verification", treatment["verification"]["copy"],
-             "--expect-plan-sha256", treatment["plan"]["frozen"] or treatment["plan"]["sha256"],
-             "--expect-verification-sha256", treatment["verification"]["frozen"] or treatment["verification"]["sha256"]]
+             "--expect-plan-sha256", treatment["plan"]["frozen"],
+             "--expect-verification-sha256", treatment["verification"]["frozen"]]
     if model:
         flags += ["--model-identifier", model]
     return " ".join(f'"{item}"' if " " in item else item for item in flags)

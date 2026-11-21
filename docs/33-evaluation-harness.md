@@ -112,6 +112,9 @@ Rules the launcher holds:
 - **Frozen treatments.** Context, plan and verification files are checked
   against their frozen SHA-256 before a run; a modified file is refused. L1
   and L2 receive the same context, L2 and L3 the same plan and verification.
+  In L3 the frozen plan and verification hashes are required and passed as
+  `--expect-*-sha256`, so the plan gate compares the bound files with the
+  freeze rather than with themselves.
   The prompt templates are hashed and recorded with every run.
 - **Isolation.** In L0–L2, Codex runs with an isolated `HOME` and without user
   configuration or rules; Claude Code runs without skills, commands or user

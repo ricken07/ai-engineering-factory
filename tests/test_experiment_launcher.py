@@ -132,8 +132,20 @@ def test_codex_plain_runs_in_an_isolated_home(campaign):
     assert step["sessionId"] == "codex-thread-1" and "--ignore-user-config" in seen["argv"]
 
 
+def frozen_l3(campaign) -> Path:
+    import hashlib
+    files = {key: campaign["treatment"] / name for key, name in (("plan", "plan.md"), ("verification", "verification.yaml"))}
+    return campaign["descriptor"]("L3", treatment={**{key: str(path) for key, path in files.items()},
+        "sha256": {key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in files.items()}})
+
+
+def test_l3_needs_the_frozen_hashes_of_the_bound_files(campaign):
+    with pytest.raises(launcher.LaunchError, match="frozen SHA-256 of treatment.plan and treatment.verification"):
+        launcher.prepare(campaign["descriptor"]("L3"), campaign["environment"], campaign["output"])
+
+
 def test_l3_runs_the_governed_command_with_the_research_metadata_and_never_decides(campaign):
-    run_dir = launcher.prepare(campaign["descriptor"]("L3"), campaign["environment"], campaign["output"])
+    run_dir = launcher.prepare(frozen_l3(campaign), campaign["environment"], campaign["output"])
     assert (run_dir / "repo" / ".ai" / "project.yaml").is_file()  # the governed project keeps its configuration
     step = launcher.start(run_dir)
     prompt = (run_dir / step["prompt"]).read_text()
@@ -141,6 +153,8 @@ def test_l3_runs_the_governed_command_with_the_research_metadata_and_never_decid
                  "--bound-plan", "--expect-plan-sha256", "--expect-verification-sha256"):
         assert flag in prompt
     assert prompt.startswith("/fix Change one to two.")
+    plan_hash = yaml.safe_load(frozen_l3(campaign).read_text())["treatment"]["sha256"]["plan"]
+    assert f"--expect-plan-sha256 {plan_hash}" in prompt
     assert note(run_dir)["factory"] == str(campaign["output"].parent / "factory")
     state = launcher.wait(run_dir, interval=0.01, timeout=0.05)
     assert state["executionId"] == "exec-1" and state["status"] == "waiting-approval"
