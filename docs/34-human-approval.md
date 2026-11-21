@@ -461,6 +461,10 @@ gateDecisions:
 An expired gate has no actor. Its `waitDurationMs` is the response limit,
 `DERIVED`. A rejection also carries its `rationale`.
 
+`before-merge` of a completed execution does not hold the execution, so no
+clock measures its wait: `waitStartedAt` is `integration.requestedAt` and
+`waitDurationMs` runs from there to the decision, `DERIVED`.
+
 ### Comparator evidence
 
 A rule name alone does not show what a decision rested on. The Runtime
