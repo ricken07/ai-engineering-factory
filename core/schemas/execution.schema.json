@@ -96,6 +96,17 @@
       },
       "additionalProperties": false
     },
+    "planBinding": {
+      "description": "Plan and verification specification bound before the execution started. The Runtime copied them unchanged into the execution directory and records the planning phase from them.",
+      "type": "object",
+      "required": ["plan", "boundAt"],
+      "properties": {
+        "plan": {"$ref": "#/$defs/boundFile"},
+        "verification": {"$ref": "#/$defs/boundFile"},
+        "boundAt": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
     "reproducibility": {
       "type": "object",
       "additionalProperties": {
@@ -257,6 +268,7 @@
     }
   },
   "$defs": {
+    "boundFile": {"type":"object","required":["artifact","sha256"],"properties":{"artifact":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}},"additionalProperties":false},
     "role": {"type":"object","required":["type","identity"],"properties":{"type":{"enum":["agent","runtime","human"]},"identity":{"type":"string"},"session":{"type":"string"},"independentFromProducer":{"type":"boolean"}},"additionalProperties":false},
     "measurement": {
       "type": "object",

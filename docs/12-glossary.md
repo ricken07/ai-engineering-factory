@@ -24,6 +24,9 @@
   `interactive-terminal` are `OBSERVED` and let a gate pass; `agent-relay` and
   `non-interactive` approvals are refused and recorded as evidence. See
   [34](34-human-approval.md).
+- **Bound plan**: plan and verification specification fixed before an
+  execution starts (`--bound-plan`, `--bound-verification`); the Runtime
+  records the planning phase from them, unchanged and verified by hash.
 - **Rework**: return to implementation after a review that did not approve
   the change; bounded, recorded in `reworks`. See [29](29-evidence-chain-and-replay.md).
 - **Finding decision**: the human's explicit, justified decision that a

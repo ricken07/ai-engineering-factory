@@ -145,7 +145,9 @@ For research runs, the initial command also supplies
 `--experiment-condition L0|L1|L2|L3`, `--repeat-index`,
 `--environment-identifier` and, when observable, `--model-identifier`.
 Experimental condition is explicit and is never inferred from autonomy or the
-Workflow.
+Workflow. When the run supplies `--bound-plan` (and `--bound-verification`),
+the Runtime performs the `planning` phase itself: do not write a plan; read the
+bound files listed in each phase brief and follow them.
 
 For `analyze-impact`, persist every impacted project repository in
 `details.repositories` using the exact identifiers from `.ai/project.yaml`.

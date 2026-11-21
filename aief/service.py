@@ -28,6 +28,7 @@ from .output_contracts import contract_errors, public as public_contracts, resol
 from .workspace import WorkspaceManager
 from .concurrency import ExecutionLease, OperationJournal
 from .policy import evaluate_runtime_policy, inherited_critical_domains
+from . import plan_binding
 from .phase_brief import write_phase_brief
 from .proposal import APPLY_GATE, apply_patches, changed_roots, check_patches, implementation_action, proposal_patches, repository_roots, snapshot
 from .governance import governed_execution_plan, assert_action_authorized
@@ -156,12 +157,21 @@ class RuntimeService:
 
     def start(self, text: str, agent: str | None = None, intent: str | None = None,
               expected_workflow: str | None = None, confirmed: bool = False,
-              agent_session: str | None = None, experiment: dict[str, Any] | None = None) -> Execution:
+              agent_session: str | None = None, experiment: dict[str, Any] | None = None,
+              bound_plan: Path | None = None, bound_verification: Path | None = None) -> Execution:
+        if bound_verification is not None and bound_plan is None:
+            raise ValueError("a bound verification needs a bound plan")
         intake = self.intake(text, agent, intent, expected_workflow, confirmed)
         workflow = compile_workflow(self.factory, intake["task"]["workflow"])
+        if bound_plan is not None:
+            plan_binding.check_binding(bound_plan, bound_verification, workflow)
         runtime_started = self.clock.monotonic_ns()
         execution = Execution.create(self.project_root, self.factory, workflow, intake["task"]["metadata"]["id"], agent,
                                      self.clock, agent_session)
+        if bound_plan is not None:
+            binding = plan_binding.bind(execution.root, bound_plan, bound_verification, timestamp(self.clock))
+            execution.data["planBinding"] = binding
+            execution.data["artifacts"].extend(binding[role]["artifact"] for role in ("plan", "verification") if role in binding)
         execution.data["reproducibility"] = self._reproducibility(execution, agent, experiment or {})
         execution.record_runtime_duration(runtime_started)
         execution.save()
@@ -219,6 +229,9 @@ class RuntimeService:
             "experimentalCondition": self._observed_value(experiment.get("condition")),
             "repeatIndex": self._observed_value(experiment.get("repeatIndex")),
             "environmentIdentifier": self._observed_value(experiment.get("environmentIdentifier")),
+            **({f"bound{role.capitalize()}Fingerprint": self._observed_value(binding[role]["sha256"])
+                for role in ("plan", "verification") if role in binding}
+               if (binding := execution.data.get("planBinding")) else {}),
         }
 
     def _session_actor(self, execution: Execution, owner: str | None, actor_type: str = "agent") -> dict[str, Any]:
@@ -290,6 +303,9 @@ class RuntimeService:
             # Validation evidence is observed by the Runtime, never declared by
             # an agent: only run_profile_validation completes this phase.
             raise PermissionError("validate-change is performed by the Runtime: run 'aief execution profile-validation <id> --execute --owner <owner>'")
+        if phase.get("skill") == "create-plan" and execution.data.get("planBinding") and not _runtime_verified:
+            # A bound plan is recorded by the Runtime; no agent output may replace it.
+            raise PermissionError("this execution has a bound plan: the Runtime records the planning phase when 'aief execution next' reaches it")
         pending = self._pending_policy_gates(execution, phase["id"])
         if pending:
             raise PermissionError("required policy gates are pending: " + ", ".join(sorted(pending)))
@@ -583,7 +599,8 @@ class RuntimeService:
         artifact["fingerprint"] = policy_fingerprint({key:value for key,value in artifact.items() if key != "fingerprint"})
         assert_schema(self.factory,"policy-decision.schema.json",artifact)
         name=f"policy-decision-{revision:03d}.yaml"; (execution.root/name).write_text(yaml.safe_dump(artifact,sort_keys=False),encoding="utf-8")
-        plan = governed_execution_plan(api_version, execution.data, decision, name)
+        plan = governed_execution_plan(api_version, execution.data, decision, name,
+                                       plan_binding.fingerprints(execution.data.get("planBinding") or {}))
         assert_schema(self.factory, "governed-execution-plan.schema.json", plan)
         plan_name=f"governed-execution-plan-{revision:03d}.yaml"
         (execution.root/plan_name).write_text(yaml.safe_dump(plan,sort_keys=False),encoding="utf-8")
@@ -1082,6 +1099,12 @@ class RuntimeService:
                 if gate["id"] in pending: execution.start_policy_gate(gate)
             execution.data["status"]="waiting-approval"; execution.save()
             return {"execution":execution_id,"status":"waiting-approval","phase":phase,"engineeringContexts":[],"requiredPolicyGates":sorted(pending)}
+        if phase["skill"] == "create-plan" and execution.data.get("planBinding"):
+            if phase["status"] == "waiting-approval":
+                # The bound plan is recorded; only the human decision on its gate remains.
+                return {"execution":execution_id,"status":"waiting-approval","phase":phase,"engineeringContexts":[],
+                        "boundPlan":execution.data["planBinding"]}
+            return self._record_bound_plan(execution)
         if phase["id"] == "implementation":
             # Re-evaluate from persisted Task observations so a reviewed project
             # configuration change (for example external -> local tracking) is
@@ -1152,7 +1175,7 @@ class RuntimeService:
         if phase["skill"] == "implement-change":
             self._prepare_implementation_action(execution, phase)
         decisions = execution.data.get("findingDecisions", []) if phase["skill"] in {"implement-change", "review-change"} else []
-        brief = write_phase_brief(execution.root, phase, skill_contract, contexts, decisions)
+        brief = write_phase_brief(execution.root, phase, skill_contract, contexts, decisions, execution.data.get("planBinding"))
         name = Path(brief["path"]).name
         for artifacts in (phase.setdefault("artifacts", []), execution.data.setdefault("artifacts", [])):
             if name not in artifacts: artifacts.append(name)
@@ -1167,6 +1190,29 @@ class RuntimeService:
         )
         return {"execution":execution_id,"status":execution.data["status"],"phase":phase,
                 "skillContract":skill_contract,"phaseBrief":brief,"engineeringContexts":contexts}
+
+    def _record_bound_plan(self, execution: Execution) -> dict[str, Any]:
+        """Performs the planning phase of an execution with a bound plan.
+
+        The Runtime, not an agent, writes the planning artifact: it references
+        the bound files by hash and copies their acceptance criteria verbatim.
+        Policy reassessment and the plan gate then apply as for any plan."""
+        execution_id = execution.data["metadata"]["id"]
+        phase = execution.next_phase()
+        binding = execution.data["planBinding"]
+        phase["preparedAt"] = timestamp(self.clock); execution.save()
+        planner = actor_identity(f"runtime:{execution_id}", "runtime", "runtime", "TRUSTED", execution=execution_id)
+        output = plan_binding.planning_output(execution.root, binding, planner)
+        self._events(execution.data["task"]).append(
+            "phase.started", execution=execution_id,
+            payload={"agent": execution.data.get("agent", {}).get("adapter"), "phase": phase["id"],
+                     "status": execution.data["status"], "skill": phase["skill"], "performedBy": "runtime",
+                     "boundPlan": plan_binding.fingerprints(binding)},
+        )
+        # The Runtime acts for the session that holds the execution, if any.
+        owner = (ExecutionLease(execution.root).active() or {}).get("owner")
+        self.complete_phase(execution_id, output, owner=owner, _runtime_verified=True)
+        return {**self.prepare_phase(execution_id), "boundPlan": binding}
 
     @measured_runtime
     def workspace(self, execution_id: str, action: str, execute: bool = False) -> dict[str, Any]:

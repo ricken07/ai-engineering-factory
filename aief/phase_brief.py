@@ -12,6 +12,8 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from .plan_binding import brief_section
+
 
 def _practices(contexts: list[dict[str, Any]]) -> list[tuple[dict[str, Any], list[str]]]:
     seen: dict[tuple[str, str], tuple[dict[str, Any], list[str]]] = {}
@@ -24,7 +26,7 @@ def _practices(contexts: list[dict[str, Any]]) -> list[tuple[dict[str, Any], lis
 
 
 def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]],
-                       decisions: list[dict[str, Any]] | None = None) -> str:
+                       decisions: list[dict[str, Any]] | None = None, binding: dict[str, Any] | None = None) -> str:
     lines = [f"# Phase brief: {phase['id']} ({phase['skill']})", "",
              "Read this file completely before producing the phase output.", "",
              "## Skill contract", "",
@@ -33,6 +35,8 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
              f"- Output schema: `{skill_contract['outputSchema']}`"]
     for contract in skill_contract.get("outputContracts", []):
         lines.append(f"- Output contract ({contract['source']}): `{contract['schema']}`")
+    if binding:
+        lines += brief_section(binding)
     rework = phase.get("rework")
     if rework:
         lines += ["", f"## Rework {rework['number']}: address the review findings", "",
@@ -94,8 +98,8 @@ def render_phase_brief(phase: dict[str, Any], skill_contract: dict[str, Any], co
 
 
 def write_phase_brief(root: Path, phase: dict[str, Any], skill_contract: dict[str, Any], contexts: list[dict[str, Any]],
-                      decisions: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    text = render_phase_brief(phase, skill_contract, contexts, decisions)
+                      decisions: list[dict[str, Any]] | None = None, binding: dict[str, Any] | None = None) -> dict[str, Any]:
+    text = render_phase_brief(phase, skill_contract, contexts, decisions, binding)
     path = root / f"phase-brief-{phase['id']}.md"
     path.write_text(text, encoding="utf-8")
     content = text.encode("utf-8")

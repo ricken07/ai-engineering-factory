@@ -33,6 +33,31 @@ A workflow that ends with submission refuses a completed plan without
 criteria (`{id, statement}`, unique ids), so a missing criterion is caught at
 planning rather than at submission.
 
+### Bound plan
+
+A plan prepared and reviewed before the execution can be bound to it:
+
+```bash
+aief run "/implement TASK-42" --bound-plan plan.md --bound-verification verification.yaml
+```
+
+The Runtime copies both files unchanged into `bound-plan/` in the execution
+directory and records their SHA-256 in `planBinding`, in the reproducibility
+record (`boundPlanFingerprint`, `boundVerificationFingerprint`) and in the
+`contextFingerprints` of every Governed Execution Plan. The bound plan can be
+any text file. The bound verification is a YAML mapping. In a workflow that
+ends with submission, it must list `acceptanceCriteria` as `{id, statement}`.
+The binding is refused before the execution starts when a file is missing,
+when the workflow has no `create-plan` phase, or when the criteria are missing.
+
+When `aief execution next` reaches `planning`, the Runtime performs the phase
+itself, as it does for validation. `planning.yaml` references the bound files
+by path and hash and copies their acceptance criteria verbatim. No agent writes
+a plan: an agent output for `create-plan` is refused. A bound file changed after
+binding is refused by its hash. Policy reassessment after planning and the plan
+gate apply unchanged. Every phase brief lists the bound files and their hashes,
+so the agent reads the plan and verification it was given.
+
 Each criterion must be covered by the independent review, in
 `review.yaml` `details.evidenceMatrix`:
 

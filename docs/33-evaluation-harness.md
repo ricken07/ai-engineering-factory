@@ -108,6 +108,12 @@ context/policy/plan fingerprints, agent/model, adapter version, condition,
 repeat and environment. Unobserved values are `UNAVAILABLE`; autonomy is never
 misused as an inferred experimental condition.
 
+An L3 run that must follow the same task plan and verification specification
+as an L2 run binds them with `--bound-plan` and `--bound-verification`. The
+Runtime then records the planning phase from these files, unchanged and
+verified by hash, instead of letting the agent write a plan
+([Bound plan](29-evidence-chain-and-replay.md#bound-plan)).
+
 Example descriptor-producing Runtime invocation:
 
 ```bash
