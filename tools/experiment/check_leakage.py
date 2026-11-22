@@ -49,14 +49,17 @@ custody area lets a joint reset of a log and the register be detected.
 
 The new register head is printed after every custody write
 (`REGISTER_HEAD <task> <kind> <hash>` on stderr) for export to an anchor kept
-outside custody; with `--anchor FILE`, every head listed there must still be in
-the chain, otherwise CUSTODY_ERROR. Unreadable or malformed custody files are
+outside custody; `--anchor FILE` is required with every custody option, and
+every head listed there must still be in the chain, otherwise CUSTODY_ERROR.
+Custody operations on a register are serialized by an exclusive inter-process
+lock (`<register>.lock`). The escalation reviewer is the effective account of
+the process (effective uid), never a name taken from `LOGNAME` or `USER`. Unreadable or malformed custody files are
 custody errors, never crashes. `--verdict-only` (author-facing) runs only
 through the custody circuit, so the attempt limit cannot be bypassed.
 
 Exception check (§5.4 b). The escalation reviewer records the authorization
 under their own account: `--authorize-exception --reviewers FILE` checks that
-the account running it is listed for the task in the protected reviewer list
+the effective account running it is listed for the task in the protected reviewer list
 and enters the authorization (issuer, list hash, file hashes) in the register.
 The custodian then runs `--exception-log FILE` once per task, on exactly the
 authorized files; the result goes to the exception log only, and the output
@@ -69,9 +72,11 @@ Usage: check_leakage.py --treatment FILE... --forbidden FILE... [--base-dir DIR]
 from __future__ import annotations
 
 import argparse
-import getpass
+import fcntl
 import hashlib
 import json
+import os
+import pwd
 import re
 import sys
 from datetime import datetime, timezone
@@ -245,9 +250,7 @@ def read_register(register: Path) -> list[dict[str, Any]]:
 
 def verify_anchor(register: Path, anchor: Path | None) -> None:
     """Every head recorded outside custody must still be in the register chain (detects a joint reset)."""
-    if anchor is None:
-        return
-    if not anchor.exists():
+    if anchor is None or not anchor.exists():
         raise CustodyError("register anchor is missing")
     try:
         heads = [line.split()[-1] for line in anchor.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -309,9 +312,31 @@ def record_attempt(log: Path, register: Path, task: str, treatments: list[Path],
                                        "entries": len(entries), "logSha256": _sha256(log)})
 
 
+def effective_account() -> str:
+    """The authenticated account of this process (effective uid), never a name taken from LOGNAME or USER."""
+    return pwd.getpwuid(os.geteuid()).pw_name
+
+
+class _RegisterLock:
+    """Exclusive inter-process lock: custody operations on one register are serialized."""
+
+    def __init__(self, register: Path):
+        self.path = register.with_name(register.name + ".lock")
+
+    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.handle = open(self.path, "a")
+        fcntl.flock(self.handle, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc):
+        fcntl.flock(self.handle, fcntl.LOCK_UN)
+        self.handle.close()
+
+
 def authorize_exception(args: argparse.Namespace) -> str:
     """Run by the escalation reviewer under their own account: the authorization lives in the register."""
-    issuer = getpass.getuser()
+    issuer = effective_account()
     reviewers = _load_json(args.reviewers, "reviewer list", dict)
     if issuer not in reviewers.get(args.task, []):
         raise CustodyError(f"account {issuer} is not an escalation reviewer of task {args.task}")
@@ -344,6 +369,36 @@ def exception_check(args: argparse.Namespace) -> str:
                                             "logSha256": _sha256(args.exception_log)})
 
 
+def _custody_run(args: argparse.Namespace) -> dict[str, Any] | int:
+    """Custody operations, run under the register lock; an int is an exit status already reported."""
+    verify_anchor(args.register, args.anchor)
+    if args.authorize_exception:
+        authorize_exception(args)
+        print(f"EXCEPTION AUTHORIZED for task {args.task}")
+        return 0
+    if args.exception_log is not None:
+        head = exception_check(args)
+        print(f"EXCEPTION CHECK RECORDED in {args.exception_log} for the escalation reviewer only; register head {head}")
+        return 0
+    if args.init_attempt_log:
+        init_attempt_log(args.attempt_log, args.register, args.task)
+    previous = attempts(args.attempt_log, args.register, args.task)
+    unchanged = bool(previous) and previous[-1]["treatment"] == _fingerprint(args.treatment)
+    if unchanged and args.verdict_only:
+        print(json.dumps({"verdict": previous[-1]["verdict"], "unchanged": True}) if args.json
+              else f"{previous[-1]['verdict']} (unchanged files, attempt not counted)")
+        return {"CLEAN": 0, "LEAK": 1}.get(previous[-1]["verdict"], 2)
+    if not unchanged and len(previous) >= args.max_attempts:
+        print(json.dumps({"verdict": "ESCALATE", "attempts": len(previous)}) if args.json
+              else f"ESCALATE: {len(previous)} attempt(s) recorded, limit {args.max_attempts}; independent escalation required")
+        return 2
+    report = check(args.treatment, args.forbidden, args.base_dir, args.min_length, args.allowed)
+    if not unchanged:
+        record_attempt(args.attempt_log, args.register, args.task, args.treatment,
+                       "LEAK" if report["leak"] else "CLEAN")
+    return report
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--treatment", type=Path, nargs="+", required=True, help="treatment files to check")
@@ -361,48 +416,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--authorize-exception", action="store_true",
                         help="escalation reviewer: record in the register the exception for these exact files")
     parser.add_argument("--reviewers", type=Path, help="protected list {task: [reviewer accounts]}")
-    parser.add_argument("--anchor", type=Path, help="register heads recorded outside custody, one per line")
+    parser.add_argument("--anchor", type=Path,
+                        help="register heads recorded outside custody, one per line (required with custody options)")
     parser.add_argument("--verdict-only", action="store_true",
                         help="author-facing output: verdict and treatment line numbers only")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     custody = args.attempt_log is not None or args.exception_log is not None or args.authorize_exception
-    if custody and (not args.task or args.register is None):
-        parser.error("custody options need --task and --register")
+    if custody and (not args.task or args.register is None or args.anchor is None):
+        parser.error("custody options need --task, --register and --anchor")
     if args.authorize_exception and args.reviewers is None:
         parser.error("--authorize-exception needs --reviewers")
     if args.verdict_only and args.attempt_log is None:
         parser.error("--verdict-only is author-facing and runs only through the custody circuit (--attempt-log)")
     try:
         if custody:
-            verify_anchor(args.register, args.anchor)
-        if args.authorize_exception:
-            authorize_exception(args)
-            print(f"EXCEPTION AUTHORIZED for task {args.task}")
-            return 0
-        if args.exception_log is not None:
-            head = exception_check(args)
-            print(f"EXCEPTION CHECK RECORDED in {args.exception_log} for the escalation reviewer only; register head {head}")
-            return 0
-        if args.attempt_log is None:
-            report = check(args.treatment, args.forbidden, args.base_dir, args.min_length, args.allowed)
+            with _RegisterLock(args.register):
+                outcome = _custody_run(args)
+            if isinstance(outcome, int):
+                return outcome
+            report = outcome
         else:
-            if args.init_attempt_log:
-                init_attempt_log(args.attempt_log, args.register, args.task)
-            previous = attempts(args.attempt_log, args.register, args.task)
-            unchanged = bool(previous) and previous[-1]["treatment"] == _fingerprint(args.treatment)
-            if unchanged and args.verdict_only:
-                print(json.dumps({"verdict": previous[-1]["verdict"], "unchanged": True}) if args.json
-                      else f"{previous[-1]['verdict']} (unchanged files, attempt not counted)")
-                return {"CLEAN": 0, "LEAK": 1}.get(previous[-1]["verdict"], 2)
-            if not unchanged and len(previous) >= args.max_attempts:
-                print(json.dumps({"verdict": "ESCALATE", "attempts": len(previous)}) if args.json
-                      else f"ESCALATE: {len(previous)} attempt(s) recorded, limit {args.max_attempts}; independent escalation required")
-                return 2
             report = check(args.treatment, args.forbidden, args.base_dir, args.min_length, args.allowed)
-            if not unchanged:
-                record_attempt(args.attempt_log, args.register, args.task, args.treatment,
-                               "LEAK" if report["leak"] else "CLEAN")
     except CustodyError as error:
         print(f"CUSTODY_ERROR: {error}; no check was run, escalate", file=sys.stderr)
         return 3

@@ -83,9 +83,12 @@ def test_a_new_short_identifier_from_the_oracle_leaks_but_existing_or_issue_name
 
 def custody(tmp_path: Path, plan: Path, gold: Path, tests: Path, *extra: str) -> list[str]:
     root = tmp_path / "custody"
+    anchor = tmp_path / "anchor.txt"
+    if not anchor.exists():
+        anchor.write_text("")
     return ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--verdict-only", "--task", "C01",
             "--register", str(root / "register.json"), "--attempt-log", str(root / "C01-attempts.json"),
-            "--max-attempts", "2", *extra]
+            "--max-attempts", "2", "--anchor", str(anchor), *extra]
 
 
 def test_revision_attempts_are_bounded_and_unchanged_files_do_not_consume_one(tmp_path: Path, capsys):
@@ -158,20 +161,22 @@ def test_every_write_exports_the_head_and_the_anchor_detects_a_joint_reset(tmp_p
     assert tool.main(custody(tmp_path, plan, gold, tests) + ["--anchor", str(tmp_path / "none")]) == 3
 
 
-def test_the_exception_is_authorized_by_a_listed_reviewer_account_and_runs_once(tmp_path: Path, capsys, monkeypatch):
+def test_the_exception_is_authorized_by_the_effective_reviewer_account_and_runs_once(tmp_path: Path, capsys, monkeypatch):
     plan, gold, tests = files(tmp_path, f"# Plan\n{SECRET}\n")
     root = tmp_path / "custody"
     assert tool.main(custody(tmp_path, plan, gold, tests, "--init-attempt-log")) == 1
     plan.write_text("# Plan\nMake convert honour the unit.\n")
     reviewers = root / "reviewers.json"; reviewers.write_text(json.dumps({"C01": ["reviewer-account"]}))
     base = ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--task", "C01",
-            "--register", str(root / "register.json")]
+            "--register", str(root / "register.json"), "--anchor", str(tmp_path / "anchor.txt")]
     authorize = base + ["--authorize-exception", "--reviewers", str(reviewers)]
     run = base + ["--exception-log", str(root / "C01-exception.json")]
     assert tool.main(run) == 3  # nothing authorized yet
-    monkeypatch.setattr(tool.getpass, "getuser", lambda: "author-account")
+    # a declared name is not an identity: LOGNAME/USER cannot impersonate the listed reviewer
+    monkeypatch.setenv("LOGNAME", "reviewer-account"); monkeypatch.setenv("USER", "reviewer-account")
     assert tool.main(authorize) == 3 and "not an escalation reviewer" in capsys.readouterr().err
-    monkeypatch.setattr(tool.getpass, "getuser", lambda: "reviewer-account")
+    reviewers.write_text(json.dumps({"C01": [tool.effective_account()]}))
+    authorize[authorize.index("--reviewers") + 1] = str(reviewers)
     assert tool.main(authorize) == 0
     assert tool.main(authorize) == 3  # one authorization per task
     capsys.readouterr()
@@ -179,7 +184,30 @@ def test_the_exception_is_authorized_by_a_listed_reviewer_account_and_runs_once(
     out = capsys.readouterr().out
     assert "reviewer only" in out and "CLEAN" not in out and "LEAK" not in out
     record = json.loads((root / "C01-exception.json").read_text())[0]
-    assert record["result"]["leak"] is False and record["issuer"] == "reviewer-account"
+    assert record["result"]["leak"] is False and record["issuer"] == tool.effective_account()
     assert tool.main(run) == 3  # once only
     (root / "C01-exception.json").unlink()
     assert tool.main(run) == 3  # the register still records the use
+
+
+def test_custody_options_require_the_anchor(tmp_path: Path):
+    import pytest
+    plan, gold, tests = files(tmp_path, "# Plan\n")
+    argv = custody(tmp_path, plan, gold, tests, "--init-attempt-log")
+    without = argv[:argv.index("--anchor")] + argv[argv.index("--anchor") + 2:]
+    with pytest.raises(SystemExit):
+        tool.main(without)
+
+
+def test_concurrent_custody_jobs_never_lose_register_entries(tmp_path: Path):
+    import subprocess, sys
+    plan, gold, tests = files(tmp_path, "# Plan\nMake convert honour the unit.\n")
+    root = tmp_path / "custody"; anchor = tmp_path / "anchor.txt"; anchor.write_text("")
+    script = ROOT / "tools" / "experiment" / "check_leakage.py"
+    jobs = [subprocess.Popen([sys.executable, str(script), "--treatment", str(plan), "--forbidden", str(gold),
+                              "--task", f"C0{i}", "--register", str(root / "register.json"), "--anchor", str(anchor),
+                              "--attempt-log", str(root / f"C0{i}.json"), "--init-attempt-log"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for i in range(1, 9)]
+    assert [job.wait() for job in jobs] == [0] * 8
+    entries = tool.read_register(root / "register.json")  # chain intact
+    assert len(entries) == 16 and {e["task"] for e in entries} == {f"C0{i}" for i in range(1, 9)}
