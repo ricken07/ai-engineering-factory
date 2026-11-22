@@ -188,11 +188,22 @@ repository at the base revision (`--base-dir`) are allowed. The report gives
 only counts and positions (treatment line, oracle file and line number), never
 the matching content; exit status 1 on any leak. The full report stays in the
 evaluator area; treatment authors only receive `--verdict-only` output (CLEAN
-or LEAK and treatment line numbers, no oracle file name or line):
+or LEAK and treatment line numbers, no oracle file name or line).
+
+Short names are checked too: with `--base-dir`, a code-shaped identifier
+(snake_case, digits, camelCase, UPPER_CASE) that the oracle introduces and
+that appears neither in the base repository nor in the allowed task text
+(`--allowed`, the issue statement) leaks wherever a treatment line names it.
+With `--attempt-log`, checks are recorded (time, treatment file hashes,
+verdict) and bounded by `--max-attempts` (3 by default): beyond it the tool
+answers ESCALATE (exit status 2) instead of a new verdict, so that repeated
+feedback cannot be used to probe the oracle; unchanged files repeat the last
+verdict without consuming an attempt.
 
 ```bash
 python3 tools/experiment/check_leakage.py --treatment treatment/C01/*.md treatment/C01/*.yaml \
-  --forbidden oracle/C01/gold.patch oracle/C01/test.patch --base-dir repos/xarray-at-base
+  --forbidden oracle/C01/gold.patch oracle/C01/test.patch --base-dir repos/xarray-at-base \
+  --allowed tasks/C01/problem_statement.txt --attempt-log custody/C01-attempts.json --verdict-only
 ```
 
 ## Scorers

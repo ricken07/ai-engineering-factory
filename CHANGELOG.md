@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `check_leakage.py` flags code-shaped identifiers the oracle introduces (absent from the base repository and the `--allowed` issue text) and bounds revision cycles with `--attempt-log`/`--max-attempts`, answering ESCALATE beyond the limit (researcher decisions A1.4, A1.7).
 - The launcher charges its active budget as RC2 §9.4 defines active time: elapsed time since the first agent step minus the union of human-gate waits read from the execution record (researcher decision A9). Time between steps that is not a gate wait now counts; `run.yaml` records `activeSeconds` and `agentSeconds`.
 - `check_leakage.py --verdict-only` gives treatment authors the verdict and the treatment line numbers only.
 - Added study tools after the 1.15.0 freeze: `check_leakage.py` (treatment files against the hidden oracle, reporting counts and positions only) and the scorer skeletons `score_h2.py` (D_group with the missing-component rule), `score_h3.py` (E01–E12 evidence completeness, built-in verifiers for launcher-captured items) and `score_h4.py` (wall-clock, union of gate waits, active wall-clock). The Runtime is unchanged.

@@ -65,3 +65,33 @@ def test_the_author_facing_verdict_names_no_oracle_file_or_line(tmp_path: Path, 
     assert tool.main(["--treatment", str(plan), "--forbidden", str(gold), "--verdict-only"]) == 1
     text = capsys.readouterr().out
     assert "gold" not in text and "hidden fix" not in text and "LEAK" in text
+
+
+def test_a_new_short_identifier_from_the_oracle_leaks_but_existing_or_issue_names_do_not(tmp_path: Path):
+    base = tmp_path / "base"; (base / "pkg").mkdir(parents=True)
+    (base / "pkg" / "units.py").write_text("def convert(value, unit):\n    return value\n")
+    issue = tmp_path / "issue.txt"; issue.write_text("convert ignores the unit argument")
+    plan, gold, tests = files(tmp_path, "# Plan\n1. Add FACTORS.\n2. Change convert for the unit.\n")
+    report = tool.check([plan], [gold, tests], base, allowed_text=[issue])
+    positions = report["files"][0]["positions"]
+    assert report["leak"] and report["identifierCheck"] == "done"
+    assert {p["treatmentLine"] for p in positions} == {2} and positions[0]["kind"] == "identifier"
+    assert "FACTORS" not in json.dumps(tool.verdict(report))
+    plan.write_text("# Plan\nThe hidden part is short.\n")  # plain words from oracle comments are not identifiers
+    assert not tool.check([plan], [gold, tests], base, allowed_text=[issue])["leak"]
+    assert tool.check([plan], [gold, tests])["identifierCheck"] == "skipped-no-base-dir"
+
+
+def test_revision_attempts_are_bounded_and_unchanged_files_do_not_consume_one(tmp_path: Path, capsys):
+    plan, gold, tests = files(tmp_path, f"# Plan\n{SECRET}\n")
+    log = tmp_path / "custody" / "C01-attempts.json"
+    argv = ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--verdict-only",
+            "--attempt-log", str(log), "--max-attempts", "2"]
+    assert tool.main(argv) == 1
+    assert tool.main(argv) == 1 and "not counted" in capsys.readouterr().out
+    plan.write_text("# Plan\nstill wrong: " + SECRET + "\n")
+    assert tool.main(argv) == 1
+    plan.write_text("# Plan\nMake convert honour the unit.\n")
+    assert tool.main(argv) == 2 and "ESCALATE" in capsys.readouterr().out
+    entries = json.loads(log.read_text())
+    assert len(entries) == 2 and SECRET not in log.read_text()
