@@ -194,16 +194,26 @@ Short names are checked too: with `--base-dir`, a code-shaped identifier
 (snake_case, digits, camelCase, UPPER_CASE) that the oracle introduces and
 that appears neither in the base repository nor in the allowed task text
 (`--allowed`, the issue statement) leaks wherever a treatment line names it.
-With `--attempt-log`, checks are recorded (time, treatment file hashes,
-verdict) and bounded by `--max-attempts` (3 by default): beyond it the tool
-answers ESCALATE (exit status 2) instead of a new verdict, so that repeated
-feedback cannot be used to probe the oracle; unchanged files repeat the last
-verdict without consuming an attempt.
+Custody is fail-closed (treatment authoring protocol v2.1 §5.3–5.4). With
+`--task`, `--register` and `--attempt-log`, checks are recorded (time,
+treatment file hashes, verdict) and bounded by `--max-attempts` (3): a new
+version beyond the limit gets ESCALATE (exit status 2) and no verdict;
+unchanged files repeat the last verdict without consuming an attempt. Every
+custody write is entered in a protected reference register, a hash chain over
+all tasks; a missing, truncated or inconsistent log, or a broken chain, gives
+CUSTODY_ERROR (exit status 3) and no check. A log is created only once per
+task, with `--init-attempt-log`. Record the register head outside the custody
+area so that a joint reset of a log and the register is detected. The single
+exception check approved by the escalation reviewer runs with
+`--exception-log` and `--exception-authorization`
+(`{task, reviewer, treatment: {file: sha256}}`), once per task, on exactly
+the authorized files; its result goes to the exception log only.
 
 ```bash
 python3 tools/experiment/check_leakage.py --treatment treatment/C01/*.md treatment/C01/*.yaml \
   --forbidden oracle/C01/gold.patch oracle/C01/test.patch --base-dir repos/xarray-at-base \
-  --allowed tasks/C01/problem_statement.txt --attempt-log custody/C01-attempts.json --verdict-only
+  --allowed tasks/C01/problem_statement.txt --task C01 --register custody/register.json \
+  --attempt-log custody/C01-attempts.json --verdict-only   # add --init-attempt-log on first use
 ```
 
 ## Scorers

@@ -82,16 +82,64 @@ def test_a_new_short_identifier_from_the_oracle_leaks_but_existing_or_issue_name
     assert tool.check([plan], [gold, tests])["identifierCheck"] == "skipped-no-base-dir"
 
 
+def custody(tmp_path: Path, plan: Path, gold: Path, tests: Path, *extra: str) -> list[str]:
+    root = tmp_path / "custody"
+    return ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--verdict-only", "--task", "C01",
+            "--register", str(root / "register.json"), "--attempt-log", str(root / "C01-attempts.json"),
+            "--max-attempts", "2", *extra]
+
+
 def test_revision_attempts_are_bounded_and_unchanged_files_do_not_consume_one(tmp_path: Path, capsys):
     plan, gold, tests = files(tmp_path, f"# Plan\n{SECRET}\n")
-    log = tmp_path / "custody" / "C01-attempts.json"
-    argv = ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--verdict-only",
-            "--attempt-log", str(log), "--max-attempts", "2"]
-    assert tool.main(argv) == 1
+    argv = custody(tmp_path, plan, gold, tests)
+    assert tool.main(argv) == 3  # no log yet: refused until explicitly initialized
+    assert tool.main(argv + ["--init-attempt-log"]) == 1
     assert tool.main(argv) == 1 and "not counted" in capsys.readouterr().out
     plan.write_text("# Plan\nstill wrong: " + SECRET + "\n")
     assert tool.main(argv) == 1
     plan.write_text("# Plan\nMake convert honour the unit.\n")
     assert tool.main(argv) == 2 and "ESCALATE" in capsys.readouterr().out
-    entries = json.loads(log.read_text())
-    assert len(entries) == 2 and SECRET not in log.read_text()
+    log = tmp_path / "custody" / "C01-attempts.json"
+    assert len(json.loads(log.read_text())) == 2 and SECRET not in log.read_text()
+    assert tool.main(argv + ["--init-attempt-log"]) == 3  # never re-initialized
+
+
+def test_a_missing_truncated_or_reset_log_stops_every_check(tmp_path: Path, capsys):
+    plan, gold, tests = files(tmp_path, "# Plan\nMake convert honour the unit.\n")
+    argv = custody(tmp_path, plan, gold, tests)
+    assert tool.main(argv + ["--init-attempt-log"]) == 0
+    root = tmp_path / "custody"; log = root / "C01-attempts.json"; register = root / "register.json"
+    saved = log.read_text()
+    log.write_text("[]\n")  # truncated
+    assert tool.main(argv) == 3 and "does not match" in capsys.readouterr().err
+    log.unlink()
+    assert tool.main(argv) == 3 and "missing" in capsys.readouterr().err
+    log.write_text(saved)
+    entries = json.loads(register.read_text()); entries[0]["entries"] = 5
+    register.write_text(json.dumps(entries))  # register edited without its chain
+    assert tool.main(argv) == 3 and "register broken" in capsys.readouterr().err
+
+
+def test_the_exception_check_runs_once_on_authorized_files_and_tells_the_author_nothing(tmp_path: Path, capsys):
+    plan, gold, tests = files(tmp_path, f"# Plan\n{SECRET}\n")
+    root = tmp_path / "custody"
+    assert tool.main(custody(tmp_path, plan, gold, tests, "--init-attempt-log")) == 1
+    head = tool.register_head(root / "register.json")
+    plan.write_text("# Plan\nMake convert honour the unit.\n")
+    authorization = root / "C01-exception-authorization.json"
+    authorization.write_text(json.dumps({"task": "C01", "reviewer": "escalation-reviewer",
+                                         "treatment": {str(plan): tool._fingerprint([plan])[str(plan)]}}))
+    argv = ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--task", "C01",
+            "--register", str(root / "register.json"), "--exception-log", str(root / "C01-exception.json"),
+            "--exception-authorization", str(authorization)]
+    capsys.readouterr()
+    assert tool.main(argv) == 0
+    out = capsys.readouterr().out
+    assert "reviewer only" in out and "CLEAN" not in out and "LEAK" not in out
+    assert json.loads((root / "C01-exception.json").read_text())[0]["result"]["leak"] is False
+    assert tool.main(argv) == 3  # once only
+    plan.write_text("# Plan\nsomething else\n")
+    (root / "C01-exception.json").unlink()
+    assert tool.main(argv) == 3  # files differ from the authorization, and the register still records the use
+    chain = [e["hash"] for e in tool.read_register(root / "register.json")]
+    assert head in chain and chain[-1] != head  # the recorded head stays in the chain
