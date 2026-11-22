@@ -246,3 +246,26 @@ def test_active_time_is_elapsed_minus_the_union_of_gate_waits(tmp_path):
     assert launcher._gate_intervals(run, at)[-1][1] == at
     # without a Runtime (L0-L2) every elapsed second is active
     assert launcher._active_seconds(tmp_path / "l0", record, at) == 60 * 60
+
+
+def test_a_governed_isolated_home_links_only_the_study_home_adapters(campaign, tmp_path):
+    study = tmp_path / "study-home"
+    (study / ".claude" / "skills" / "fix").mkdir(parents=True); (study / ".gitconfig").write_text("[user]\n")
+    (study / ".claude" / "settings.json").write_text("{}")  # never linked: not listed
+    token = tmp_path / "token"; token.write_text("t\n")
+    env = yaml.safe_load(campaign["environment"].read_text())
+    env["isolation"]["homeSource"] = str(study)
+    env["agents"]["claude-code"]["tokenFile"] = str(token)
+    env["agents"]["claude-code"]["governed"] = {"isolatedHome": True, "homeLinks": [".claude/skills"], "args": []}
+    env["agents"]["claude-code"]["plain"] = {"isolatedHome": True, "args": ["--disable-slash-commands"]}
+    campaign["environment"].write_text(yaml.safe_dump(env))
+    governed = launcher.prepare(frozen_l3(campaign), campaign["environment"], campaign["output"])
+    launcher.start(governed)
+    home = governed / "home"
+    assert note(governed)["home"] == str(home)
+    assert (home / ".claude" / "skills").resolve() == (study / ".claude" / "skills").resolve()
+    assert (home / ".gitconfig").is_symlink() and not (home / ".claude" / "settings.json").exists()
+    assert yaml.safe_load((governed / "run.yaml").read_text())["isolation"]["homeLinks"] == [".claude/skills"]
+    plain = launcher.prepare(campaign["descriptor"]("L0"), campaign["environment"], campaign["output"])
+    launcher.start(plain)
+    assert not (plain / "home" / ".claude").exists()  # plain runs never receive the adapter skills

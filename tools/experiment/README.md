@@ -51,6 +51,13 @@ and the analysis are separate and run on the recorded runs.
   and `--setting-sources project,local` (no user settings, plugins or user
   hooks). An isolated `HOME` is possible with a long-lived token created by
   the operator with `claude setup-token` (`tokenFile`).
+- **Study home**: `isolation.homeSource` points the links of an isolated
+  `HOME` at a study home instead of the real one, for example a home where
+  only the AIEF adapters of the frozen Factory are installed
+  (`HOME=<study home> aief setup-adapter ... --execute`). A group's own
+  `homeLinks` (for example `.claude/skills` for `governed`) apply to that
+  group only, so L3 runs get the adapter skills and L0–L2 runs do not, and no
+  user skill, hook or setting of the real home reaches either.
 - **Every agent**: settings, hooks and instructions managed by the account's
   organization still apply. The run records this as part of the isolation.
 

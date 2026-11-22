@@ -252,19 +252,32 @@ def prepare(run_file: Path, environment_file: Path, output: Path, run_id: str | 
 
 def _isolation_mode(condition: str, agent_config: dict[str, Any]) -> dict[str, Any]:
     group = agent_config.get("plain" if condition in PLAIN else "governed") or {}
-    return {"group": "plain" if condition in PLAIN else "governed", "isolatedHome": bool(group.get("isolatedHome")),
+    mode = {"group": "plain" if condition in PLAIN else "governed", "isolatedHome": bool(group.get("isolatedHome")),
             "note": "organization-managed settings, hooks and instructions of the agent account still apply"}
+    if mode["isolatedHome"]:
+        mode["homeLinks"] = [str(name) for name in group.get("homeLinks", [])]
+    return mode
 
 
 # --------------------------------------------------------------------------- agent invocation
 
-def _home(run_dir: Path, environment: dict[str, Any], agent: str, agent_config: dict[str, Any]) -> Path:
+def _home(run_dir: Path, environment: dict[str, Any], agent: str, agent_config: dict[str, Any],
+          group: dict[str, Any] | None = None) -> Path:
+    """An isolated HOME holding only links to the listed entries of the home source.
+
+    `isolation.homeSource` (default: the real HOME) is where links point, for example a study home in
+    which only the AIEF adapters are installed; `isolation.homeLinks` apply to every run and the
+    group's own `homeLinks` (for example `.claude/skills` for governed runs) to that group only.
+    """
     home = run_dir / "home"
     home.mkdir(exist_ok=True)
-    real = Path.home()
-    for name in (environment.get("isolation") or {}).get("homeLinks", []):
-        if (real / name).exists() and not (home / name).exists():
-            (home / name).symlink_to(real / name)
+    isolation = environment.get("isolation") or {}
+    source = expand(isolation["homeSource"]) if isolation.get("homeSource") else Path.home()
+    for name in [*isolation.get("homeLinks", []), *(group or {}).get("homeLinks", [])]:
+        target = home / name
+        if (source / name).exists() and not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(source / name)
     if agent == "codex":
         codex = home / ".codex"
         codex.mkdir(exist_ok=True)
@@ -286,7 +299,7 @@ def _command(record: dict[str, Any], environment: dict[str, Any], run_dir: Path,
     if record["experimentalCondition"] == "L3" and record["factory"]["home"]:
         env["AI_FACTORY_HOME"] = record["factory"]["home"]
     if group.get("isolatedHome"):
-        home = _home(run_dir, environment, agent, config)
+        home = _home(run_dir, environment, agent, config, group)
         env["HOME"] = str(home)
         if agent == "codex":
             env["CODEX_HOME"] = str(home / ".codex")
