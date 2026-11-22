@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `check_leakage.py`: every custody write exports the new register head and `--anchor` checks heads recorded outside custody; unreadable custody files are `CUSTODY_ERROR`; the exception is authorized in the register by a listed reviewer account (`--authorize-exception --reviewers`) instead of an authorization file; `--verdict-only` requires the custody circuit.
 - `check_leakage.py` custody is fail-closed: attempt and exception logs are checked against a hash-chained reference register (`--task`, `--register`), created only with `--init-attempt-log`, and a missing, truncated or inconsistent log stops the check (`CUSTODY_ERROR`, exit 3). The single reviewer-approved exception check (`--exception-log`, `--exception-authorization`) records its result for the escalation reviewer only.
 - `check_leakage.py` flags code-shaped identifiers the oracle introduces (absent from the base repository and the `--allowed` issue text) and bounds revision cycles with `--attempt-log`/`--max-attempts`, answering ESCALATE beyond the limit (researcher decisions A1.4, A1.7).
 - The launcher charges its active budget as RC2 §9.4 defines active time: elapsed time since the first agent step minus the union of human-gate waits read from the execution record (researcher decision A9). Time between steps that is not a gate wait now counts; `run.yaml` records `activeSeconds` and `agentSeconds`.

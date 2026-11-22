@@ -59,10 +59,9 @@ def test_lines_present_at_the_base_revision_are_allowed(tmp_path: Path):
 
 def test_the_author_facing_verdict_names_no_oracle_file_or_line(tmp_path: Path, capsys):
     plan, gold, tests = files(tmp_path, f"# Plan\n1. Write {SECRET}\n")
-    assert tool.main(["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--verdict-only", "--json"]) == 1
-    output = json.loads(capsys.readouterr().out)
+    output = tool.verdict(tool.check([plan], [gold, tests]))
     assert output == {"verdict": "LEAK", "leak": True, "files": [{"file": str(plan), "treatmentLines": [2]}]}
-    assert tool.main(["--treatment", str(plan), "--forbidden", str(gold), "--verdict-only"]) == 1
+    assert tool.main(custody(tmp_path, plan, gold, tests, "--init-attempt-log")) == 1
     text = capsys.readouterr().out
     assert "gold" not in text and "hidden fix" not in text and "LEAK" in text
 
@@ -120,26 +119,67 @@ def test_a_missing_truncated_or_reset_log_stops_every_check(tmp_path: Path, caps
     assert tool.main(argv) == 3 and "register broken" in capsys.readouterr().err
 
 
-def test_the_exception_check_runs_once_on_authorized_files_and_tells_the_author_nothing(tmp_path: Path, capsys):
+def test_the_verdict_for_authors_cannot_bypass_the_custody_circuit(tmp_path: Path):
+    plan, gold, tests = files(tmp_path, "# Plan\n")
+    import pytest
+    with pytest.raises(SystemExit):
+        tool.main(["--treatment", str(plan), "--forbidden", str(gold), "--verdict-only"])
+
+
+def test_unreadable_custody_files_are_custody_errors(tmp_path: Path, capsys):
+    plan, gold, tests = files(tmp_path, "# Plan\nMake convert honour the unit.\n")
+    argv = custody(tmp_path, plan, gold, tests)
+    assert tool.main(argv + ["--init-attempt-log"]) == 0
+    root = tmp_path / "custody"
+    (root / "C01-attempts.json").write_text("{not json")
+    assert tool.main(argv) == 3 and "unreadable" in capsys.readouterr().err
+    (root / "register.json").write_text("{not json")
+    assert tool.main(argv) == 3 and "unreadable" in capsys.readouterr().err
+    (root / "register.json").write_text('{"a": 1}')
+    assert tool.main(argv) == 3 and "unexpected structure" in capsys.readouterr().err
+    (root / "register.json").write_bytes(b"\xff\xfe")
+    assert tool.main(argv) == 3
+
+
+def test_every_write_exports_the_head_and_the_anchor_detects_a_joint_reset(tmp_path: Path, capsys):
+    plan, gold, tests = files(tmp_path, "# Plan\nMake convert honour the unit.\n")
+    root = tmp_path / "custody"; anchor = tmp_path / "audit" / "anchor.txt"; anchor.parent.mkdir()
+    argv = custody(tmp_path, plan, gold, tests) + ["--anchor", str(anchor)]
+    anchor.write_text("")
+    assert tool.main(argv + ["--init-attempt-log"]) == 0
+    heads = [line for line in capsys.readouterr().err.splitlines() if line.startswith("REGISTER_HEAD")]
+    assert [h.split()[1:3] for h in heads] == [["C01", "init"], ["C01", "attempt"]]
+    anchor.write_text("\n".join(heads) + "\n")
+    plan.write_text("# Plan\nMake convert honour the unit argument.\n")
+    assert tool.main(argv) == 0
+    assert [l.split()[2] for l in capsys.readouterr().err.splitlines() if l.startswith("REGISTER_HEAD")] == ["attempt"]
+    (root / "register.json").unlink(); (root / "C01-attempts.json").unlink()  # joint reset
+    assert tool.main(argv + ["--init-attempt-log"]) == 3 and "anchor" in capsys.readouterr().err
+    assert tool.main(custody(tmp_path, plan, gold, tests) + ["--anchor", str(tmp_path / "none")]) == 3
+
+
+def test_the_exception_is_authorized_by_a_listed_reviewer_account_and_runs_once(tmp_path: Path, capsys, monkeypatch):
     plan, gold, tests = files(tmp_path, f"# Plan\n{SECRET}\n")
     root = tmp_path / "custody"
     assert tool.main(custody(tmp_path, plan, gold, tests, "--init-attempt-log")) == 1
-    head = tool.register_head(root / "register.json")
     plan.write_text("# Plan\nMake convert honour the unit.\n")
-    authorization = root / "C01-exception-authorization.json"
-    authorization.write_text(json.dumps({"task": "C01", "reviewer": "escalation-reviewer",
-                                         "treatment": {str(plan): tool._fingerprint([plan])[str(plan)]}}))
-    argv = ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--task", "C01",
-            "--register", str(root / "register.json"), "--exception-log", str(root / "C01-exception.json"),
-            "--exception-authorization", str(authorization)]
+    reviewers = root / "reviewers.json"; reviewers.write_text(json.dumps({"C01": ["reviewer-account"]}))
+    base = ["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--task", "C01",
+            "--register", str(root / "register.json")]
+    authorize = base + ["--authorize-exception", "--reviewers", str(reviewers)]
+    run = base + ["--exception-log", str(root / "C01-exception.json")]
+    assert tool.main(run) == 3  # nothing authorized yet
+    monkeypatch.setattr(tool.getpass, "getuser", lambda: "author-account")
+    assert tool.main(authorize) == 3 and "not an escalation reviewer" in capsys.readouterr().err
+    monkeypatch.setattr(tool.getpass, "getuser", lambda: "reviewer-account")
+    assert tool.main(authorize) == 0
+    assert tool.main(authorize) == 3  # one authorization per task
     capsys.readouterr()
-    assert tool.main(argv) == 0
+    assert tool.main(run) == 0
     out = capsys.readouterr().out
     assert "reviewer only" in out and "CLEAN" not in out and "LEAK" not in out
-    assert json.loads((root / "C01-exception.json").read_text())[0]["result"]["leak"] is False
-    assert tool.main(argv) == 3  # once only
-    plan.write_text("# Plan\nsomething else\n")
+    record = json.loads((root / "C01-exception.json").read_text())[0]
+    assert record["result"]["leak"] is False and record["issuer"] == "reviewer-account"
+    assert tool.main(run) == 3  # once only
     (root / "C01-exception.json").unlink()
-    assert tool.main(argv) == 3  # files differ from the authorization, and the register still records the use
-    chain = [e["hash"] for e in tool.read_register(root / "register.json")]
-    assert head in chain and chain[-1] != head  # the recorded head stays in the chain
+    assert tool.main(run) == 3  # the register still records the use

@@ -203,11 +203,20 @@ custody write is entered in a protected reference register, a hash chain over
 all tasks; a missing, truncated or inconsistent log, or a broken chain, gives
 CUSTODY_ERROR (exit status 3) and no check. A log is created only once per
 task, with `--init-attempt-log`. Record the register head outside the custody
-area so that a joint reset of a log and the register is detected. The single
-exception check approved by the escalation reviewer runs with
-`--exception-log` and `--exception-authorization`
-(`{task, reviewer, treatment: {file: sha256}}`), once per task, on exactly
-the authorized files; its result goes to the exception log only.
+area so that a joint reset of a log and the register is detected: every
+custody write prints `REGISTER_HEAD <task> <kind> <hash>` on stderr for export
+to that anchor, and `--anchor FILE` refuses to run when a head listed there is
+no longer in the chain. Unreadable or malformed custody files are custody
+errors. `--verdict-only` (author-facing) runs only with `--attempt-log`, so
+the attempt limit cannot be bypassed by a direct call.
+
+The single exception (protocol §5.4 b) is authorized by the escalation
+reviewer under their own account: `--authorize-exception --reviewers FILE`
+checks that the account is listed for the task in the protected reviewer list
+(`{task: [accounts]}`) and records the authorization (issuer, list hash, file
+hashes) in the register. The custodian then runs `--exception-log FILE` once
+per task on exactly the authorized files; its result goes to the exception log
+only, never to the output or exit status.
 
 ```bash
 python3 tools/experiment/check_leakage.py --treatment treatment/C01/*.md treatment/C01/*.yaml \
