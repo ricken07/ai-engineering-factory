@@ -14,7 +14,7 @@ Agents change. Models change. Developer tools change. Engineering rules should n
 
 ## Project status: Alpha
 
-The current Factory release is `1.1.0`. AIEF is functional within its current scope, while its versioned contracts (`apiVersion: aief.dev/v1alpha1`) and configuration surface may still evolve.
+The current Factory release is `1.15.0`. AIEF is functional within its current scope, while its versioned contracts (`apiVersion: aief.dev/v1alpha1`) and configuration surface may still evolve.
 
 ## Why AIEF?
 
@@ -124,7 +124,7 @@ The complete installation procedure, including adapter permissions and MCP activ
 **1. Select and clone a Factory release:**
 
 ```bash
-export AIEF_VERSION="1.1.0"
+export AIEF_VERSION="1.15.0"
 git clone <FACTORY_GIT_URL> "$HOME/.local/share/aief/$AIEF_VERSION"
 ```
 

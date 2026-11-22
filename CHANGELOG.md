@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0
+## 1.15.0
 
 - The experiment launcher enforces an active budget per run (`activeBudgetMinutes`, 120 by default): agent steps run with the remaining budget as timeout, waits on human gates do not count, and reaching it records `RESOURCE_LIMIT_REACHED`, mapped to `execution-failure` by `study_outcome.py`. `tests/test_gate_bound.py` derives the upper bound on human gate requests per run (10 requests, 9 waits for `implement-task`).
 - The CI checks that `uv.lock` matches `pyproject.toml` (`uv lock --check`) and installs with `uv sync --locked`.
