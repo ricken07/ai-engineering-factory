@@ -180,7 +180,9 @@ files live and compares every treatment file with the lines a gold or test
 patch adds and with oracle test files; lines already present in the
 repository at the base revision (`--base-dir`) are allowed. The report gives
 only counts and positions (treatment line, oracle file and line number), never
-the matching content; exit status 1 on any leak:
+the matching content; exit status 1 on any leak. The full report stays in the
+evaluator area; treatment authors only receive `--verdict-only` output (CLEAN
+or LEAK and treatment line numbers, no oracle file name or line):
 
 ```bash
 python3 tools/experiment/check_leakage.py --treatment treatment/C01/*.md treatment/C01/*.yaml \

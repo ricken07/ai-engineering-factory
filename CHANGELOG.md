@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `check_leakage.py --verdict-only` gives treatment authors the verdict and the treatment line numbers only.
 - Added study tools after the 1.15.0 freeze: `check_leakage.py` (treatment files against the hidden oracle, reporting counts and positions only) and the scorer skeletons `score_h2.py` (D_group with the missing-component rule), `score_h3.py` (E01–E12 evidence completeness, built-in verifiers for launcher-captured items) and `score_h4.py` (wall-clock, union of gate waits, active wall-clock). The Runtime is unchanged.
 
 ## 1.15.0

@@ -18,9 +18,12 @@ oracle content: the treatment may legitimately quote existing code.
 The report never repeats a forbidden line: it gives, per treatment file, the
 number of matches and their positions (treatment line, oracle file name and
 line number), so that whoever reads it learns where a leak is, not what the
-oracle contains. Exit status 1 when any treatment file matches.
+oracle contains. The full report stays in the evaluator area; treatment
+authors receive only `--verdict-only` output: CLEAN or LEAK and the treatment
+line numbers, without oracle file names or line numbers. Exit status 1 when
+any treatment file matches.
 
-Usage: check_leakage.py --treatment FILE... --forbidden FILE... [--base-dir DIR] [--min-length N] [--json]
+Usage: check_leakage.py --treatment FILE... --forbidden FILE... [--base-dir DIR] [--min-length N] [--verdict-only] [--json]
 """
 from __future__ import annotations
 
@@ -96,17 +99,32 @@ def check(treatments: list[Path], forbidden: list[Path], base_dir: Path | None =
             "files": files, "leak": any(item["matches"] for item in files)}
 
 
+def verdict(report: dict[str, Any]) -> dict[str, Any]:
+    """What a treatment author may see: no oracle file name, no oracle line number, no oracle size."""
+    return {"verdict": "LEAK" if report["leak"] else "CLEAN", "leak": report["leak"],
+            "files": [{"file": item["file"], "treatmentLines": sorted({p["treatmentLine"] for p in item["positions"]})}
+                      for item in report["files"]]}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--treatment", type=Path, nargs="+", required=True, help="treatment files to check")
     parser.add_argument("--forbidden", type=Path, nargs="+", required=True, help="oracle files (gold patch, test patch, tests)")
     parser.add_argument("--base-dir", type=Path, help="repository at the base revision: its lines are not oracle content")
     parser.add_argument("--min-length", type=int, default=DEFAULT_MIN_LENGTH)
+    parser.add_argument("--verdict-only", action="store_true",
+                        help="author-facing output: verdict and treatment line numbers only")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     report = check(args.treatment, args.forbidden, args.base_dir, args.min_length)
+    if args.verdict_only:
+        report = verdict(report)
     if args.json:
         print(json.dumps(report, indent=2))
+    elif args.verdict_only:
+        print(report["verdict"])
+        for item in report["files"]:
+            print(f"  {item['file']}: lines {item['treatmentLines'] or 'none'}")
     else:
         print(f"{'LEAK' if report['leak'] else 'CLEAN'}: {report['oracleLinesChecked']} oracle line(s) checked")
         for item in report["files"]:

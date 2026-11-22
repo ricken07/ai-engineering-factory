@@ -55,3 +55,13 @@ def test_lines_present_at_the_base_revision_are_allowed(tmp_path: Path):
     base = tmp_path / "repo"; base.mkdir(); (base / "docs.md").write_text("Example: assert convert(2, 'km') == 2000\nassert convert(2, 'km') == 2000\n")
     assert tool.check([plan], [tests])["leak"] is True
     assert tool.check([plan], [tests], base_dir=base)["leak"] is False
+
+
+def test_the_author_facing_verdict_names_no_oracle_file_or_line(tmp_path: Path, capsys):
+    plan, gold, tests = files(tmp_path, f"# Plan\n1. Write {SECRET}\n")
+    assert tool.main(["--treatment", str(plan), "--forbidden", str(gold), str(tests), "--verdict-only", "--json"]) == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output == {"verdict": "LEAK", "leak": True, "files": [{"file": str(plan), "treatmentLines": [2]}]}
+    assert tool.main(["--treatment", str(plan), "--forbidden", str(gold), "--verdict-only"]) == 1
+    text = capsys.readouterr().out
+    assert "gold" not in text and "hidden fix" not in text and "LEAK" in text
