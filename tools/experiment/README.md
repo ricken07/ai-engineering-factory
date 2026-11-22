@@ -172,3 +172,33 @@ at most 10 requests and 9 sequential waits for `implement-task` (8 and 7 for
 `fix-bug`), so the worst-case elapsed time of a run is 120 active minutes plus
 9 × 30 minutes of response limits.
 
+## Oracle-safe leakage check
+
+`check_leakage.py` checks that treatment files (L1 context, L2 plan and
+verification) carry no oracle content. It runs unattended where the oracle
+files live and compares every treatment file with the lines a gold or test
+patch adds and with oracle test files; lines already present in the
+repository at the base revision (`--base-dir`) are allowed. The report gives
+only counts and positions (treatment line, oracle file and line number), never
+the matching content; exit status 1 on any leak:
+
+```bash
+python3 tools/experiment/check_leakage.py --treatment treatment/C01/*.md treatment/C01/*.yaml \
+  --forbidden oracle/C01/gold.patch oracle/C01/test.patch --base-dir repos/xarray-at-base
+```
+
+## Scorers
+
+Condition-neutral scorers of the confirmatory endpoints (RC2 §9). They read
+the records the launcher collected and the independent evaluator's results;
+they never modify a run.
+
+| Tool | Endpoint | Input | Notes |
+|---|---|---|---|
+| `score_h2.py` | `D_group` per task–agent–condition block | evaluator results `{runId, task, agent, condition, evaluator: {status}, checks: {test: PASS\|FAIL\|UNAVAILABLE}}` and the frozen `FAIL_TO_PASS`/`PASS_TO_PASS` vector per task | an evaluator failure is `UNAVAILABLE`, never `FAIL`; the primary block score is `MISSING` when any component is unavailable; a secondary available-checks measure reports its denominator |
+| `score_h3.py` | VerifiedEvidenceCompleteness per run (E01–E12) | run directory, task evidence manifest, task-specific verifier observations | E01–E04 and E10–E12 verified from the launcher's execution-time capture; E05–E09 need the task manifest; evaluator-only results are never credited; any `UNAVAILABLE` item leaves the primary score unavailable |
+| `score_h4.py` | wall-clock duration per run, active wall-clock, gate waits | run directory (L3: collected `aief/execution.yaml`) | terminal boundary includes the `before-merge` decision or expiry; active wall-clock = elapsed − union of gate-wait intervals; `NOT_APPLICABLE` in L0–L2; unknown waits are never zero |
+
+The scorers are skeletons until the per-task manifests (H1 checks, H3
+evidence objects) are frozen with the treatment.
+

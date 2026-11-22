@@ -141,6 +141,9 @@ Rules the launcher holds:
   The launcher enforces the active budget of a run (agent time only; the clock
   stops while a human gate holds the run) and records `RESOURCE_LIMIT_REACHED`;
   `tests/test_gate_bound.py` bounds the human gate requests of one run.
+  `check_leakage.py` checks treatment files against the oracle without
+  revealing it, and `score_h2.py`, `score_h3.py` and `score_h4.py` compute
+  the H2–H4 endpoints from the collected records.
   `compare_payloads.py` compares the payload ledger of an L3 execution with
   the frozen L1/L2 treatment and checks that no forbidden content (oracle
   material, decision rationales) reached the agent.
