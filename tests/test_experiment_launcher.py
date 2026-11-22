@@ -214,9 +214,11 @@ def test_active_budget_counts_agent_steps_only_and_stops_at_the_limit(campaign, 
     first = launcher.start(run_dir)
     record = yaml.safe_load((run_dir / "run.yaml").read_text())
     assert first["exitCode"] == 0 and 1 <= record["activeSeconds"] < 3 and not record.get("resourceLimitReached")
-    # Time spent between steps (a human gate holding the run) is not active time.
-    import time; time.sleep(1.5)
-    assert launcher._remaining_budget(yaml.safe_load((run_dir / "run.yaml").read_text())) > 0.5
+    assert record["agentSeconds"] <= record["activeSeconds"] + 0.01
+    # RC2 §9.4: time between steps counts unless a human gate holds the run (no gate in L0).
+    import time; time.sleep(1.0)
+    record = yaml.safe_load((run_dir / "run.yaml").read_text())
+    assert launcher._remaining_budget(record, run_dir) < 3 - record["agentSeconds"] - 0.9
     monkeypatch.setenv("FAKE_AGENT_SECONDS", "10")
     second = launcher._invoke(run_dir, "producer", "continue", "go on", session=first["sessionId"])
     record = yaml.safe_load((run_dir / "run.yaml").read_text())
@@ -224,3 +226,23 @@ def test_active_budget_counts_agent_steps_only_and_stops_at_the_limit(campaign, 
     assert record["resourceLimitReached"] is True and record["status"] == "resource-limit-reached"
     with pytest.raises(launcher.LaunchError, match="RESOURCE_LIMIT_REACHED"):
         launcher._invoke(run_dir, "producer", "continue", "again")
+
+
+def test_active_time_is_elapsed_minus_the_union_of_gate_waits(tmp_path):
+    from datetime import datetime, timezone
+    run = tmp_path / "run"; root = run / "repo" / ".ai" / "runtime" / "executions" / "exec-1"; root.mkdir(parents=True)
+    record = {"steps": [{"startedAt": "2026-11-22T10:00:00+00:00", "endedAt": "2026-11-22T10:10:00+00:00"}]}
+    execution = {"gateDecisions": [
+        {"gate": "plan-gate", "waitStartedAt": "2026-11-22T10:10:00+00:00", "decidedAt": "2026-11-22T10:25:00+00:00"},
+        {"gate": "before-commit", "waitStartedAt": "2026-11-22T10:40:00+00:00", "decidedAt": "2026-11-22T10:45:00+00:00"},
+        {"gate": "before-submission", "waitStartedAt": "2026-11-22T10:42:00+00:00", "decidedAt": "2026-11-22T10:47:00+00:00"}],
+        "phases": [], "policyGates": [],
+        "integration": {"status": "awaiting-approval", "requestedAt": "2026-11-22T10:55:00+00:00"}}
+    (root / "execution.yaml").write_text(yaml.safe_dump(execution))
+    at = datetime(2026, 11, 22, 11, 0, tzinfo=timezone.utc)
+    # elapsed 60 min; waits 15 + 7 (overlap merged) + 5 (before-merge still waiting) = 27 min -> 33 min active
+    assert launcher._active_seconds(run, record, at) == 33 * 60
+    record["activeBudgetSeconds"] = 3600
+    assert launcher._gate_intervals(run, at)[-1][1] == at
+    # without a Runtime (L0-L2) every elapsed second is active
+    assert launcher._active_seconds(tmp_path / "l0", record, at) == 60 * 60

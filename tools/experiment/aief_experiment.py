@@ -240,7 +240,7 @@ def prepare(run_file: Path, environment_file: Path, output: Path, run_id: str | 
         "prompts": {"version": PROMPTS_SHA256},
         "treatment": descriptor["treatment"], "setup": setup, "baseCommit": base,
         "isolation": _isolation_mode(condition, agent_config),
-        # Active budget (RC2 §12.4): agent process time only; the clock stops while a human gate holds the run.
+        # Active budget (RC2 §9.4, §12.4): elapsed time since the first agent step minus the union of human-gate waits.
         "activeBudgetSeconds": round(float(environment.get("activeBudgetMinutes", DEFAULT_ACTIVE_BUDGET_MINUTES)) * 60, 3),
         "activeSeconds": 0.0,
         "steps": [],
@@ -329,10 +329,68 @@ def _session(agent: str, stdout: str) -> tuple[str | None, bool | None]:
     return None, None
 
 
-def _remaining_budget(record: dict[str, Any]) -> float:
-    """Seconds of active budget left: agent steps count, waits between steps (human gates) do not."""
+def _parse_time(value: Any) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value)) if value else None
+    except ValueError:
+        return None
+
+
+def _gate_intervals(run_dir: Path, at: datetime) -> list[tuple[datetime, datetime]]:
+    """Human-gate waits the Runtime recorded for the run's execution; a gate still waiting runs until `at`.
+
+    L0–L2 runs have no Runtime and therefore no gate wait."""
+    executions = _executions(run_dir / "repo")
+    if not executions:
+        return []
+    data = load_yaml(executions[-1])
+    intervals = []
+    for decision in data.get("gateDecisions") or []:
+        start, end = _parse_time(decision.get("waitStartedAt")), _parse_time(decision.get("decidedAt"))
+        if start and end:
+            intervals.append((start, end))
+    for phase in data.get("phases", []):
+        timing = phase.get("gateTiming") or {}
+        if phase.get("status") == "waiting-approval" and not timing.get("decidedAt") and not timing.get("closedAt"):
+            start = _parse_time(timing.get("blockedAt"))
+            if start:
+                intervals.append((start, at))
+    for gate in data.get("policyGates", []):
+        timing = gate.get("timing") or {}
+        if gate.get("status") == "pending" and timing.get("blockedAt") and not timing.get("decidedAt"):
+            intervals.append((_parse_time(timing["blockedAt"]), at))
+    integration = data.get("integration") or {}
+    if integration.get("status") == "awaiting-approval" and _parse_time(integration.get("requestedAt")):
+        intervals.append((_parse_time(integration["requestedAt"]), at))
+    return [(start, end) for start, end in intervals if start and end and end > start]
+
+
+def _active_seconds(run_dir: Path, record: dict[str, Any], at: datetime | None = None) -> float:
+    """Active wall-clock (RC2 §9.4): elapsed time since the first agent step minus the union of gate waits."""
+    steps = record.get("steps") or []
+    first = _parse_time(steps[0].get("startedAt")) if steps else None
+    if first is None:
+        return 0.0
+    at = at or datetime.now(timezone.utc)
+    merged: list[list[datetime]] = []
+    for start, end in sorted(_gate_intervals(run_dir, at)):
+        start, end = max(start, first), min(end, at)
+        if end <= start:
+            continue
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    waiting = sum((end - start).total_seconds() for start, end in merged)
+    return max(0.0, (at - first).total_seconds() - waiting)
+
+
+def _remaining_budget(record: dict[str, Any], run_dir: Path | None = None) -> float:
+    """Seconds of active budget left: elapsed time since the first step counts, human-gate waits do not."""
     budget = record.get("activeBudgetSeconds", DEFAULT_ACTIVE_BUDGET_MINUTES * 60)
-    return budget - sum(step.get("durationSeconds") or 0 for step in record.get("steps", []))
+    if run_dir is None:
+        return budget - sum(step.get("durationSeconds") or 0 for step in record.get("steps", []))
+    return budget - _active_seconds(run_dir, record)
 
 
 def _invoke(run_dir: Path, role: str, kind: str, prompt: str, session: str | None = None,
@@ -340,7 +398,7 @@ def _invoke(run_dir: Path, role: str, kind: str, prompt: str, session: str | Non
     record = load_yaml(run_dir / "run.yaml")
     if record.get("resourceLimitReached"):
         raise LaunchError("the run reached its active budget (RESOURCE_LIMIT_REACHED): it is finished, collect it")
-    remaining = _remaining_budget(record)
+    remaining = _remaining_budget(record, run_dir)
     if remaining <= 0:
         _limit_reached(run_dir)
         raise LaunchError("the run has no active budget left (RESOURCE_LIMIT_REACHED): collect it")
@@ -375,7 +433,8 @@ def _invoke(run_dir: Path, role: str, kind: str, prompt: str, session: str | Non
         step["resourceLimitReached"] = True
     current = load_yaml(run_dir / "run.yaml")
     current["steps"].append(step)
-    current["activeSeconds"] = round(sum(item.get("durationSeconds") or 0 for item in current["steps"]), 3)
+    current["agentSeconds"] = round(sum(item.get("durationSeconds") or 0 for item in current["steps"]), 3)
+    current["activeSeconds"] = round(_active_seconds(run_dir, current), 3)
     current["status"] = "running"
     write_yaml(run_dir / "run.yaml", current)
     if limit:

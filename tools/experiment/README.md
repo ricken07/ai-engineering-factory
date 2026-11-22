@@ -159,13 +159,19 @@ procedural and listed, not counted as a task fact. Each is
 ## Active budget
 
 Every run has an active budget (`activeBudgetMinutes` in the environment file,
-120 by default). Only agent process time counts: each agent step runs with the
-remaining budget as its timeout, and the time between steps, while a human gate
-holds the run, does not count. When the budget runs out, the agent process is
-stopped, the step and the run record `resourceLimitReached`, the run status is
-`resource-limit-reached`, and no further step starts. `RESOURCE_LIMIT_REACHED`
-is an outcome of a valid run (`study_outcome.py`: `execution-failure`), never
-an exclusion. `run.yaml` records `activeBudgetSeconds` and `activeSeconds`.
+120 by default). Active time follows RC2 §9.4: the time elapsed since the start
+of the first agent step minus the union of human-gate waiting intervals. The
+waits come from the Runtime's `execution.yaml` in L3 (recorded gate decisions,
+held phase and policy gates, `before-merge` awaiting approval); L0–L2 have no
+gate, so every elapsed second counts, including the time between steps. Each
+agent step runs with the remaining budget as its timeout. When the budget runs
+out, the agent process is stopped, the step and the run record
+`resourceLimitReached`, the run status is `resource-limit-reached`, and no
+further step starts. `RESOURCE_LIMIT_REACHED` is an outcome of a valid run
+(`study_outcome.py`: `execution-failure`), never an exclusion. `run.yaml`
+records `activeBudgetSeconds`, `activeSeconds` (RC2 active time) and
+`agentSeconds` (sum of agent process durations). Total wall-clock stays the
+primary H4 outcome (`score_h4.py`).
 
 The number of human gate requests of one run is bounded (`tests/test_gate_bound.py`):
 at most 10 requests and 9 sequential waits for `implement-task` (8 and 7 for
