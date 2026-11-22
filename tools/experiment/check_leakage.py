@@ -57,6 +57,14 @@ the process (effective uid), never a name taken from `LOGNAME` or `USER`. Unread
 custody errors, never crashes. `--verdict-only` (author-facing) runs only
 through the custody circuit, so the attempt limit cannot be bypassed.
 
+Repository-level L1 custody (protocol v2.3.1 §5.1, §5.5). The common L1 bundle
+of a repository uses its own circuit (`--task L1-<repository>`): one check
+compares the bundle with the union of the oracle files of every task of the
+repository (`--forbidden` lists them all), with `--base-dir` at the source
+revision R and no `--allowed` text, and yields a single verdict, never one per
+task or oracle. Each recorded attempt keeps the SHA-256 of the oracle files
+used, so that the check can be reproduced in custody.
+
 Exception check (§5.4 b). The escalation reviewer records the authorization
 under their own account: `--authorize-exception --reviewers FILE` checks that
 the effective account running it is listed for the task in the protected reviewer list
@@ -304,9 +312,13 @@ def attempts(log: Path, register: Path, task: str) -> list[dict[str, Any]]:
     return entries
 
 
-def record_attempt(log: Path, register: Path, task: str, treatments: list[Path], verdict_value: str) -> str:
+def record_attempt(log: Path, register: Path, task: str, treatments: list[Path], verdict_value: str,
+                   forbidden: list[Path] | None = None) -> str:
     entries = attempts(log, register, task)
-    entries.append({"at": _now(), "treatment": _fingerprint(treatments), "verdict": verdict_value})
+    entry = {"at": _now(), "treatment": _fingerprint(treatments), "verdict": verdict_value}
+    if forbidden:  # reproducibility: which oracle files were used (hashes only, custody-side)
+        entry["forbiddenSha256"] = sorted(_sha256(path) for path in forbidden)
+    entries.append(entry)
     _write_log(log, entries)
     return _append_register(register, {"task": task, "kind": "attempt", "log": log.name,
                                        "entries": len(entries), "logSha256": _sha256(log)})
@@ -395,7 +407,7 @@ def _custody_run(args: argparse.Namespace) -> dict[str, Any] | int:
     report = check(args.treatment, args.forbidden, args.base_dir, args.min_length, args.allowed)
     if not unchanged:
         record_attempt(args.attempt_log, args.register, args.task, args.treatment,
-                       "LEAK" if report["leak"] else "CLEAN")
+                       "LEAK" if report["leak"] else "CLEAN", args.forbidden)
     return report
 
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `tools/experiment/provenance_checklist.py`, a deterministic checklist of the paths, modules, symbols, commands and test targets a treatment names, classified as found, absent or unverifiable against the base repository and the issue text, with provenance columns left to the author. `check_leakage.py` records the SHA-256 of the oracle files used by each attempt and documents the repository-level L1 circuit.
 - `check_leakage.py`: the escalation reviewer is the process's effective account (effective uid), not `LOGNAME`/`USER`; `--anchor` is required with every custody option; custody operations are serialized by an inter-process lock on the register.
 - The launcher's isolated `HOME` can link from a study home (`isolation.homeSource`) and per group (`homeLinks` under `plain`/`governed`), so governed runs receive only the AIEF adapter skills of the frozen Factory and no entry of the operator's real home; `run.yaml` records the group links.
 - `check_leakage.py`: every custody write exports the new register head and `--anchor` checks heads recorded outside custody; unreadable custody files are `CUSTODY_ERROR`; the exception is authorized in the register by a listed reviewer account (`--authorize-exception --reviewers`) instead of an authorization file; `--verdict-only` requires the custody circuit.

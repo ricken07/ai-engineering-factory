@@ -234,6 +234,29 @@ python3 tools/experiment/check_leakage.py --treatment treatment/C01/*.md treatme
   --attempt-log custody/C01-attempts.json --verdict-only   # add --init-attempt-log on first use
 ```
 
+For the common L1 bundle of a repository, use one circuit per repository
+(`--task L1-<repository>`): `--forbidden` lists the oracle files of every task
+of the repository, `--base-dir` is the repository at the source revision R and
+no `--allowed` text is given; each check yields a single verdict, never one
+per task or oracle, and the attempt log keeps the SHA-256 of the oracle files
+used.
+
+## Provenance checklist
+
+`provenance_checklist.py` lists every file path, module, symbol (code spans),
+command and test target named in a treatment artifact (L1 bundle, L2 plan, L2
+verification) and classifies each against the author's allowed sources only:
+`found` (in the base repository given by `--base-dir`, or in the `--allowed`
+issue text), `absent`, or `unverifiable` (for example an attribute of an
+existing module, or an external command). It never reads an oracle and leaves
+the "authorized provenance" and "location" columns for the author, who removes
+entries without one (protocol v2.3.1 §5.2); existence is not provenance.
+
+```bash
+python3 tools/experiment/provenance_checklist.py --treatment treatment/C01/plan.md treatment/C01/verification.yaml \
+  --base-dir packets/C01/repo --allowed packets/C01/problem_statement.txt > treatment/C01/provenance-checklist.md
+```
+
 ## Scorers
 
 Condition-neutral scorers of the confirmatory endpoints (RC2 §9). They read

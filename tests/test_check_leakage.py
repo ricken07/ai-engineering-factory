@@ -211,3 +211,22 @@ def test_concurrent_custody_jobs_never_lose_register_entries(tmp_path: Path):
     assert [job.wait() for job in jobs] == [0] * 8
     entries = tool.read_register(root / "register.json")  # chain intact
     assert len(entries) == 16 and {e["task"] for e in entries} == {f"C0{i}" for i in range(1, 9)}
+
+
+def test_the_repository_l1_circuit_gives_one_verdict_against_the_union_of_the_task_oracles(tmp_path: Path, capsys):
+    oracle1 = tmp_path / "oracle1"; oracle1.mkdir(); oracle2 = tmp_path / "oracle2"; oracle2.mkdir()
+    (oracle1 / "gold.patch").write_text(GOLD_PATCH)
+    (oracle2 / "gold.patch").write_text("diff --git a/pkg/io.py b/pkg/io.py\n--- a/pkg/io.py\n+++ b/pkg/io.py\n"
+                                         "@@ -1 +1 @@\n+    return open(path, encoding='utf-8')  # second fix\n")
+    base = tmp_path / "repo-at-R"; base.mkdir(); (base / "README.md").write_text("Units and io helpers.\n")
+    bundle = tmp_path / "l1"; bundle.mkdir(); context = bundle / "context.md"
+    context.write_text("# Context\nreturn open(path, encoding='utf-8')  # second fix\n")
+    root = tmp_path / "custody"; anchor = tmp_path / "anchor.txt"; anchor.write_text("")
+    argv = ["--treatment", str(context), "--forbidden", str(oracle1 / "gold.patch"), str(oracle2 / "gold.patch"),
+            "--base-dir", str(base), "--task", "L1-pkg", "--register", str(root / "register.json"),
+            "--anchor", str(anchor), "--attempt-log", str(root / "attempts" / "L1-pkg.json"), "--verdict-only", "--json"]
+    assert tool.main(argv + ["--init-attempt-log"]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out == {"verdict": "LEAK", "leak": True, "files": [{"file": str(context), "treatmentLines": [2]}]}  # no task named
+    entry = json.loads((root / "attempts" / "L1-pkg.json").read_text())[0]
+    assert len(entry["forbiddenSha256"]) == 2 and "second fix" not in json.dumps(entry)
