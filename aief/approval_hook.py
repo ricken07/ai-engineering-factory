@@ -383,3 +383,100 @@ def install(project_root: Path, agent: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     return path
+
+
+TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+
+
+def _deadlines(execution: Any) -> dict[str, str]:
+    from . import gate_protocol
+    protocol = gate_protocol.of_execution(execution.data)
+    result = {}
+    for held in gate_protocol.holding_gates(execution.data):
+        moment = gate_protocol.deadline(held, protocol)
+        if moment is not None:
+            result[held["gate"]] = moment.isoformat()
+    return result
+
+
+def pending_actions(service: Any) -> list[dict[str, Any]]:
+    """Every decision or action the executions of the project wait for from a
+    human, with the commands that perform it: gates to approve, plans to
+    approve or revise, the integration to approve, review findings to decide,
+    questions to answer, other blocks and leases to hand off.
+
+    Looking at the gates applies a response limit that has passed, as
+    `gate-check` does, so an expired gate is never listed as waiting."""
+    from .concurrency import ExecutionLease
+    from .project import runtime_root
+    root = runtime_root(service.project_root, service.project) / "executions"
+    identifiers = [path.parent.name for path in sorted(root.glob("*/execution.yaml"))] if root.is_dir() else []
+    for identifier in identifiers:
+        service._expire_late_gates(service.execution(identifier))
+    actions: list[dict[str, Any]] = []
+    plans = set(plans_awaiting(service))
+    deadlines = {identifier: _deadlines(service.execution(identifier)) for identifier in identifiers}
+    for item in awaited_approvals(service):
+        identifier, gate = item["execution"], item["gate"]
+        reject = f"aief execution reject {identifier} --reason <rationale>" + ("" if item["kind"] == "phase" else f" --gate {gate}")
+        approve = (f"aief execution approve {identifier}" if item["kind"] == "phase"
+                   else f"aief execution approve-policy {identifier} {gate}")
+        entry = {"execution": identifier, "gate": gate, "deadline": deadlines[identifier].get(gate)}
+        if identifier in plans and item["kind"] == "phase":
+            entry.update(kind="plan", detail="The plan waits for your decision.",
+                         session=[f"/approve {identifier} {gate}", f"/revise {identifier} <changes>"],
+                         terminal=[approve, f"aief execution revise-plan {identifier} --feedback <changes>", reject])
+        elif gate == "before-merge" and service.execution(identifier).data["status"] == "completed":
+            entry.update(kind="merge", detail="The completed execution waits for its integration into the base branch.",
+                         session=[f"/approve {identifier} {gate}"], terminal=[approve, reject])
+        else:
+            entry.update(kind="approval", detail=f"The {'phase' if item['kind'] == 'phase' else 'policy'} gate waits for your approval.",
+                         session=[f"/approve {identifier} {gate}"], terminal=[approve, reject])
+        actions.append(entry)
+    waivable = waivable_executions(service)
+    for identifier in waivable:
+        name, lines = pending_findings(service, identifier)
+        if not lines:
+            continue
+        actions.append({"execution": identifier, "kind": "findings",
+                        "detail": f"Blocking findings of review {name} wait for your decision:\n" + "\n".join(lines),
+                        "session": [f"/waive {identifier} <finding-number> <justification>"],
+                        "terminal": [f"aief execution waive-finding {identifier} <finding-number> --reason <justification>"]})
+    for identifier in identifiers:
+        execution = service.execution(identifier)
+        phase = execution.next_phase()
+        recovery = (phase or {}).get("recovery") or {}
+        if execution.data["status"] == "blocked" and recovery.get("status") == "waiting-user":
+            actions.append({"execution": identifier, "kind": "question",
+                            "detail": f"The agent asks: {recovery.get('question')}",
+                            "session": ["answer the question in the agent session"],
+                            "terminal": [f"aief execution inspect {identifier}"]})
+        elif execution.data["status"] == "blocked" and identifier not in waivable:
+            reason = execution.data.get("blockingReason") or {}
+            actions.append({"execution": identifier, "kind": "blocked",
+                            "detail": f"The execution is blocked: {reason.get('type', 'unknown reason')}."
+                                      + (f" {reason['message']}" if reason.get("message") else ""),
+                            "session": [], "terminal": [f"aief execution inspect {identifier}"]})
+        lease = ExecutionLease(execution.root).active()
+        if lease and execution.data["status"] not in TERMINAL_STATUSES:
+            actions.append({"execution": identifier, "kind": "lease", "owner": lease["owner"], "expiresAt": lease["expiresAt"],
+                            "detail": f"Leased by {lease['owner']}. Once that session has stopped, hand the execution off: "
+                                      "another session can then take it, and an independent review requires it.",
+                            "session": [], "terminal": [f"aief execution handoff {identifier} --owner {lease['owner']}"]})
+    return actions
+
+
+def render_pending(actions: list[dict[str, Any]]) -> str:
+    """The pending actions as text for the human."""
+    if not actions:
+        return "Nothing waits for a human in this project.\n"
+    blocks = []
+    for action in actions:
+        head = f"{action['execution']}  {action['kind']}" + (f"  {action['gate']}" if action.get("gate") else "")
+        if action.get("deadline"):
+            head += f"  (expires {action['deadline']})"
+        lines = [head, *("  " + line for line in action["detail"].splitlines())]
+        lines += [f"  session:  {command}" for command in action["session"]]
+        lines += [f"  terminal: {command}" for command in action["terminal"]]
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks) + "\n"

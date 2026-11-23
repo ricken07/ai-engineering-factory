@@ -90,6 +90,7 @@ def parser() -> argparse.ArgumentParser:
     cancel=execution_sub.add_parser("cancel"); cancel.add_argument("id"); cancel.add_argument("--reason",required=True); cancel.add_argument("--owner"); cancel.add_argument("--project",default="."); cancel.add_argument("--factory",default=None); cancel.add_argument("--json",action="store_true")
     ask_user=execution_sub.add_parser("ask-user"); ask_user.add_argument("id"); ask_user.add_argument("--question",required=True); ask_user.add_argument("--requires-authority",action="store_true"); ask_user.add_argument("--owner"); ask_user.add_argument("--project",default="."); ask_user.add_argument("--factory",default=None); ask_user.add_argument("--json",action="store_true")
     answer_question=execution_sub.add_parser("answer-question"); answer_question.add_argument("id"); answer_question.add_argument("--answer",required=True); answer_question.add_argument("--owner"); answer_question.add_argument("--project",default="."); answer_question.add_argument("--factory",default=None); answer_question.add_argument("--json",action="store_true")
+    pending=execution_sub.add_parser("pending"); pending.add_argument("--project",default="."); pending.add_argument("--factory",default=None); pending.add_argument("--json",action="store_true")
     lease=execution_sub.add_parser("lease"); lease.add_argument("action",choices=["acquire","renew","release","status"]); lease.add_argument("id"); lease.add_argument("--owner"); lease.add_argument("--ttl",type=int,default=300); lease.add_argument("--project",default="."); lease.add_argument("--factory",default=None); lease.add_argument("--json",action="store_true")
     check_proposal=execution_sub.add_parser("check-proposal"); check_proposal.add_argument("id"); check_proposal.add_argument("--output",required=True); check_proposal.add_argument("--owner"); check_proposal.add_argument("--project",default="."); check_proposal.add_argument("--factory",default=None); check_proposal.add_argument("--json",action="store_true")
     profile_validation=execution_sub.add_parser("profile-validation"); profile_validation.add_argument("id"); profile_validation.add_argument("--project",default="."); profile_validation.add_argument("--factory",default=None); profile_validation.add_argument("--execute",action="store_true"); profile_validation.add_argument("--owner"); profile_validation.add_argument("--json",action="store_true")
@@ -210,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         else: raise ValueError(f"unknown backlog command: {args.backlog_command}")
         print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
     if args.command == "execution":
-        service=RuntimeService(Path(args.project),Path(args.factory)); execution=service.execution(args.id)
+        service=RuntimeService(Path(args.project),Path(args.factory)); execution=service.execution(args.id) if hasattr(args,"id") else None
         if args.execution_command=="engineering-context":
             data=service.engineering_context(args.id,args.repository)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
@@ -247,6 +248,12 @@ def main(argv: list[str] | None = None) -> int:
             data=service.lease(args.id,args.action,args.owner,args.ttl)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0
         if args.execution_command=="handoff": service.handoff_execution(args.id,args.owner)
+        if args.execution_command=="pending":
+            from .approval_hook import pending_actions, render_pending
+            actions=pending_actions(service)
+            if args.json: print(json.dumps(actions,indent=2,ensure_ascii=False))
+            else: sys.stdout.write(render_pending(actions))
+            return 0
         if args.execution_command=="gate-check":
             data=service.gate_check(args.id)
             print(json.dumps(data,indent=2,ensure_ascii=False) if args.json else yaml.safe_dump(data,sort_keys=False,allow_unicode=True)); return 0

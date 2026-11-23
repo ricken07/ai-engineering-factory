@@ -34,6 +34,46 @@ agent session, or `aief execution revise-plan` in your own terminal (see
 The risk level decides **which** gates require a human. It never decides
 **how** the approval may reach the Runtime: that is always `OBSERVED`.
 
+## What waits for you
+
+One command lists, for every Execution of the project, what waits for a
+human and the exact commands that perform it:
+
+```bash
+aief execution pending --project .          # add --json for tools
+```
+
+```text
+20261123T111731Z-2940c3d3  plan  plan-gate  (expires 2026-11-23T12:17:31+00:00)
+  The plan waits for your decision.
+  session:  /approve 20261123T111731Z-2940c3d3 plan-gate
+  session:  /revise 20261123T111731Z-2940c3d3 <changes>
+  terminal: aief execution approve 20261123T111731Z-2940c3d3
+  terminal: aief execution revise-plan 20261123T111731Z-2940c3d3 --feedback <changes>
+  terminal: aief execution reject 20261123T111731Z-2940c3d3 --reason <rationale>
+```
+
+| Kind | What waits | Commands listed |
+|---|---|---|
+| `plan` | a plan at its gate | `/approve`, `/revise`, `approve`, `revise-plan`, `reject` |
+| `approval` | a phase gate or a policy gate | `/approve`, `approve` or `approve-policy`, `reject` |
+| `merge` | a completed Execution waiting for its integration (`before-merge`) | `/approve`, `approve-policy`, `reject` |
+| `findings` | blocking review findings waiting for a decision, numbered | `/waive`, `waive-finding` |
+| `question` | a question the agent asked (`ask-user`) | answer in the agent session |
+| `blocked` | any other block, with its reason | `inspect` |
+| `lease` | a lease still held by an agent session | `handoff --owner <lease owner>` |
+
+The command reads the same state as the approval hook: when it lists a single
+`plan`, `approval` or `merge` item, `/approve` without arguments approves
+that one. Like
+`gate-check`, it applies a response limit that has passed: an expired gate is
+recorded as expired, never listed as waiting.
+
+A `lease` line does not mean anything is wrong: an agent holds the lease while
+it works. Hand the Execution off only once that session has stopped; another
+session can then take it, and an independent review requires that handoff (see
+[19 — Idempotence & Execution Leases](19-idempotence-execution-leases.md#claude-to-codex-handoff)).
+
 ## Why the channel matters
 
 An agent runs the Runtime commands of the Execution. If you write "I approve"
@@ -499,8 +539,8 @@ alter a running execution. The Runtime applies it as follows:
   requests the integration (`integration.requestedAt`), even when the policy
   required the gate earlier. Time does not trigger the Runtime by itself: the
   first command that looks at the gate after the deadline applies the expiry
-  (`execution next`, `gate-check`, `approve`, `approve-policy`, `reject` or
-  `revise-plan`).
+  (`execution next`, `gate-check`, `pending`, `approve`, `approve-policy`,
+  `reject` or `revise-plan`).
   That command dates the expiry at the deadline, records it, emits
   `gate.expired` and cancels the execution; for `before-merge` the execution
   stays `completed` and its integration becomes `expired`. A decision that

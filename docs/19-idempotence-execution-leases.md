@@ -63,6 +63,10 @@ aief execution handoff <execution-id> --owner claude-code:session-7
 aief execution lease acquire <execution-id> --owner codex:session-42
 ```
 
+`aief execution pending --project .` lists every lease still held in the
+project, with the exact `handoff` command for its owner (see
+[34 — What waits for you](34-human-approval.md#what-waits-for-you)).
+
 Conversation state is never used to establish ownership or decide whether an operation already completed.
 
 Changing agent or worktree path does not move state: the receiver resolves the
