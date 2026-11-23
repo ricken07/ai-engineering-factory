@@ -56,10 +56,12 @@ conversation: a new session, or another agent, resumes from the persisted state
 The reference process. The other actions are described by what they remove or
 change.
 
-The example is a task `PROJ-142` of medium risk, at an autonomy that lets the
-agent modify files in the execution workspace. The diagram separates the three
-domains: the **coding agent harness** that hosts the agent, the **coding agent**
-(the model) and **AIEF**.
+The example is a task `PROJ-142` of medium risk, run at autonomy **L3**: the
+agent modifies files in the execution workspace and may submit the change (see
+[Autonomy](#autonomy)). A project created from the Factory template starts at
+L1 and follows [the proposal variant](#variant-a-proposal-below-l2) instead.
+The diagram separates the three domains: the **coding agent harness** that
+hosts the agent, the **coding agent** (the model) and **AIEF**.
 
 ```mermaid
 sequenceDiagram
@@ -115,6 +117,7 @@ sequenceDiagram
     RV->>RT: review: complete-phase with decision approved
     RT->>RT: independence INDEPENDENT, no blocking finding
 
+    Note over RV,RT: No rule binds the phases after the review to a session.<br/>Here the session that holds the lease continues.
     loop summary, traceability
         RV->>RT: execution next, then complete-phase
     end
@@ -139,15 +142,44 @@ What each step relies on:
 | planning | read-only | the agent writes the plan and its acceptance criteria; the human decides at `plan-gate` | implementation plan |
 | implementation | change | the agent modifies the execution workspace | changes |
 | validation | validation | the Runtime runs the validation commands of the profiles and records the evidence | validation report |
-| review | validation | another session reviews, after the producer's handoff | review report |
-| summary | read-only | the agent | change summary |
-| traceability | external-action | the agent records the chain from task to review; with a local task tracking, it only writes `.ai/runtime` | traceability |
-| submission | external-action | the agent submits; the Runtime refuses unless the evidence chain is complete | change request |
+| review | validation | another session reviews, after the producer's handoff; independence compares the producer of the implementation with the reviewer of the review | review report |
+| summary | read-only | the session that holds the lease | change summary |
+| traceability | external-action | the session that holds the lease records the chain from task to review; with a local task tracking, it only writes `.ai/runtime` | traceability |
+| submission | external-action | the session that holds the lease submits; the Runtime refuses unless the evidence chain is complete | change request |
 | integration | — | the human approves `before-merge`; the Runtime merges | the merge |
 
 A human gate is passed only by a decision the Runtime observed: see
 [34 — Human Approval](34-human-approval.md). `aief execution pending` lists
 what waits for you and the commands to use.
+
+### Autonomy
+
+The autonomy decides what the agent may do (`core/policies/autonomy-policy.yaml`).
+The effective autonomy is the lowest of the one requested and the cap of the
+effective risk:
+
+| Level | Actions allowed |
+|---|---|
+| L0 | read, inspect, search, explain |
+| L1 | analyze, plan and **propose-change** |
+| L2 | **modify-local-files**, run-validation, review |
+| L3 | commit, push, **submit-change**, create, link and update tasks |
+| L4 | merge-authorized-intermediate |
+
+| Risk | Maximum autonomy |
+|---|---|
+| critical | L1 |
+| high | L2 |
+| medium | L3 |
+| low | L4 |
+
+Three consequences for the processes below:
+
+- the project template sets `autonomy.default: L1`: unless a project raises it,
+  an implementation follows the proposal variant;
+- a critical change always follows it, whatever the project asks;
+- `submit-change` is allowed from L3: at high risk, capped at L2, the policy
+  does not allow the agent to submit.
 
 ### Gates by risk
 
@@ -168,7 +200,9 @@ never goes down ([20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevalu
 ### Variant: a proposal below L2
 
 When the effective autonomy denies `modify-local-files` but allows
-`propose-change` (L1), the agent never touches the workspace. It writes its
+`propose-change` (L1), the agent never touches the workspace. This is the
+default of a project created from the template, and the only mode of a
+critical change. It writes its
 change as patches, and a human applies them through a gate
 ([05 — Proposed changes](05-policy-resolution.md#proposed-changes)).
 
