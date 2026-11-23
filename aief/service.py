@@ -414,6 +414,11 @@ class RuntimeService:
             phase_observations = observations or output.get("details", {}).get("impact", output.get("details", {}))
             self.reassess_policy(execution,phase_observations,completed_skill)
         if completed_skill == "submit-change" and output.get("status") == "completed":
+            # The submission is an action of the governed plan: a plan that
+            # denies `submit-change` (autonomy below L3) refuses its completion.
+            plan_name = execution.data.get("governedExecutionPlan")
+            if plan_name and (execution.root / plan_name).is_file():
+                assert_action_authorized(load_yaml(execution.root / plan_name), "submit-change")
             points = [load_yaml(execution.root / name) for name in execution.data.get("enforcementPoints", []) if (execution.root / name).is_file()]
             assert_required_enforcement(points)
             gaps = submission_evidence_gaps(execution.root)

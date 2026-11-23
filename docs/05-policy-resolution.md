@@ -83,6 +83,8 @@ Denied actions are additive and override allowed actions.
 ### Allowed actions
 An action is executable only when it is within the effective autonomy level, required capability is available, and no applicable policy denies it.
 
+The Runtime enforces two of these denials itself: it refuses an implementation phase when the plan allows neither `modify-local-files` nor `propose-change`, and it refuses to complete a `submission` phase when the plan denies `submit-change` (autonomy below L3).
+
 ### Proposed changes
 
 When the governed plan denies `modify-local-files` but allows

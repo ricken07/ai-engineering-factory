@@ -178,13 +178,10 @@ Three consequences for the processes below:
 - the project template sets `autonomy.default: L1`: unless a project raises it,
   an implementation follows the proposal variant;
 - a critical change always follows it, whatever the project asks;
-- `submit-change` is allowed from L3: at high risk, capped at L2, the policy
-  denies it. The Runtime does not check that denial when the `submission`
-  phase completes: it checks the required enforcement points and the evidence
-  chain. What stands between the agent and an unwanted submission is the human
-  gates the policy requires (`before-commit`, `before-submission` and
-  `before-merge` at high risk) and the permissions of the coding agent harness
-  ([34 — Human Approval](34-human-approval.md#coding-agent-harness-permissions-defense-in-depth)).
+- `submit-change` is allowed from L3: at high risk, capped at L2, the governed
+  plan denies it and the Runtime refuses to complete the `submission` phase
+  (`action is denied by governed execution plan: submit-change`). The change
+  stays reviewed and validated; its submission is left to the human.
 
 ### Gates by risk
 
