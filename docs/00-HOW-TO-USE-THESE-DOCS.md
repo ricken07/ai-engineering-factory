@@ -1,10 +1,10 @@
 # How to Use AIEF Documentation
 
-This guide helps you navigate the 34 reference documents efficiently based on your role and current task.
+This guide helps you navigate the 35 reference documents efficiently based on your role and current task.
 
 ## The Documentation Philosophy
 
-AIEF's documentation is organized by **task and audience**, not by file number. The file numbers (00–33) reflect historical development order and are kept for stable references. Use them only if directly linked or cited.
+AIEF's documentation is organized by **task and audience**, not by file number. The file numbers (00–35) reflect historical development order and are kept for stable references. Use them only if directly linked or cited.
 
 **Your entry point is always one of these:**
 1. The **README** for the 30-second pitch and quick start
@@ -70,6 +70,7 @@ AIEF's documentation is organized by **task and audience**, not by file number. 
 | Test AIEF or an adapter | [Evaluation Harness](33-evaluation-harness.md) | [Runtime Conformance](33-evaluation-harness.md) |
 | Understand task dependencies | [Task Ordering & Readiness](31-task-ordering-and-readiness.md) | [Task Lifecycle](11-lifecycle.md) |
 | Approve a gate | [Human Approval](34-human-approval.md) | [Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md) |
+| Know what an action runs and where a human decides | [Workflow Execution Processes](35-workflow-execution-processes.md) | [Task Lifecycle](11-lifecycle.md) |
 | Look up a term | [Glossary](12-glossary.md) | (Usually enough) |
 
 ### 3. By Category (Browse the organized topics)

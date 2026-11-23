@@ -105,6 +105,7 @@ This is the authoritative documentation structure for AIEF. Use this index to na
 | [10 — Security Baseline](10-security.md) | Security principles, least privilege, no secrets in prompts, destructive operations, critical changes, permission templates | Security, operators |
 | [20 — Dynamic Policy Re-evaluation](20-dynamic-policy-reevaluation.md) | Policies re-evaluated after impact analysis and planning. Monotonic risk/scope. Escalation audit trail. | Governance, operators |
 | [34 — Human Approval](34-human-approval.md) | Approving gates with `/approve` in the agent session (harness hook) or in a terminal; decisions on review findings (`/waive`); every approval must be `OBSERVED`; coding agent harness permission rules. | Developers, governance, operators |
+| [35 — Workflow Execution Processes](35-workflow-execution-processes.md) | Nominal execution of each base action (`/implement`, `/fix`, `/refactor`, `/test`, `/document`, `/review`, `/analyze`, `/promote`): phases, gates by risk, interaction diagrams across AIEF, the coding agent and its harness. | Developers, operators, adapter developers |
 
 **What you'll learn:**
 - How to declare policies at Factory, project, repository or task level

@@ -53,3 +53,6 @@ an Execution has a `WorkspaceBinding` to a checkout or worktree. Handoff changes
 session ownership, not Task/Execution identity or workspace binding. A missing
 recorded workspace blocks resume; it is never replaced by the caller's current
 directory.
+
+The process of each base action, with its phases, gates and interaction diagrams, is in
+[35 — Workflow Execution Processes](35-workflow-execution-processes.md).
